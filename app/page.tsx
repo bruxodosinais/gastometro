@@ -1,65 +1,203 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { AlertTriangle, Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { getExpenses, seedIfEmpty } from '@/lib/storage';
+import {
+  calculateTotal,
+  formatCurrency,
+  getCategoryAlerts,
+  getMonthKey,
+  getMonthLabel,
+  groupByMonth,
+} from '@/lib/calculations';
+import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { CategorySummary, Expense } from '@/lib/types';
+
+export default function HomePage() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    seedIfEmpty();
+    setExpenses(getExpenses());
+    setReady(true);
+  }, []);
+
+  if (!ready) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
       </main>
-    </div>
+    );
+  }
+
+  const now = new Date();
+  const currentMonth = getMonthKey(now);
+  const monthLabel = getMonthLabel(currentMonth);
+
+  const grouped = groupByMonth(expenses);
+  const currentExpenses = grouped[currentMonth] ?? [];
+  const currentTotal = calculateTotal(currentExpenses);
+
+  const prevMonths = Object.keys(grouped).filter((m) => m < currentMonth).sort();
+  const prevAverage =
+    prevMonths.length > 0
+      ? prevMonths.reduce((sum, m) => sum + calculateTotal(grouped[m] ?? []), 0) /
+        prevMonths.length
+      : 0;
+
+  const alerts: CategorySummary[] = getCategoryAlerts(expenses, currentMonth).filter(
+    (a) => a.isAlert
+  );
+
+  const recent = [...currentExpenses]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  const diff = prevAverage > 0 ? ((currentTotal - prevAverage) / prevAverage) * 100 : 0;
+
+  return (
+    <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">GastôMetro</h1>
+          <p className="text-slate-400 text-sm capitalize">{monthLabel}</p>
+        </div>
+        <div className="w-11 h-11 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-xl">
+          📊
+        </div>
+      </div>
+
+      {/* Card total do mês */}
+      <div className="bg-slate-900 rounded-2xl p-5 mb-4 border border-slate-800">
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">
+          Total do mês
+        </p>
+        <p className="text-4xl font-bold text-white mb-3">{formatCurrency(currentTotal)}</p>
+
+        {prevAverage > 0 && (
+          <div className="flex items-center gap-2">
+            {diff > 10 ? (
+              <TrendingUp size={14} className="text-red-400" />
+            ) : diff < -10 ? (
+              <TrendingDown size={14} className="text-green-400" />
+            ) : null}
+            <p className="text-slate-500 text-sm">
+              Média mensal:{' '}
+              <span className="text-slate-300">{formatCurrency(prevAverage)}</span>
+              {Math.abs(diff) > 5 && (
+                <span
+                  className={`ml-2 text-xs font-semibold ${diff > 0 ? 'text-red-400' : 'text-green-400'}`}
+                >
+                  {diff > 0 ? '+' : ''}
+                  {Math.round(diff)}%
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {prevAverage > 0 && (
+          <div className="mt-3">
+            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  diff > 20 ? 'bg-red-500' : diff > 0 ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min((currentTotal / (prevAverage * 1.5)) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Alertas de desperdício */}
+      {alerts.length > 0 && (
+        <section className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={15} className="text-amber-400" />
+            <h2 className="text-slate-200 font-semibold text-sm">Alertas de Desperdício</h2>
+          </div>
+          <div className="space-y-2">
+            {alerts.map((alert) => {
+              const cfg = CATEGORY_CONFIG[alert.category];
+              return (
+                <div
+                  key={alert.category}
+                  className={`rounded-xl p-4 border ${cfg.bgClass} ${cfg.borderClass}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{cfg.icon}</span>
+                      <span className="text-white font-medium text-sm">{alert.category}</span>
+                    </div>
+                    <span className="text-red-400 font-bold text-sm">
+                      +{Math.round(alert.percentChange)}%
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs">
+                    {formatCurrency(alert.total)} gasto · média:{' '}
+                    {formatCurrency(alert.average)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Últimos lançamentos */}
+      <section>
+        <h2 className="text-slate-200 font-semibold text-sm mb-2">Últimos Lançamentos</h2>
+        {recent.length === 0 ? (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+            <p className="text-slate-500 text-sm">Nenhum gasto lançado este mês</p>
+            <Link href="/lancamentos" className="text-violet-400 text-sm mt-2 inline-block">
+              Lançar agora →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recent.map((exp) => {
+              const cfg = CATEGORY_CONFIG[exp.category];
+              const day = exp.date.slice(8, 10);
+              const month = exp.date.slice(5, 7);
+              return (
+                <div
+                  key={exp.id}
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3"
+                >
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}
+                  >
+                    {cfg.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{exp.description}</p>
+                    <p className="text-slate-500 text-xs">
+                      {exp.category} · {day}/{month}
+                    </p>
+                  </div>
+                  <span className="text-white font-semibold text-sm whitespace-nowrap">
+                    {formatCurrency(exp.value)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Botão flutuante */}
+      <Link
+        href="/lancamentos"
+        className="fixed bottom-20 right-4 w-14 h-14 bg-violet-600 hover:bg-violet-500 rounded-full flex items-center justify-center shadow-xl shadow-violet-900/60 transition-colors z-40"
+      >
+        <Plus size={26} className="text-white" />
+      </Link>
+    </main>
   );
 }
