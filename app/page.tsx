@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Plus, TrendingDown, TrendingUp } from 'lucide-react';
-import { getExpenses, seedIfEmpty } from '@/lib/storage';
+import { getExpenses } from '@/lib/storage';
 import {
   calculateTotal,
   formatCurrency,
@@ -20,7 +20,6 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    seedIfEmpty();
     setExpenses(getExpenses());
     setReady(true);
   }, []);
