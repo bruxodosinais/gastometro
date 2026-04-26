@@ -6,13 +6,15 @@ import { getExpenses } from '@/lib/storage';
 import {
   formatCurrency,
   getCategoryAlerts,
-  getMonthKey,
   getMonthLabel,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { usePeriod } from '@/lib/periodContext';
+import PeriodSelector from '@/components/PeriodSelector';
 import { CategorySummary, Expense } from '@/lib/types';
 
 export default function CategoriasPage() {
+  const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -31,17 +33,15 @@ export default function CategoriasPage() {
     );
   }
 
-  const now = new Date();
-  const currentMonth = getMonthKey(now);
-  const monthLabel = getMonthLabel(currentMonth);
-
-  const summaries: CategorySummary[] = getCategoryAlerts(expenses, currentMonth);
+  const summaries: CategorySummary[] = getCategoryAlerts(expenses, period);
   const maxTotal = Math.max(...summaries.map((s) => Math.max(s.total, s.average)), 1);
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-white mb-1">Categorias</h1>
-      <p className="text-slate-400 text-sm capitalize mb-6">{monthLabel}</p>
+      <p className="text-slate-400 text-sm capitalize mb-5">{getMonthLabel(period)}</p>
+
+      <PeriodSelector />
 
       {/* Legenda */}
       <div className="flex items-center gap-4 mb-4 text-xs text-slate-500">
@@ -69,7 +69,6 @@ export default function CategoriasPage() {
                 summary.isAlert ? 'border-red-500/30' : 'border-slate-800'
               }`}
             >
-              {/* Cabeçalho */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-base ${cfg.bgClass}`}>
@@ -83,7 +82,6 @@ export default function CategoriasPage() {
                   </div>
                 </div>
 
-                {/* Variação percentual */}
                 {summary.average > 0 && (
                   <div
                     className={`flex items-center gap-1 text-sm font-semibold ${
@@ -107,7 +105,6 @@ export default function CategoriasPage() {
                 )}
               </div>
 
-              {/* Valores */}
               <div className="flex justify-between text-xs text-slate-400 mb-2">
                 <span>
                   Atual:{' '}
@@ -117,12 +114,14 @@ export default function CategoriasPage() {
                 </span>
                 {summary.average > 0 && (
                   <span>
-                    Média: <span className="text-slate-300 font-medium">{formatCurrency(summary.average)}</span>
+                    Média:{' '}
+                    <span className="text-slate-300 font-medium">
+                      {formatCurrency(summary.average)}
+                    </span>
                   </span>
                 )}
               </div>
 
-              {/* Barras */}
               {hasData && (
                 <div className="space-y-1.5">
                   <div className="h-2 bg-slate-800 rounded-full overflow-hidden">

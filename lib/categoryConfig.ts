@@ -10,6 +10,7 @@ type Config = {
 };
 
 export const CATEGORY_CONFIG: Record<Category, Config> = {
+  // Categorias de gasto
   Delivery: {
     icon: '🛵',
     color: '#f97316',
@@ -65,5 +66,30 @@ export const CATEGORY_CONFIG: Record<Category, Config> = {
     borderClass: 'border-slate-500/20',
     textClass: 'text-slate-400',
     barClass: 'bg-slate-500',
+  },
+  // Categorias de receita
+  Salário: {
+    icon: '💰',
+    color: '#22c55e',
+    bgClass: 'bg-green-500/10',
+    borderClass: 'border-green-500/20',
+    textClass: 'text-green-400',
+    barClass: 'bg-green-500',
+  },
+  Freela: {
+    icon: '💻',
+    color: '#06b6d4',
+    bgClass: 'bg-cyan-500/10',
+    borderClass: 'border-cyan-500/20',
+    textClass: 'text-cyan-400',
+    barClass: 'bg-cyan-500',
+  },
+  'Renda passiva': {
+    icon: '📈',
+    color: '#10b981',
+    bgClass: 'bg-emerald-500/10',
+    borderClass: 'border-emerald-500/20',
+    textClass: 'text-emerald-400',
+    barClass: 'bg-emerald-500',
   },
 };

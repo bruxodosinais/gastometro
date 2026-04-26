@@ -1,9 +1,10 @@
 import { createClient } from './supabase/client';
-import { Category, Expense } from './types';
+import { Category, EntryType, Expense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
   return {
     id: row.id as string,
+    type: ((row.type as string) ?? 'expense') as EntryType,
     amount: row.amount as number,
     description: row.description as string,
     category: row.category as Category,
@@ -36,6 +37,7 @@ export async function addExpense(
     .from('expenses')
     .insert({
       user_id: user.id,
+      type: data.type,
       amount: data.amount,
       description: data.description,
       category: data.category,

@@ -1,4 +1,4 @@
-import { Category, CATEGORIES, CategorySummary, Expense } from './types';
+import { EntryType, ExpenseCategory, EXPENSE_CATEGORIES, CategorySummary, Expense } from './types';
 
 export function getMonthKey(date: Date): string {
   const y = date.getFullYear();
@@ -25,22 +25,32 @@ export function groupByMonth(expenses: Expense[]): Record<string, Expense[]> {
   }, {});
 }
 
-export function calculateByCategory(expenses: Expense[]): Record<Category, number> {
-  const result = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
-  for (const e of expenses) {
-    result[e.category] += e.amount;
-  }
-  return result;
-}
-
 export function calculateTotal(expenses: Expense[]): number {
   return expenses.reduce((sum, e) => sum + e.amount, 0);
 }
 
+export function calculateTotalByType(entries: Expense[], type: EntryType): number {
+  return entries.filter((e) => e.type === type).reduce((sum, e) => sum + e.amount, 0);
+}
+
+export function calculateByCategory(entries: Expense[]): Record<ExpenseCategory, number> {
+  const result = Object.fromEntries(
+    EXPENSE_CATEGORIES.map((c) => [c, 0])
+  ) as Record<ExpenseCategory, number>;
+  for (const e of entries) {
+    if (e.type === 'expense' && e.category in result) {
+      result[e.category as ExpenseCategory] += e.amount;
+    }
+  }
+  return result;
+}
+
 export function getCategoryAlerts(
-  expenses: Expense[],
+  entries: Expense[],
   currentMonth: string
 ): CategorySummary[] {
+  // Alertas são baseados apenas nos gastos
+  const expenses = entries.filter((e) => e.type === 'expense');
   const grouped = groupByMonth(expenses);
   const currentExpenses = grouped[currentMonth] ?? [];
   const currentByCategory = calculateByCategory(currentExpenses);
@@ -50,7 +60,7 @@ export function getCategoryAlerts(
     .sort()
     .slice(-3);
 
-  return CATEGORIES.map((category) => {
+  return EXPENSE_CATEGORIES.map((category) => {
     const total = currentByCategory[category] ?? 0;
 
     let average = 0;

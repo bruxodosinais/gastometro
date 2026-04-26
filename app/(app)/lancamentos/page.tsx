@@ -5,7 +5,13 @@ import { CheckCircle, Loader2, Trash2 } from 'lucide-react';
 import { addExpense, deleteExpense, getExpenses } from '@/lib/storage';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { CATEGORIES, Category, Expense } from '@/lib/types';
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  Category,
+  EntryType,
+  Expense,
+} from '@/lib/types';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -13,6 +19,7 @@ function todayStr() {
 
 export default function LancamentosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [entryType, setEntryType] = useState<EntryType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('Alimentação');
@@ -26,6 +33,11 @@ export default function LancamentosPage() {
 
   const reload = async () => setExpenses(await getExpenses());
 
+  function handleTypeChange(type: EntryType) {
+    setEntryType(type);
+    setCategory(type === 'expense' ? 'Alimentação' : 'Salário');
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const num = parseFloat(amount.replace(',', '.'));
@@ -33,7 +45,7 @@ export default function LancamentosPage() {
 
     setSaving(true);
     try {
-      await addExpense({ amount: num, description: description.trim(), category, date });
+      await addExpense({ type: entryType, amount: num, description: description.trim(), category, date });
       setAmount('');
       setDescription('');
       setDate(todayStr());
@@ -50,6 +62,7 @@ export default function LancamentosPage() {
     await reload();
   };
 
+  const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = getMonthKey(new Date());
   const currentExpenses = [...expenses]
     .filter((e) => e.date.slice(0, 7) === currentMonth)
@@ -57,11 +70,36 @@ export default function LancamentosPage() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
-      <h1 className="text-2xl font-bold text-white mb-1">Lançar Gasto</h1>
-      <p className="text-slate-400 text-sm mb-6">Registre uma nova despesa</p>
+      <h1 className="text-2xl font-bold text-white mb-1">Lançar</h1>
+      <p className="text-slate-400 text-sm mb-5">Registre um gasto ou receita</p>
 
-      {/* Formulário */}
       <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 space-y-4">
+        {/* Toggle Gasto / Receita */}
+        <div className="flex p-1 bg-slate-800 rounded-xl">
+          <button
+            type="button"
+            onClick={() => handleTypeChange('expense')}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              entryType === 'expense'
+                ? 'bg-slate-900 text-white shadow'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Gasto
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('income')}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              entryType === 'income'
+                ? 'bg-slate-900 text-green-400 shadow'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Receita
+          </button>
+        </div>
+
         {/* Valor */}
         <div>
           <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
@@ -94,7 +132,7 @@ export default function LancamentosPage() {
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Ex: iFood - Jantar, Supermercado..."
+            placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
             maxLength={80}
             required
             className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
@@ -120,8 +158,8 @@ export default function LancamentosPage() {
           <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-2">
             Categoria
           </label>
-          <div className="grid grid-cols-4 gap-2">
-            {CATEGORIES.map((cat) => {
+          <div className={`grid gap-2 ${entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            {categories.map((cat) => {
               const cfg = CATEGORY_CONFIG[cat];
               const active = category === cat;
               return (
@@ -150,6 +188,8 @@ export default function LancamentosPage() {
           className={`w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 ${
             success
               ? 'bg-green-600'
+              : entryType === 'income'
+              ? 'bg-emerald-600 hover:bg-emerald-500 active:scale-95'
               : 'bg-violet-600 hover:bg-violet-500 active:scale-95'
           }`}
         >
@@ -160,6 +200,8 @@ export default function LancamentosPage() {
               <CheckCircle size={18} />
               Salvo com sucesso!
             </>
+          ) : entryType === 'income' ? (
+            'Registrar receita'
           ) : (
             'Lançar gasto'
           )}
@@ -178,6 +220,7 @@ export default function LancamentosPage() {
             const cfg = CATEGORY_CONFIG[exp.category];
             const day = exp.date.slice(8, 10);
             const month = exp.date.slice(5, 7);
+            const isIncome = exp.type === 'income';
             return (
               <div
                 key={exp.id}
@@ -194,8 +237,12 @@ export default function LancamentosPage() {
                     {exp.category} · {day}/{month}
                   </p>
                 </div>
-                <span className="text-white font-semibold text-sm whitespace-nowrap mr-2">
-                  {formatCurrency(exp.amount)}
+                <span
+                  className={`font-semibold text-sm whitespace-nowrap mr-2 ${
+                    isIncome ? 'text-green-400' : 'text-white'
+                  }`}
+                >
+                  {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                 </span>
                 <button
                   onClick={() => handleDelete(exp.id)}

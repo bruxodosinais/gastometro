@@ -2,21 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, LogOut, Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, LogOut, Plus } from 'lucide-react';
 import { getExpenses } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
-  calculateTotal,
+  calculateTotalByType,
   formatCurrency,
   getCategoryAlerts,
-  getMonthKey,
   getMonthLabel,
-  groupByMonth,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { usePeriod } from '@/lib/periodContext';
+import PeriodSelector from '@/components/PeriodSelector';
 import { CategorySummary, Expense } from '@/lib/types';
 
 export default function HomePage() {
+  const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -41,38 +42,26 @@ export default function HomePage() {
     );
   }
 
-  const now = new Date();
-  const currentMonth = getMonthKey(now);
-  const monthLabel = getMonthLabel(currentMonth);
+  const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
+  const income = calculateTotalByType(periodEntries, 'income');
+  const spent = calculateTotalByType(periodEntries, 'expense');
+  const balance = income - spent;
 
-  const grouped = groupByMonth(expenses);
-  const currentExpenses = grouped[currentMonth] ?? [];
-  const currentTotal = calculateTotal(currentExpenses);
-
-  const prevMonths = Object.keys(grouped).filter((m) => m < currentMonth).sort();
-  const prevAverage =
-    prevMonths.length > 0
-      ? prevMonths.reduce((sum, m) => sum + calculateTotal(grouped[m] ?? []), 0) /
-        prevMonths.length
-      : 0;
-
-  const alerts: CategorySummary[] = getCategoryAlerts(expenses, currentMonth).filter(
+  const alerts: CategorySummary[] = getCategoryAlerts(expenses, period).filter(
     (a) => a.isAlert
   );
 
-  const recent = [...currentExpenses]
+  const recent = [...periodEntries]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
-
-  const diff = prevAverage > 0 ? ((currentTotal - prevAverage) / prevAverage) * 100 : 0;
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white">GastôMetro</h1>
-          <p className="text-slate-400 text-sm capitalize">{monthLabel}</p>
+          <p className="text-slate-400 text-sm capitalize">{getMonthLabel(period)}</p>
         </div>
         <button
           onClick={handleLogout}
@@ -83,47 +72,43 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Card total do mês */}
-      <div className="bg-slate-900 rounded-2xl p-5 mb-4 border border-slate-800">
+      {/* Seletor de período */}
+      <PeriodSelector />
+
+      {/* Card Saldo */}
+      <div
+        className={`rounded-2xl p-5 mb-3 border ${
+          balance >= 0
+            ? 'bg-blue-500/5 border-blue-500/20'
+            : 'bg-red-500/5 border-red-500/20'
+        }`}
+      >
         <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">
-          Total do mês
+          Saldo
         </p>
-        <p className="text-4xl font-bold text-white mb-3">{formatCurrency(currentTotal)}</p>
+        <p
+          className={`text-4xl font-bold ${
+            balance >= 0 ? 'text-blue-400' : 'text-red-400'
+          }`}
+        >
+          {balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(balance))}
+        </p>
+      </div>
 
-        {prevAverage > 0 && (
-          <div className="flex items-center gap-2">
-            {diff > 10 ? (
-              <TrendingUp size={14} className="text-red-400" />
-            ) : diff < -10 ? (
-              <TrendingDown size={14} className="text-green-400" />
-            ) : null}
-            <p className="text-slate-500 text-sm">
-              Média mensal:{' '}
-              <span className="text-slate-300">{formatCurrency(prevAverage)}</span>
-              {Math.abs(diff) > 5 && (
-                <span
-                  className={`ml-2 text-xs font-semibold ${diff > 0 ? 'text-red-400' : 'text-green-400'}`}
-                >
-                  {diff > 0 ? '+' : ''}
-                  {Math.round(diff)}%
-                </span>
-              )}
-            </p>
-          </div>
-        )}
-
-        {prevAverage > 0 && (
-          <div className="mt-3">
-            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  diff > 20 ? 'bg-red-500' : diff > 0 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min((currentTotal / (prevAverage * 1.5)) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
+      {/* Cards Ganhos + Gastos */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4">
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">
+            Ganhos
+          </p>
+          <p className="text-2xl font-bold text-green-400">{formatCurrency(income)}</p>
+        </div>
+        <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">
+            Gastos
+          </p>
+          <p className="text-2xl font-bold text-red-400">{formatCurrency(spent)}</p>
+        </div>
       </div>
 
       {/* Alertas de desperdício */}
@@ -161,12 +146,12 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Últimos lançamentos */}
+      {/* Últimas movimentações */}
       <section>
-        <h2 className="text-slate-200 font-semibold text-sm mb-2">Últimos Lançamentos</h2>
+        <h2 className="text-slate-200 font-semibold text-sm mb-2">Últimas Movimentações</h2>
         {recent.length === 0 ? (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
-            <p className="text-slate-500 text-sm">Nenhum gasto lançado este mês</p>
+            <p className="text-slate-500 text-sm">Nenhum lançamento neste período</p>
             <Link href="/lancamentos" className="text-violet-400 text-sm mt-2 inline-block">
               Lançar agora →
             </Link>
@@ -177,6 +162,7 @@ export default function HomePage() {
               const cfg = CATEGORY_CONFIG[exp.category];
               const day = exp.date.slice(8, 10);
               const month = exp.date.slice(5, 7);
+              const isIncome = exp.type === 'income';
               return (
                 <div
                   key={exp.id}
@@ -193,8 +179,12 @@ export default function HomePage() {
                       {exp.category} · {day}/{month}
                     </p>
                   </div>
-                  <span className="text-white font-semibold text-sm whitespace-nowrap">
-                    {formatCurrency(exp.amount)}
+                  <span
+                    className={`font-semibold text-sm whitespace-nowrap ${
+                      isIncome ? 'text-green-400' : 'text-white'
+                    }`}
+                  >
+                    {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
                 </div>
               );
