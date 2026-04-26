@@ -28,13 +28,13 @@ export function groupByMonth(expenses: Expense[]): Record<string, Expense[]> {
 export function calculateByCategory(expenses: Expense[]): Record<Category, number> {
   const result = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
   for (const e of expenses) {
-    result[e.category] += e.value;
+    result[e.category] += e.amount;
   }
   return result;
 }
 
 export function calculateTotal(expenses: Expense[]): number {
-  return expenses.reduce((sum, e) => sum + e.value, 0);
+  return expenses.reduce((sum, e) => sum + e.amount, 0);
 }
 
 export function getCategoryAlerts(

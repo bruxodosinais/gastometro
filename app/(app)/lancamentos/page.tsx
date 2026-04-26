@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, Loader2, Trash2 } from 'lucide-react';
 import { addExpense, deleteExpense, getExpenses } from '@/lib/storage';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -13,35 +13,41 @@ function todayStr() {
 
 export default function LancamentosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [value, setValue] = useState('');
+  const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('Alimentação');
   const [date, setDate] = useState(todayStr);
   const [success, setSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setExpenses(getExpenses());
+    getExpenses().then(setExpenses);
   }, []);
 
-  const reload = () => setExpenses(getExpenses());
+  const reload = async () => setExpenses(await getExpenses());
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const num = parseFloat(value.replace(',', '.'));
+    const num = parseFloat(amount.replace(',', '.'));
     if (!num || num <= 0 || !description.trim()) return;
 
-    addExpense({ value: num, description: description.trim(), category, date });
-    setValue('');
-    setDescription('');
-    setDate(todayStr());
-    setSuccess(true);
-    reload();
-    setTimeout(() => setSuccess(false), 2500);
+    setSaving(true);
+    try {
+      await addExpense({ amount: num, description: description.trim(), category, date });
+      setAmount('');
+      setDescription('');
+      setDate(todayStr());
+      setSuccess(true);
+      await reload();
+      setTimeout(() => setSuccess(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    deleteExpense(id);
-    reload();
+  const handleDelete = async (id: string) => {
+    await deleteExpense(id);
+    await reload();
   };
 
   const currentMonth = getMonthKey(new Date());
@@ -70,8 +76,8 @@ export default function LancamentosPage() {
               inputMode="decimal"
               step="0.01"
               min="0.01"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
               placeholder="0,00"
               required
               className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-lg font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
@@ -140,13 +146,16 @@ export default function LancamentosPage() {
         {/* Botão */}
         <button
           type="submit"
-          className={`w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
+          disabled={saving}
+          className={`w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 ${
             success
               ? 'bg-green-600'
               : 'bg-violet-600 hover:bg-violet-500 active:scale-95'
           }`}
         >
-          {success ? (
+          {saving ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : success ? (
             <>
               <CheckCircle size={18} />
               Salvo com sucesso!
@@ -186,7 +195,7 @@ export default function LancamentosPage() {
                   </p>
                 </div>
                 <span className="text-white font-semibold text-sm whitespace-nowrap mr-2">
-                  {formatCurrency(exp.value)}
+                  {formatCurrency(exp.amount)}
                 </span>
                 <button
                   onClick={() => handleDelete(exp.id)}

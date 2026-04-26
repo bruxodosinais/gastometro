@@ -19,11 +19,11 @@ export const CATEGORIES: Category[] = [
 
 export interface Expense {
   id: string;
-  value: number;
+  amount: number;
   description: string;
   category: Category;
   date: string; // YYYY-MM-DD
-  createdAt: number;
+  createdAt: string; // ISO timestamp do Supabase
 }
 
 export interface CategorySummary {

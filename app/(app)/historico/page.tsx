@@ -19,12 +19,13 @@ export default function HistoricoPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const all = getExpenses();
-    setExpenses(all);
-    const current = getMonthKey(new Date());
-    const months = getLastMonths(all, current, 3);
-    setActiveMonth(months[0] ?? current);
-    setReady(true);
+    getExpenses().then((all) => {
+      setExpenses(all);
+      const current = getMonthKey(new Date());
+      const months = getLastMonths(all, current, 3);
+      setActiveMonth(months[0] ?? current);
+      setReady(true);
+    });
   }, []);
 
   if (!ready) {
@@ -53,7 +54,7 @@ export default function HistoricoPage() {
       <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
         {months.map((month) => {
           const label = getMonthLabel(month);
-          const labelShort = label.split(' ')[0]; // só o nome do mês
+          const labelShort = label.split(' ')[0];
           const labelCap = labelShort.charAt(0).toUpperCase() + labelShort.slice(1);
           const year = month.slice(0, 4);
           const active = activeMonth === month;
@@ -115,7 +116,7 @@ export default function HistoricoPage() {
                   </p>
                 </div>
                 <span className="text-white font-semibold text-sm whitespace-nowrap">
-                  {formatCurrency(exp.value)}
+                  {formatCurrency(exp.amount)}
                 </span>
               </div>
             );

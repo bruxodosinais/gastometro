@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, LogOut, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { getExpenses } from '@/lib/storage';
+import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotal,
   formatCurrency,
@@ -20,9 +21,17 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setExpenses(getExpenses());
-    setReady(true);
+    getExpenses().then((data) => {
+      setExpenses(data);
+      setReady(true);
+    });
   }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/auth/login';
+  }
 
   if (!ready) {
     return (
@@ -65,9 +74,13 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold text-white">GastôMetro</h1>
           <p className="text-slate-400 text-sm capitalize">{monthLabel}</p>
         </div>
-        <div className="w-11 h-11 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-xl">
-          📊
-        </div>
+        <button
+          onClick={handleLogout}
+          title="Sair"
+          className="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-red-400 hover:border-red-500/40 transition-colors"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
 
       {/* Card total do mês */}
@@ -181,7 +194,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <span className="text-white font-semibold text-sm whitespace-nowrap">
-                    {formatCurrency(exp.value)}
+                    {formatCurrency(exp.amount)}
                   </span>
                 </div>
               );

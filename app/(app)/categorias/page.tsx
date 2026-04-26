@@ -17,8 +17,10 @@ export default function CategoriasPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setExpenses(getExpenses());
-    setReady(true);
+    getExpenses().then((data) => {
+      setExpenses(data);
+      setReady(true);
+    });
   }, []);
 
   if (!ready) {
