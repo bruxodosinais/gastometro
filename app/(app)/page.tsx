@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, LogOut, Plus } from 'lucide-react';
-import { getExpenses } from '@/lib/storage';
+import { getExpenses, getBudgets } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
@@ -14,16 +14,18 @@ import {
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
-import { CategorySummary, Expense } from '@/lib/types';
+import { Budget, CategorySummary, Expense } from '@/lib/types';
 
 export default function HomePage() {
   const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    getExpenses().then((data) => {
-      setExpenses(data);
+    Promise.all([getExpenses(), getBudgets()]).then(([exp, bud]) => {
+      setExpenses(exp);
+      setBudgets(bud);
       setReady(true);
     });
   }, []);
@@ -50,6 +52,17 @@ export default function HomePage() {
   const alerts: CategorySummary[] = getCategoryAlerts(expenses, period).filter(
     (a) => a.isAlert
   );
+
+  const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
+  const budgetAlerts = budgets
+    .map((b) => {
+      const total = periodExpenses
+        .filter((e) => e.category === b.category)
+        .reduce((sum, e) => sum + e.amount, 0);
+      return { category: b.category, total, budget: b.amount, pct: (total / b.amount) * 100 };
+    })
+    .filter((b) => b.pct >= 80)
+    .sort((a, b) => b.pct - a.pct);
 
   const recent = [...periodEntries]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -139,6 +152,48 @@ export default function HomePage() {
                     {formatCurrency(alert.total)} gasto · média:{' '}
                     {formatCurrency(alert.average)}
                   </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Alertas de Budget */}
+      {budgetAlerts.length > 0 && (
+        <section className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={15} className="text-violet-400" />
+            <h2 className="text-slate-200 font-semibold text-sm">Alertas de Orçamento</h2>
+          </div>
+          <div className="space-y-2">
+            {budgetAlerts.map((alert) => {
+              const cfg = CATEGORY_CONFIG[alert.category];
+              const barColor = alert.pct > 100 ? 'bg-red-500' : 'bg-yellow-500';
+              return (
+                <div
+                  key={alert.category}
+                  className="bg-slate-900 border border-slate-800 rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{cfg.icon}</span>
+                      <span className="text-white font-medium text-sm">{alert.category}</span>
+                    </div>
+                    <span className={`font-bold text-sm ${alert.pct > 100 ? 'text-red-400' : 'text-yellow-400'}`}>
+                      {Math.round(alert.pct)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                    <span>{formatCurrency(alert.total)} gasto</span>
+                    <span>limite: {formatCurrency(alert.budget)}</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${barColor}`}
+                      style={{ width: `${Math.min(alert.pct, 100)}%` }}
+                    />
+                  </div>
                 </div>
               );
             })}

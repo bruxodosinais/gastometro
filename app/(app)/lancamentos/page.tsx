@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Loader2, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Trash2 } from 'lucide-react';
 import { addExpense, deleteExpense, getExpenses } from '@/lib/storage';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -26,12 +26,11 @@ export default function LancamentosPage() {
   const [date, setDate] = useState(todayStr);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getExpenses().then(setExpenses);
   }, []);
-
-  const reload = async () => setExpenses(await getExpenses());
 
   function handleTypeChange(type: EntryType) {
     setEntryType(type);
@@ -44,22 +43,28 @@ export default function LancamentosPage() {
     if (!num || num <= 0 || !description.trim()) return;
 
     setSaving(true);
+    setError(null);
     try {
-      await addExpense({ type: entryType, amount: num, description: description.trim(), category, date });
+      const saved = await addExpense({ type: entryType, amount: num, description: description.trim(), category, date });
+      // Atualiza a lista imediatamente sem esperar nova busca no servidor
+      setExpenses((prev) => [saved, ...prev]);
       setAmount('');
       setDescription('');
       setDate(todayStr());
       setSuccess(true);
-      await reload();
       setTimeout(() => setSuccess(false), 2500);
+      // Reconcilia em background para garantir consistência
+      getExpenses().then(setExpenses);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
     await deleteExpense(id);
-    await reload();
   };
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -180,6 +185,14 @@ export default function LancamentosPage() {
             })}
           </div>
         </div>
+
+        {/* Erro */}
+        {error && (
+          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+            <AlertCircle size={16} className="flex-shrink-0" />
+            {error}
+          </div>
+        )}
 
         {/* Botão */}
         <button

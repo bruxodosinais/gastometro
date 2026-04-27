@@ -47,3 +47,9 @@ export interface CategorySummary {
   percentChange: number;
   isAlert: boolean;
 }
+
+export interface Budget {
+  id: string;
+  category: ExpenseCategory;
+  amount: number;
+}
