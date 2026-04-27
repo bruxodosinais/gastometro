@@ -74,11 +74,13 @@ export default function LancamentosPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
-    <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
+    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-white mb-1">Lançar</h1>
       <p className="text-slate-400 text-sm mb-5">Registre um gasto ou receita</p>
 
-      <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 space-y-4">
+      <div className="md:grid md:grid-cols-[420px_1fr] md:gap-8 md:items-start">
+
+      <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 md:mb-0 space-y-4">
         {/* Toggle Gasto / Receita */}
         <div className="flex p-1 bg-slate-800 rounded-xl">
           <button
@@ -221,7 +223,8 @@ export default function LancamentosPage() {
         </button>
       </form>
 
-      {/* Lista do mês atual */}
+      {/* Coluna direita: lista do mês atual */}
+      <div>
       <h2 className="text-slate-200 font-semibold text-sm mb-2">Este mês</h2>
       {currentExpenses.length === 0 ? (
         <p className="text-slate-500 text-sm text-center py-6">
@@ -268,6 +271,8 @@ export default function LancamentosPage() {
           })}
         </div>
       )}
+      </div>{/* fim coluna direita */}
+      </div>{/* fim grid desktop */}
     </main>
   );
 }

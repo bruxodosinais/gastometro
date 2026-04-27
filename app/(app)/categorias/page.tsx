@@ -84,7 +84,7 @@ export default function CategoriasPage() {
   const maxTotal = Math.max(...summaries.map((s) => Math.max(s.total, s.average)), 1);
 
   return (
-    <main className="max-w-lg mx-auto px-4 pt-8 pb-6">
+    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-white mb-1">Categorias</h1>
       <p className="text-slate-400 text-sm capitalize mb-5">{getMonthLabel(period)}</p>
 
@@ -102,7 +102,7 @@ export default function CategoriasPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
         {summaries.map((summary) => {
           const cfg = CATEGORY_CONFIG[summary.category];
           const currentWidth = (summary.total / maxTotal) * 100;
