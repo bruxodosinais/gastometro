@@ -50,6 +50,34 @@ export async function addExpense(
   return toExpense(row);
 }
 
+export async function updateExpense(
+  id: string,
+  data: Omit<Expense, 'id' | 'createdAt'>
+): Promise<Expense> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const { data: row, error } = await supabase
+    .from('expenses')
+    .update({
+      type: data.type,
+      amount: data.amount,
+      description: data.description,
+      category: data.category,
+      date: data.date,
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toExpense(row);
+}
+
 export async function deleteExpense(id: string): Promise<void> {
   const supabase = createClient();
   await supabase.from('expenses').delete().eq('id', id);

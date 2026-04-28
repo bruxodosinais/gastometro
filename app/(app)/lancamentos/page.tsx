@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Loader2, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Copy, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { addExpense, deleteExpense, getExpenses } from '@/lib/storage';
+import EditExpenseModal from '@/components/EditExpenseModal';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
@@ -27,6 +28,8 @@ export default function LancamentosPage() {
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
 
   useEffect(() => {
     getExpenses().then(setExpenses);
@@ -67,6 +70,16 @@ export default function LancamentosPage() {
     await deleteExpense(id);
   };
 
+  const handleEditSave = (updated: Expense) => {
+    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setEditingExpense(null);
+  };
+
+  const handleDuplicateSave = (saved: Expense) => {
+    setExpenses((prev) => [saved, ...prev]);
+    setDuplicatingExpense(null);
+  };
+
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = getMonthKey(new Date());
   const currentExpenses = [...expenses]
@@ -74,6 +87,7 @@ export default function LancamentosPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
+    <>
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-white mb-1">Lançar</h1>
       <p className="text-slate-400 text-sm mb-5">Registre um gasto ou receita</p>
@@ -254,17 +268,32 @@ export default function LancamentosPage() {
                   </p>
                 </div>
                 <span
-                  className={`font-semibold text-sm whitespace-nowrap mr-2 ${
+                  className={`font-semibold text-sm whitespace-nowrap ${
                     isIncome ? 'text-green-400' : 'text-white'
                   }`}
                 >
                   {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                 </span>
                 <button
+                  onClick={() => setEditingExpense(exp)}
+                  className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-1"
+                  aria-label="Editar"
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => setDuplicatingExpense(exp)}
+                  className="text-slate-600 hover:text-cyan-400 transition-colors flex-shrink-0"
+                  aria-label="Duplicar"
+                >
+                  <Copy size={15} />
+                </button>
+                <button
                   onClick={() => handleDelete(exp.id)}
                   className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0"
+                  aria-label="Excluir"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             );
@@ -274,5 +303,22 @@ export default function LancamentosPage() {
       </div>{/* fim coluna direita */}
       </div>{/* fim grid desktop */}
     </main>
+
+    {editingExpense && (
+      <EditExpenseModal
+        expense={editingExpense}
+        onSave={handleEditSave}
+        onClose={() => setEditingExpense(null)}
+      />
+    )}
+    {duplicatingExpense && (
+      <EditExpenseModal
+        expense={duplicatingExpense}
+        mode="duplicate"
+        onSave={handleDuplicateSave}
+        onClose={() => setDuplicatingExpense(null)}
+      />
+    )}
+    </>
   );
 }
