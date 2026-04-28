@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, LayoutGrid, Clock } from 'lucide-react';
+import { Home, PlusCircle, LayoutGrid, Clock, RefreshCw } from 'lucide-react';
 
 const tabs = [
   { href: '/', label: 'Home', Icon: Home },
   { href: '/lancamentos', label: 'Lançar', Icon: PlusCircle },
   { href: '/categorias', label: 'Categorias', Icon: LayoutGrid },
   { href: '/historico', label: 'Histórico', Icon: Clock },
+  { href: '/recorrentes', label: 'Recorrentes', Icon: RefreshCw },
 ];
 
 export default function Navigation() {
@@ -25,7 +26,7 @@ export default function Navigation() {
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl transition-colors ${
+                className={`flex flex-col items-center gap-1 px-1 py-1.5 rounded-xl transition-colors ${
                   active ? 'text-violet-400' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >

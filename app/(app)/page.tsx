@@ -3,19 +3,21 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, LogOut, Plus } from 'lucide-react';
-import { getExpenses, getBudgets } from '@/lib/storage';
+import { getExpenses, getBudgets, getRecurringExpenses, getMonthlyPlan } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
   formatCurrency,
   getCategoryAlerts,
+  getMonthKey,
   getMonthLabel,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, CategorySummary, Expense } from '@/lib/types';
+import { Budget, CategorySummary, Expense, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
+import PlanningSection from '@/components/PlanningSection';
 
 const SpendingDonut = dynamic(() => import('@/components/SpendingDonut'), { ssr: false });
 const MonthlyBars = dynamic(() => import('@/components/MonthlyBars'), { ssr: false });
@@ -24,15 +26,22 @@ export default function HomePage() {
   const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    Promise.all([getExpenses(), getBudgets()]).then(([exp, bud]) => {
+    Promise.all([getExpenses(), getBudgets(), getRecurringExpenses()]).then(([exp, bud, rec]) => {
       setExpenses(exp);
       setBudgets(bud);
+      setRecurringExpenses(rec);
       setReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    getMonthlyPlan(period).then(setMonthlyPlan);
+  }, [period]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -71,6 +80,63 @@ export default function HomePage() {
   const recent = [...periodEntries]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
+
+  const fixedCosts = recurringExpenses
+    .filter((r) => r.active && r.type === 'expense')
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  // ── Insights ────────────────────────────────────────────────────────────────
+  const now = new Date();
+  const isCurrentMonth = period === getMonthKey(now);
+  const [periodYear, periodMonth] = period.split('-').map(Number);
+  const totalDaysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+  const todayDay = isCurrentMonth ? now.getDate() : totalDaysInMonth;
+  const daysElapsed = Math.max(isCurrentMonth ? todayDay : totalDaysInMonth, 1);
+  const daysRemaining = isCurrentMonth ? totalDaysInMonth - todayDay : 0;
+
+  // Card 1 — ritmo diário disponível
+  const dailyAvailable = isCurrentMonth && daysRemaining > 0 ? balance / daysRemaining : null;
+  const dailySpent = spent / totalDaysInMonth;
+
+  // Card 2 — projeção de fechamento
+  const projectedSpending = isCurrentMonth && spent > 0
+    ? (spent / daysElapsed) * totalDaysInMonth
+    : spent;
+  const projectedOverBudget = income > 0 && projectedSpending > income;
+
+  // Card 3 — vs mês anterior (% + valor absoluto)  — declarado antes de projectionStatus
+  const prevDate = new Date(periodYear, periodMonth - 2, 15);
+  const prevPeriod = getMonthKey(prevDate);
+  const prevSpent = calculateTotalByType(
+    expenses.filter((e) => e.date.slice(0, 7) === prevPeriod),
+    'expense'
+  );
+  const spentChange = prevSpent > 0 ? ((spent - prevSpent) / prevSpent) * 100 : null;
+  const spentDiff = spentChange !== null ? spent - prevSpent : null;
+
+  // Status da projeção (usa prevSpent — deve vir depois)
+  type ProjStatus = 'ok' | 'warning' | 'over';
+  const projectionStatus: ProjStatus | null =
+    !isCurrentMonth || spent === 0
+      ? null
+      : projectedOverBudget
+      ? 'over'
+      : (income > 0 && projectedSpending > income * 0.85) ||
+        (prevSpent > 0 && projectedSpending > prevSpent * 1.2)
+      ? 'warning'
+      : 'ok';
+
+  // Card 4 — maior gasto individual + % do total
+  const biggestExpense = periodExpenses.reduce<Expense | null>(
+    (max, e) => (!max || e.amount > max.amount ? e : max),
+    null
+  );
+  const biggestPct = biggestExpense && spent > 0
+    ? (biggestExpense.amount / spent) * 100
+    : null;
+
+  // Card 5 — sobra prevista
+  const projectedSurplus = income - projectedSpending;
 
   return (
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
@@ -127,6 +193,151 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* ── Insights: 5 cards compactos ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+
+        {/* Card 1 — Ritmo diário disponível */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+            {isCurrentMonth && daysRemaining > 0 ? 'Ritmo diário disponível' : 'Gasto médio por dia'}
+          </p>
+          {isCurrentMonth && dailyAvailable !== null ? (
+            <>
+              <p className={`text-xl font-bold ${dailyAvailable < 0 ? 'text-red-400' : 'text-white'}`}>
+                {dailyAvailable < 0
+                  ? `−${formatCurrency(Math.abs(dailyAvailable))}`
+                  : `${formatCurrency(dailyAvailable)}/dia`}
+              </p>
+              <p className="text-slate-500 text-xs mt-1">
+                {dailyAvailable < 0
+                  ? 'saldo negativo — ritmo excedido'
+                  : `${daysRemaining} dias restantes no mês`}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xl font-bold text-white">{formatCurrency(dailySpent)}/dia</p>
+              <p className="text-slate-500 text-xs mt-1">
+                {isCurrentMonth ? 'último dia do mês' : 'média real do período'}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Card 2 — Previsão de fechamento + status */}
+        <div className={`rounded-2xl p-4 border ${
+          projectionStatus === 'over'
+            ? 'bg-red-500/5 border-red-500/20'
+            : projectionStatus === 'warning'
+            ? 'bg-yellow-500/5 border-yellow-500/20'
+            : 'bg-slate-900 border-slate-800'
+        }`}>
+          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+            {isCurrentMonth ? 'Previsão do mês' : 'Total do mês'}
+          </p>
+          <p className={`text-xl font-bold ${
+            projectionStatus === 'over'
+              ? 'text-red-400'
+              : projectionStatus === 'warning'
+              ? 'text-yellow-400'
+              : 'text-white'
+          }`}>
+            {formatCurrency(projectedSpending)}
+          </p>
+          <p className={`text-xs mt-1 font-medium ${
+            projectionStatus === 'over'
+              ? 'text-red-400/80'
+              : projectionStatus === 'warning'
+              ? 'text-yellow-400/80'
+              : projectionStatus === 'ok'
+              ? 'text-green-400/80'
+              : 'text-slate-500'
+          }`}>
+            {projectionStatus === 'over'
+              ? 'Acima da média'
+              : projectionStatus === 'warning'
+              ? 'Atenção'
+              : projectionStatus === 'ok'
+              ? 'Dentro do esperado'
+              : !isCurrentMonth
+              ? 'gasto real do período'
+              : 'nenhum gasto registrado ainda'}
+          </p>
+        </div>
+
+        {/* Card 3 — vs mês anterior: % + valor absoluto */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+            vs mês anterior
+          </p>
+          {spentChange === null ? (
+            <>
+              <p className="text-xl font-bold text-slate-500">—</p>
+              <p className="text-slate-600 text-xs mt-1">sem dados do mês anterior</p>
+            </>
+          ) : (
+            <>
+              <p className={`text-xl font-bold ${spentChange > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                {spentChange > 0 ? '+' : ''}{Math.round(spentChange)}%{' '}
+                <span className="text-sm font-semibold opacity-80">
+                  ({spentDiff! > 0 ? '+' : ''}{formatCurrency(spentDiff!)})
+                </span>
+              </p>
+              <p className="text-slate-500 text-xs mt-1">
+                {formatCurrency(prevSpent)} em {getMonthLabel(prevPeriod)}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Card 4 — Maior gasto + % do total */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+            Maior gasto do mês
+          </p>
+          {biggestExpense ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-lg leading-none">{CATEGORY_CONFIG[biggestExpense.category].icon}</span>
+                <p className="text-xl font-bold text-white">{formatCurrency(biggestExpense.amount)}</p>
+              </div>
+              <p className="text-slate-500 text-xs mt-1 truncate">{biggestExpense.description}</p>
+              {biggestPct !== null && (
+                <p className="text-slate-600 text-xs mt-0.5">
+                  {Math.round(biggestPct)}% dos gastos do mês
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xl font-bold text-slate-500">—</p>
+              <p className="text-slate-600 text-xs mt-1">nenhum gasto ainda</p>
+            </>
+          )}
+        </div>
+
+        {/* Card 5 — Sobra prevista (ocupa linha inteira no desktop) */}
+        <div className={`md:col-span-2 rounded-2xl p-4 border ${
+          projectedSurplus >= 0
+            ? 'bg-green-500/5 border-green-500/20'
+            : 'bg-red-500/5 border-red-500/20'
+        }`}>
+          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+            Sobra prevista
+          </p>
+          <div className="flex items-end gap-3 flex-wrap">
+            <p className={`text-2xl font-bold ${projectedSurplus >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {projectedSurplus >= 0 ? '' : '−'}{formatCurrency(Math.abs(projectedSurplus))}
+            </p>
+            <p className="text-slate-500 text-xs mb-0.5">
+              {income > 0
+                ? `receita ${formatCurrency(income)} − previsão ${formatCurrency(projectedSpending)}`
+                : 'sem receita registrada no período'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Gráficos: empilhados no mobile, lado a lado no desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -148,6 +359,18 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Planejamento mensal */}
+      <PlanningSection
+        period={period}
+        income={income}
+        spent={spent}
+        fixedCosts={fixedCosts}
+        budgets={budgets}
+        periodExpenses={periodExpenses}
+        monthlyPlan={monthlyPlan}
+        onPlanUpdate={setMonthlyPlan}
+      />
 
       {/* No desktop: alertas e movimentações lado a lado */}
       <div className="md:grid md:grid-cols-[1fr_420px] md:gap-6 md:items-start">

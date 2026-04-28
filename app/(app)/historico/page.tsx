@@ -78,6 +78,7 @@ export default function HistoricoPage() {
     if (type === 'income' && EXPENSE_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
   }
 
+  const today = new Date().toISOString().slice(0, 10);
   const needle = search.trim().toLowerCase();
   const filteredEntries = periodEntries
     .filter((e) => typeFilter === 'all' || e.type === typeFilter)
@@ -182,6 +183,7 @@ export default function HistoricoPage() {
             const day = exp.date.slice(8, 10);
             const month = exp.date.slice(5, 7);
             const isIncome = exp.type === 'income';
+            const isFuture = exp.date > today;
             return (
               <div
                 key={exp.id}
@@ -198,13 +200,20 @@ export default function HistoricoPage() {
                     {exp.category} · {day}/{month}
                   </p>
                 </div>
-                <span
-                  className={`font-semibold text-sm whitespace-nowrap ${
-                    isIncome ? 'text-green-400' : 'text-white'
-                  }`}
-                >
-                  {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
-                </span>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span
+                    className={`font-semibold text-sm whitespace-nowrap ${
+                      isFuture ? 'text-slate-400' : isIncome ? 'text-green-400' : 'text-white'
+                    }`}
+                  >
+                    {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
+                  </span>
+                  {isFuture && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
+                      futuro
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => setEditingExpense(exp)}
                   className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-2"

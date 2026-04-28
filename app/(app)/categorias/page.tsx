@@ -252,13 +252,20 @@ export default function CategoriasPage() {
               {/* Barra de orçamento */}
               {!isEditing && budget != null && (
                 <div className="pt-3 border-t border-slate-800">
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-slate-400">Limite mensal</span>
-                    <span className={`font-semibold ${
-                      budgetPct! > 100 ? 'text-red-400' : budgetPct! >= 80 ? 'text-yellow-400' : 'text-green-400'
-                    }`}>
-                      {formatCurrency(summary.total)} / {formatCurrency(budget)}
-                    </span>
+                  <div className="flex items-end justify-between mb-2">
+                    <div>
+                      <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Planejado</p>
+                      <p className="text-slate-300 font-semibold text-sm">{formatCurrency(budget)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Gasto atual</p>
+                      <p className={`font-bold text-sm ${
+                        budgetPct! > 100 ? 'text-red-400' : budgetPct! >= 80 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {formatCurrency(summary.total)}{' '}
+                        <span className="text-xs font-medium opacity-80">({Math.round(budgetPct!)}%)</span>
+                      </p>
+                    </div>
                   </div>
                   <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                     <div
@@ -267,10 +274,10 @@ export default function CategoriasPage() {
                     />
                   </div>
                   {budgetPct! > 100 && (
-                    <p className="text-red-400 text-xs mt-1 font-medium">🚨 Limite ultrapassado!</p>
+                    <p className="text-red-400 text-xs mt-1 font-medium">🚨 Limite ultrapassado em {formatCurrency(summary.total - budget)}</p>
                   )}
                   {budgetPct! >= 80 && budgetPct! <= 100 && (
-                    <p className="text-yellow-400 text-xs mt-1 font-medium">⚠ Atenção: {Math.round(budgetPct!)}% do limite</p>
+                    <p className="text-yellow-400 text-xs mt-1 font-medium">⚠ Restam {formatCurrency(budget - summary.total)}</p>
                   )}
                 </div>
               )}

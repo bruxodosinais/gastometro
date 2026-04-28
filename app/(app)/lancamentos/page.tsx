@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, Copy, Loader2, Pencil, Trash2 } from 'lucide-react';
-import { addExpense, deleteExpense, getExpenses } from '@/lib/storage';
+import { addExpense, addExpenseInstallments, addRecurringExpense, deleteExpense, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -30,6 +30,10 @@ export default function LancamentosPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
+  // modo de lançamento: único, parcelado ou recorrente
+  const [launchMode, setLaunchMode] = useState<'single' | 'installments' | 'recurring'>('single');
+  const [installments, setInstallments] = useState(2);
+  const [recurringDay, setRecurringDay] = useState('');
 
   useEffect(() => {
     getExpenses().then(setExpenses);
@@ -45,18 +49,42 @@ export default function LancamentosPage() {
     const num = parseFloat(amount.replace(',', '.'));
     if (!num || num <= 0 || !description.trim()) return;
 
+    const base = { type: entryType, amount: num, description: description.trim(), category, date };
+
     setSaving(true);
     setError(null);
     try {
-      const saved = await addExpense({ type: entryType, amount: num, description: description.trim(), category, date });
-      // Atualiza a lista imediatamente sem esperar nova busca no servidor
-      setExpenses((prev) => [saved, ...prev]);
+      if (launchMode === 'installments') {
+        const saved = await addExpenseInstallments(base, installments);
+        setExpenses((prev) => [...saved, ...prev]);
+      } else if (launchMode === 'recurring') {
+        const day = parseInt(recurringDay, 10);
+        if (!day || day < 1 || day > 31) {
+          setError('Informe um dia do mês válido (1–31).');
+          setSaving(false);
+          return;
+        }
+        const rec = await addRecurringExpense({
+          description: base.description,
+          amount: num,
+          category,
+          type: entryType,
+          dayOfMonth: day,
+          active: true,
+        });
+        const saved = await addExpense(base, rec.id);
+        setExpenses((prev) => [saved, ...prev]);
+      } else {
+        const saved = await addExpense(base);
+        setExpenses((prev) => [saved, ...prev]);
+      }
+
       setAmount('');
       setDescription('');
       setDate(todayStr());
+      setRecurringDay('');
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
-      // Reconcilia em background para garantir consistência
       getExpenses().then(setExpenses);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
@@ -202,6 +230,70 @@ export default function LancamentosPage() {
           </div>
         </div>
 
+        {/* Tipo de lançamento */}
+        <div>
+          <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-2">
+            Tipo de lançamento
+          </label>
+          <div className="flex p-0.5 bg-slate-800 rounded-xl">
+            {(['single', 'installments', 'recurring'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setLaunchMode(mode)}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  launchMode === mode
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
+              </button>
+            ))}
+          </div>
+
+          {launchMode === 'installments' && (
+            <div className="mt-3">
+              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                Número de parcelas
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={2}
+                max={48}
+                value={installments}
+                onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <p className="text-slate-600 text-xs mt-1">
+                {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',','.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
+              </p>
+            </div>
+          )}
+
+          {launchMode === 'recurring' && (
+            <div className="mt-3">
+              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                Dia do mês para lançar automaticamente
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={recurringDay}
+                onChange={(e) => setRecurringDay(e.target.value)}
+                placeholder="Ex: 5"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <p className="text-slate-600 text-xs mt-1">
+                Este lançamento será repetido todo mês nessa data
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Erro */}
         {error && (
           <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
@@ -229,6 +321,10 @@ export default function LancamentosPage() {
               <CheckCircle size={18} />
               Salvo com sucesso!
             </>
+          ) : launchMode === 'installments' ? (
+            `Parcelar em ${installments}x`
+          ) : launchMode === 'recurring' ? (
+            'Lançar e tornar recorrente'
           ) : entryType === 'income' ? (
             'Registrar receita'
           ) : (

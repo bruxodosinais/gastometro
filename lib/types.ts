@@ -38,6 +38,25 @@ export interface Expense {
   category: Category;
   date: string; // YYYY-MM-DD
   createdAt: string;
+  recurringExpenseId?: string;
+}
+
+export interface MonthlyPlan {
+  id: string;
+  month: string; // YYYY-MM
+  expectedIncome: number;
+  savingsGoal: number;
+}
+
+export interface RecurringExpense {
+  id: string;
+  description: string;
+  amount: number;
+  category: Category;
+  type: EntryType;
+  dayOfMonth: number;
+  active: boolean;
+  createdAt: string;
 }
 
 export interface CategorySummary {
