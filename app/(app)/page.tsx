@@ -15,6 +15,10 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
 import { Budget, CategorySummary, Expense } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const SpendingDonut = dynamic(() => import('@/components/SpendingDonut'), { ssr: false });
+const MonthlyBars = dynamic(() => import('@/components/MonthlyBars'), { ssr: false });
 
 export default function HomePage() {
   const { period } = usePeriod();
@@ -120,6 +124,28 @@ export default function HomePage() {
             Gastos
           </p>
           <p className="text-2xl font-bold text-red-400">{formatCurrency(spent)}</p>
+        </div>
+      </div>
+
+      {/* Gráficos: empilhados no mobile, lado a lado no desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <h2 className="text-slate-200 font-semibold text-sm mb-4">Gastos por Categoria</h2>
+          <SpendingDonut entries={periodEntries} />
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <h2 className="text-slate-200 font-semibold text-sm mb-4">Evolução — últimos 6 meses</h2>
+          <MonthlyBars allExpenses={expenses} currentPeriod={period} />
+          <div className="flex items-center gap-4 mt-3 justify-center">
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+              Ganhos
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+              Gastos
+            </div>
+          </div>
         </div>
       </div>
 
