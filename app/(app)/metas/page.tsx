@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Check, Loader2, Pencil, Plus, Target, Trash2, TrendingUp, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Loader2, Pencil, Plus, Target, Trash2, Trophy, TrendingUp, X } from 'lucide-react';
 import {
   getGoals,
   getExpenses,
@@ -12,7 +12,7 @@ import {
   addGoalContribution,
 } from '@/lib/storage';
 import { calculateTotalByType, formatCurrency, getMonthKey } from '@/lib/calculations';
-import { Goal, GoalContribution, GoalType } from '@/lib/types';
+import { Goal, GoalContribution, GoalTerm, GoalType } from '@/lib/types';
 
 // ─── Configurações de tipo e cor ─────────────────────────────────────────────
 
@@ -47,6 +47,27 @@ function colorCfg(color: string) {
   return COLOR_CONFIG[(color as ColorKey) in COLOR_CONFIG ? (color as ColorKey) : 'slate'];
 }
 
+// ─── Prazo (term) ─────────────────────────────────────────────────────────────
+
+const TERM_OPTIONS: { value: GoalTerm; label: string; badge: string }[] = [
+  { value: 'curto', label: 'Curto prazo', badge: 'bg-green-500/15 text-green-400 border-green-500/20' },
+  { value: 'medio', label: 'Médio prazo', badge: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20' },
+  { value: 'longo', label: 'Longo prazo', badge: 'bg-violet-500/15 text-violet-400 border-violet-500/20' },
+];
+
+function termBadge(term: GoalTerm) {
+  return TERM_OPTIONS.find((t) => t.value === term)!;
+}
+
+// ─── Emojis ───────────────────────────────────────────────────────────────────
+
+const EMOJI_OPTIONS = [
+  '🏠', '🚗', '✈️', '🎓', '💍', '🏖️', '💻', '🎯',
+  '🌍', '🏋️', '🎸', '👶', '🐕', '🏦', '💎', '🚀',
+  '🛡️', '📈', '🔨', '💼', '⭐', '💰', '🌟', '🏆',
+  '🎵', '📚', '🌱', '🎉',
+];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function monthsDiff(from: Date, to: Date) {
@@ -56,6 +77,12 @@ function monthsDiff(from: Date, to: Date) {
 function formatShortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y.slice(2)}`;
+}
+
+function completionLabel(monthsFromNow: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsFromNow);
+  return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
 }
 
 type GoalHealthStatus = 'verde' | 'amarelo' | 'vermelho';
@@ -76,7 +103,6 @@ function computeStatus(goal: Goal, contributions: GoalContribution[]): GoalHealt
     return monthsLeft <= 2 ? 'vermelho' : 'amarelo';
   }
 
-  // Pace from actual contributions (sorted desc → last is oldest)
   const totalContribs = contributions.reduce((s, c) => s + c.amount, 0);
   const oldest = contributions[contributions.length - 1];
   const firstDate = new Date(oldest.date + 'T12:00:00');
@@ -101,7 +127,6 @@ function computeInsights(goal: Goal, contributions: GoalContribution[], avgMonth
 
   items.push({ icon: '💰', text: `Faltam ${formatCurrency(remaining)} para concluir` });
 
-  // Pace from contributions (not from creation date — avoids inflating with initial balance)
   if (contributions.length > 0) {
     const totalContribs = contributions.reduce((s, c) => s + c.amount, 0);
     const oldest = contributions[contributions.length - 1];
@@ -114,7 +139,6 @@ function computeInsights(goal: Goal, contributions: GoalContribution[], avgMonth
     }
   }
 
-  // Deadline warning
   if (goal.deadline) {
     const dl = new Date(goal.deadline + 'T12:00:00');
     const left = monthsDiff(now, dl);
@@ -132,7 +156,6 @@ function computeInsights(goal: Goal, contributions: GoalContribution[], avgMonth
     }
   }
 
-  // Reserva de emergência
   if (goal.type === 'reserva' && avgMonthlySpent > 0) {
     const ideal = avgMonthlySpent * 6;
     if (goal.targetAmount < ideal * 0.9) {
@@ -154,6 +177,8 @@ const EMPTY_FORM = {
   currentAmount: '',
   deadline: '',
   color: 'slate' as ColorKey,
+  term: '' as '' | GoalTerm,
+  emoji: '',
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -162,7 +187,9 @@ export default function MetasPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [contributions, setContributions] = useState<GoalContribution[]>([]);
   const [avgMonthlySpent, setAvgMonthlySpent] = useState(0);
+  const [currentMonthBalance, setCurrentMonthBalance] = useState(0);
   const [ready, setReady] = useState(false);
+  const [celebratingGoal, setCelebratingGoal] = useState<Goal | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -186,6 +213,13 @@ export default function MetasPage() {
       setContributions(cs);
 
       const now = new Date();
+
+      const currentMonthKey = getMonthKey(now);
+      const currentEntries = exps.filter((e) => e.date.slice(0, 7) === currentMonthKey);
+      const income = calculateTotalByType(currentEntries, 'income');
+      const spent = calculateTotalByType(currentEntries, 'expense');
+      setCurrentMonthBalance(Math.max(0, income - spent));
+
       const amounts: number[] = [];
       for (let i = 1; i <= 3; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -219,6 +253,8 @@ export default function MetasPage() {
       currentAmount: String(goal.currentAmount),
       deadline: goal.deadline ?? '',
       color: (goal.color as ColorKey) in COLOR_CONFIG ? (goal.color as ColorKey) : 'slate',
+      term: goal.term ?? '',
+      emoji: goal.emoji ?? '',
     });
     setFormError(null);
     setShowForm(true);
@@ -255,6 +291,8 @@ export default function MetasPage() {
         deadline: form.deadline || undefined,
         color: form.color,
         status: (current >= target ? 'completed' : 'active') as 'active' | 'completed',
+        term: (form.term || undefined) as GoalTerm | undefined,
+        emoji: form.emoji || undefined,
       };
       if (editingId) {
         const updated = await apiUpdateGoal(editingId, payload);
@@ -300,6 +338,8 @@ export default function MetasPage() {
     const amount = parseFloat(contribAmount.replace(',', '.'));
     if (!amount || amount <= 0) { setContribError('Informe um valor maior que zero.'); return; }
 
+    const wasActive = contributingGoal.status === 'active';
+
     setContribSaving(true);
     try {
       const updatedGoal = await addGoalContribution(
@@ -309,7 +349,6 @@ export default function MetasPage() {
         contribDate || TODAY
       );
       setGoals((prev) => prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g)));
-      // Optimistic: prepend contribution for immediate display in card
       const newContrib: GoalContribution = {
         id: `tmp-${Date.now()}`,
         goalId: contributingGoal.id,
@@ -319,6 +358,11 @@ export default function MetasPage() {
         createdAt: new Date().toISOString(),
       };
       setContributions((prev) => [newContrib, ...prev]);
+
+      if (wasActive && updatedGoal.status === 'completed') {
+        setCelebratingGoal(updatedGoal);
+      }
+
       setContributingGoal(null);
     } catch (err) {
       console.error('handleContrib:', err instanceof Error ? err.message : err);
@@ -352,6 +396,8 @@ export default function MetasPage() {
     acc[c.goalId].push(c);
     return acc;
   }, {});
+
+  const goalIcon = (goal: Goal) => goal.emoji ?? GOAL_TYPES[goal.type].icon;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -442,6 +488,38 @@ export default function MetasPage() {
                   })}
                 </div>
               </div>
+              {/* Emoji personalizado */}
+              <div>
+                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                  Emoji da meta{' '}
+                  <span className="normal-case text-slate-600">(opcional — substitui o ícone de categoria)</span>
+                </label>
+                <div className="grid grid-cols-7 md:grid-cols-14 gap-1.5">
+                  {EMOJI_OPTIONS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, emoji: f.emoji === e ? '' : e }))}
+                      className={`h-9 rounded-xl text-lg flex items-center justify-center transition-all ${
+                        form.emoji === e
+                          ? 'bg-violet-500/20 border border-violet-500/50 scale-110'
+                          : 'bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:scale-105'
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                {form.emoji && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
+                    className="mt-1.5 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    ✕ Remover emoji
+                  </button>
+                )}
+              </div>
               {/* Valores */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -487,6 +565,31 @@ export default function MetasPage() {
                       />
                     ))}
                   </div>
+                </div>
+              </div>
+              {/* Classificação de prazo */}
+              <div>
+                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                  Classificação de prazo <span className="normal-case text-slate-600">(opcional)</span>
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {TERM_OPTIONS.map((opt) => {
+                    const active = form.term === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, term: f.term === opt.value ? '' : opt.value }))}
+                        className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                          active
+                            ? opt.badge
+                            : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -543,6 +646,8 @@ export default function MetasPage() {
                 <GoalCard key={goal.id} goal={goal}
                   contributions={contribsByGoal[goal.id] ?? []}
                   avgMonthlySpent={avgMonthlySpent}
+                  currentMonthBalance={currentMonthBalance}
+                  icon={goalIcon(goal)}
                   onEdit={openEdit}
                   onContrib={openContrib}
                 />
@@ -551,17 +656,20 @@ export default function MetasPage() {
           </>
         )}
 
-        {/* Metas concluídas */}
+        {/* Vitórias */}
         {completedGoals.length > 0 && (
           <>
-            <h2 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Concluídas</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy size={13} className="text-emerald-400" />
+              <h2 className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Vitórias</h2>
+              <span className="text-emerald-900 text-xs">({completedGoals.length})</span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {completedGoals.map((goal) => (
-                <GoalCard key={goal.id} goal={goal}
+                <VictoryCard key={goal.id} goal={goal}
                   contributions={contribsByGoal[goal.id] ?? []}
-                  avgMonthlySpent={avgMonthlySpent}
+                  icon={goalIcon(goal)}
                   onEdit={openEdit}
-                  onContrib={openContrib}
                 />
               ))}
             </div>
@@ -579,7 +687,7 @@ export default function MetasPage() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${colorCfg(contributingGoal.color).bg} border ${colorCfg(contributingGoal.color).border}`}>
-                  {GOAL_TYPES[contributingGoal.type].icon}
+                  {goalIcon(contributingGoal)}
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm">{contributingGoal.name}</p>
@@ -638,25 +746,247 @@ export default function MetasPage() {
           </div>
         </div>
       )}
+
+      {/* Animação de celebração */}
+      {celebratingGoal && (
+        <CelebrationOverlay
+          goal={celebratingGoal}
+          icon={goalIcon(celebratingGoal)}
+          onDone={() => setCelebratingGoal(null)}
+        />
+      )}
     </>
   );
 }
 
-// ─── Card de meta ─────────────────────────────────────────────────────────────
+// ─── Celebração ───────────────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = [
+  'bg-emerald-400', 'bg-green-300', 'bg-violet-400',
+  'bg-yellow-300', 'bg-white', 'bg-cyan-400', 'bg-rose-400', 'bg-amber-300',
+];
+
+function CelebrationOverlay({
+  goal,
+  icon,
+  onDone,
+}: {
+  goal: Goal;
+  icon: string;
+  onDone: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3200);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  const particles = useMemo(() =>
+    Array.from({ length: 48 }, (_, i) => ({
+      id: i,
+      left: `${(i / 48) * 100 + (Math.sin(i) * 4)}%`,
+      duration: `${1.4 + (i % 5) * 0.3}s`,
+      delay: `${(i % 8) * 0.1}s`,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      shape: i % 3 === 0 ? 'w-2 h-2 rounded-sm' : i % 3 === 1 ? 'w-1.5 h-3 rounded-sm' : 'w-2.5 h-1 rounded-full',
+    }))
+  , []);
+
+  return (
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      <style>{`
+        @keyframes cffall {
+          0%   { transform: translateY(-16px) rotate(0deg) scale(1); opacity: 1; }
+          70%  { opacity: 1; }
+          100% { transform: translateY(110vh) rotate(540deg) scale(0.6); opacity: 0; }
+        }
+        @keyframes celebrate-in {
+          0%   { opacity: 0; transform: scale(0.7); }
+          60%  { transform: scale(1.05); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .cf-particle { animation: cffall var(--d) ease-in var(--dl) both; }
+        .celebrate-card { animation: celebrate-in 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+      `}</style>
+
+      {/* Confetti */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className={`absolute top-0 ${p.color} ${p.shape} cf-particle`}
+          style={{ left: p.left, '--d': p.duration, '--dl': p.delay } as React.CSSProperties}
+        />
+      ))}
+
+      {/* Overlay escuro clicável para fechar */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+        onClick={onDone}
+      >
+        <div
+          className="celebrate-card bg-slate-900 border border-emerald-500/40 rounded-3xl px-10 py-8 text-center shadow-2xl shadow-emerald-900/50 pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-5xl mb-2 animate-bounce">{icon}</div>
+          <div className="text-3xl mb-3">🎉</div>
+          <p className="text-white font-bold text-xl mb-1">Meta concluída!</p>
+          <p className="text-emerald-400 text-sm font-medium mb-1">{goal.name}</p>
+          <p className="text-slate-300 text-sm">{formatCurrency(goal.currentAmount)} guardados</p>
+          <p className="text-slate-600 text-xs mt-4">Clique para continuar</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Card de vitória (metas concluídas) ───────────────────────────────────────
+
+function VictoryCard({
+  goal,
+  contributions,
+  icon,
+  onEdit,
+}: {
+  goal: Goal;
+  contributions: GoalContribution[];
+  icon: string;
+  onEdit: (g: Goal) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Contributions chegam desc (mais recente primeiro) → contributions[0] = conclusão
+  const completionDate = contributions.length > 0
+    ? contributions[0].date
+    : goal.createdAt.slice(0, 10);
+
+  // Linha do tempo: ordem cronológica (mais antigo → mais recente)
+  const timeline = useMemo(() => [...contributions].reverse(), [contributions]);
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-emerald-500/25 bg-gradient-to-br from-slate-900 via-emerald-950/30 to-green-950/15">
+      <div className="p-5">
+        {/* Cabeçalho */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-2xl flex-shrink-0">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm leading-tight truncate">{goal.name}</p>
+              <p className="text-emerald-400 text-xs mt-0.5">
+                🏆 Concluída em {formatShortDate(completionDate)}
+              </p>
+              {goal.term && (
+                <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full border mt-1 ${termBadge(goal.term).badge}`}>
+                  {termBadge(goal.term).label.toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={() => onEdit(goal)}
+            className="w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center text-slate-500 hover:text-white transition-colors flex-shrink-0 ml-2"
+          >
+            <Pencil size={13} />
+          </button>
+        </div>
+
+        {/* Valor */}
+        <div className="mb-3">
+          <p className="text-emerald-400 font-bold text-2xl">{formatCurrency(goal.currentAmount)}</p>
+          <p className="text-slate-500 text-xs mt-0.5">guardados de {formatCurrency(goal.targetAmount)}</p>
+        </div>
+
+        {/* Barra completa */}
+        <div className="h-2 rounded-full overflow-hidden mb-4 bg-emerald-950/60">
+          <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-500 to-green-400" />
+        </div>
+
+        {/* Botão "Ver conquista" */}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors"
+        >
+          <Trophy size={13} />
+          {expanded ? 'Ocultar conquista' : 'Ver conquista'}
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </button>
+
+        {/* Timeline expandida */}
+        {expanded && (
+          <div className="mt-4 pt-4 border-t border-emerald-900/40">
+            {timeline.length === 0 ? (
+              <p className="text-slate-600 text-xs text-center py-2">Nenhum aporte registrado.</p>
+            ) : (
+              <>
+                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-3">Linha do tempo</p>
+                <div>
+                  {timeline.map((c, idx) => {
+                    const isLast = idx === timeline.length - 1;
+                    return (
+                      <div key={c.id} className="flex items-start gap-3">
+                        {/* Conector */}
+                        <div className="flex flex-col items-center pt-1 w-3 flex-shrink-0">
+                          <div className={`w-2.5 h-2.5 rounded-full border-2 ${
+                            isLast
+                              ? 'border-emerald-400 bg-emerald-400'
+                              : 'border-slate-600 bg-slate-900'
+                          }`} />
+                          {!isLast && <div className="w-px flex-1 bg-slate-800 min-h-[20px] mt-0.5" />}
+                        </div>
+                        {/* Conteúdo */}
+                        <div className={`flex-1 flex items-start justify-between pb-3 ${isLast ? '' : ''}`}>
+                          <div>
+                            <p className={`text-xs font-medium ${isLast ? 'text-emerald-400' : 'text-slate-400'}`}>
+                              {formatShortDate(c.date)}{isLast ? ' ✓' : ''}
+                            </p>
+                            {c.note && (
+                              <p className="text-slate-500 text-xs mt-0.5">{c.note}</p>
+                            )}
+                          </div>
+                          <span className={`text-xs font-semibold flex-shrink-0 ml-2 ${isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
+                            +{formatCurrency(c.amount)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Total */}
+                <div className="mt-1 pt-3 border-t border-emerald-900/40 flex justify-between items-center">
+                  <span className="text-slate-500 text-xs">{timeline.length} {timeline.length === 1 ? 'aporte' : 'aportes'}</span>
+                  <span className="text-emerald-400 text-xs font-bold">
+                    {formatCurrency(timeline.reduce((s, c) => s + c.amount, 0))} total aportado
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Card de meta ativa ───────────────────────────────────────────────────────
 
 function GoalCard({
   goal,
   contributions,
   avgMonthlySpent,
+  currentMonthBalance,
+  icon,
   onEdit,
   onContrib,
 }: {
   goal: Goal;
   contributions: GoalContribution[];
   avgMonthlySpent: number;
+  currentMonthBalance: number;
+  icon: string;
   onEdit: (g: Goal) => void;
   onContrib: (g: Goal) => void;
 }) {
+  const [simInput, setSimInput] = useState('');
+
   const now = new Date();
   const cfg = colorCfg(goal.color);
   const typeCfg = GOAL_TYPES[goal.type];
@@ -664,14 +994,12 @@ function GoalCard({
   const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
   const isCompleted = goal.status === 'completed';
 
-  // Prazo
   const deadlineDate = goal.deadline ? new Date(goal.deadline + 'T12:00:00') : null;
   const monthsLeft = deadlineDate
     ? Math.max(0, (deadlineDate.getFullYear() - now.getFullYear()) * 12 + (deadlineDate.getMonth() - now.getMonth()))
     : null;
   const monthlySuggestion = monthsLeft && monthsLeft > 0 && remaining > 0 ? remaining / monthsLeft : null;
 
-  // Status de saúde
   const status = computeStatus(goal, contributions);
   const insights = computeInsights(goal, contributions, avgMonthlySpent);
 
@@ -686,6 +1014,14 @@ function GoalCard({
     vermelho: 'bg-red-500/15 text-red-400',
   };
 
+  const simMonthly = parseFloat(simInput.replace(',', '.'));
+  const simValid = simMonthly > 0 && remaining > 0;
+  const simMonths = simValid ? Math.ceil(remaining / simMonthly) : null;
+
+  const suggestMonths = currentMonthBalance > 0 && remaining > 0
+    ? Math.ceil(remaining / currentMonthBalance)
+    : null;
+
   return (
     <div className={`rounded-2xl p-5 border ${isCompleted ? 'bg-green-500/5 border-green-500/20' : 'bg-slate-900 border-slate-800'}`}>
 
@@ -693,7 +1029,7 @@ function GoalCard({
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${cfg.bg} border ${cfg.border}`}>
-            {typeCfg.icon}
+            {icon}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -701,6 +1037,11 @@ function GoalCard({
               {status && (
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusClass[status]}`}>
                   {statusLabel[status].toUpperCase()}
+                </span>
+              )}
+              {goal.term && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${termBadge(goal.term).badge}`}>
+                  {termBadge(goal.term).label.toUpperCase()}
                 </span>
               )}
             </div>
@@ -714,7 +1055,7 @@ function GoalCard({
         </button>
       </div>
 
-      {/* Valores e barra de progresso */}
+      {/* Valores e barra */}
       <div className="mb-3">
         <div className="flex items-end justify-between mb-1.5">
           <div>
@@ -740,12 +1081,9 @@ function GoalCard({
         <div className="flex items-center justify-between mb-3 text-xs">
           <span className="text-slate-500">
             {deadlineDate && (
-              <>
-                {monthsLeft === 0
-                  ? <span className="text-red-400 font-medium">⚠ Prazo atingido</span>
-                  : <span>Até {deadlineDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })} · {monthsLeft} {monthsLeft === 1 ? 'mês' : 'meses'}</span>
-                }
-              </>
+              monthsLeft === 0
+                ? <span className="text-red-400 font-medium">⚠ Prazo atingido</span>
+                : <span>Até {deadlineDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })} · {monthsLeft} {monthsLeft === 1 ? 'mês' : 'meses'}</span>
             )}
           </span>
           {monthlySuggestion && (
@@ -768,6 +1106,46 @@ function GoalCard({
         </ul>
       )}
 
+      {/* Simulador */}
+      {!isCompleted && (
+        <div className="mb-4 pt-3 border-t border-slate-800">
+          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-2">Simulador</p>
+          <div className="relative mb-2">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">R$</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={simInput}
+              onChange={(e) => setSimInput(e.target.value)}
+              placeholder="Se eu aportar… /mês"
+              className="w-full bg-slate-800/60 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors"
+            />
+          </div>
+          {simInput !== '' && (
+            simMonths === null
+              ? <p className="text-slate-500 text-xs">Informe um valor maior que zero.</p>
+              : <p className="text-slate-300 text-xs">
+                  Você conclui em{' '}
+                  <span className={`font-bold ${cfg.text}`}>{simMonths} {simMonths === 1 ? 'mês' : 'meses'}</span>
+                  {' '}({completionLabel(simMonths)})
+                </p>
+          )}
+          {currentMonthBalance > 0 && suggestMonths !== null && (
+            <div className="mt-2 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
+              <p className="text-slate-400 text-xs leading-relaxed">
+                💡 Com seu saldo de{' '}
+                <span className="text-white font-semibold">{formatCurrency(currentMonthBalance)}</span>
+                {' '}este mês, você poderia aportar esse valor e concluir em{' '}
+                <span className={`font-bold ${cfg.text}`}>{suggestMonths} {suggestMonths === 1 ? 'mês' : 'meses'}</span>
+                {' '}({completionLabel(suggestMonths)})
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Últimos aportes */}
       {contributions.length > 0 && (
         <div className="mb-4 pt-3 border-t border-slate-800">
@@ -777,9 +1155,7 @@ function GoalCard({
               <div key={c.id} className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-slate-600 text-xs flex-shrink-0">{formatShortDate(c.date)}</span>
-                  {c.note && (
-                    <span className="text-slate-500 text-xs truncate">{c.note}</span>
-                  )}
+                  {c.note && <span className="text-slate-500 text-xs truncate">{c.note}</span>}
                 </div>
                 <span className={`text-xs font-semibold flex-shrink-0 ${cfg.text}`}>
                   +{formatCurrency(c.amount)}
@@ -790,7 +1166,7 @@ function GoalCard({
         </div>
       )}
 
-      {/* Botão aportar / badge concluída */}
+      {/* Botão aportar */}
       {!isCompleted ? (
         <button onClick={() => onContrib(goal)}
           className={`w-full py-2.5 rounded-xl border ${cfg.border} ${cfg.bg} ${cfg.text} hover:opacity-80 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all`}

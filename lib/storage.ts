@@ -1,5 +1,5 @@
 import { createClient } from './supabase/client';
-import { Budget, Category, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalType, MonthlyPlan, RecurringExpense } from './types';
+import { Budget, Category, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, MonthlyPlan, RecurringExpense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
   return {
@@ -364,6 +364,8 @@ function toGoal(row: Record<string, unknown>): Goal {
     deadline: (row.deadline as string | null) ?? undefined,
     color: (row.color as string) ?? 'violet',
     status: row.status as 'active' | 'completed',
+    term: (row.term as GoalTerm | null) ?? undefined,
+    emoji: (row.emoji as string | null) ?? undefined,
     createdAt: row.created_at as string,
   };
 }
@@ -396,6 +398,8 @@ export async function createGoal(data: Omit<Goal, 'id' | 'createdAt'>): Promise<
       deadline: data.deadline ?? null,
       color: data.color,
       status: data.status,
+      term: data.term ?? null,
+      emoji: data.emoji ?? null,
     })
     .select()
     .single();
@@ -421,6 +425,8 @@ export async function updateGoal(id: string, data: Partial<Omit<Goal, 'id' | 'cr
   if ('deadline' in data) patch.deadline = data.deadline ?? null;
   if (data.color !== undefined) patch.color = data.color;
   if (data.status !== undefined) patch.status = data.status;
+  if ('term' in data) patch.term = data.term ?? null;
+  if ('emoji' in data) patch.emoji = data.emoji ?? null;
 
   const { data: row, error } = await supabase
     .from('goals')

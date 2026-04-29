@@ -83,6 +83,8 @@ export type GoalType =
   | 'investimentos'
   | 'personalizada';
 
+export type GoalTerm = 'curto' | 'medio' | 'longo';
+
 export interface Goal {
   id: string;
   name: string;
@@ -92,6 +94,8 @@ export interface Goal {
   deadline?: string; // YYYY-MM-DD
   color: string;
   status: 'active' | 'completed';
+  term?: GoalTerm;
+  emoji?: string;
   createdAt: string;
 }
 
