@@ -107,3 +107,23 @@ export interface GoalContribution {
   date: string; // YYYY-MM-DD
   createdAt: string;
 }
+
+export type AssetType = 'caixa' | 'investimentos' | 'imoveis' | 'negocios';
+
+export interface Asset {
+  id: string;
+  name: string;
+  type: AssetType;
+  value: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Liability {
+  id: string;
+  name: string;
+  type: string;
+  value: number;
+  createdAt: string;
+  updatedAt: string;
+}
