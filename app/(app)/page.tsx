@@ -176,9 +176,6 @@ export default function HomePage() {
   const todayIncome = todayEntries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
   const todayBalance = todayIncome - todaySpent;
 
-  // Orçamento do dia: saldo restante ÷ dias restantes; se acabaram, mostra o gasto de hoje
-  const todayBudget = daysRemaining > 0 ? balance / daysRemaining : null;
-
   // Alertas inteligentes (máx 3, ordenados por relevância)
   const smartAlerts: SmartAlert[] = [];
 
@@ -254,27 +251,64 @@ export default function HomePage() {
 
           {/* Card principal: Hoje você pode gastar */}
           <div className="bg-violet-500/10 border border-violet-500/25 rounded-2xl p-5">
-            <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-2">
-              {daysRemaining > 0 ? 'Hoje você pode gastar' : 'Você gastou hoje'}
-            </p>
-            {todayBudget !== null ? (
-              <div className="flex items-end gap-3 flex-wrap">
-                <p className={`text-4xl font-bold leading-none ${todayBudget < 0 ? 'text-red-400' : 'text-violet-300'}`}>
-                  {todayBudget < 0 ? '−' : ''}{formatCurrency(Math.abs(todayBudget))}
+            {daysRemaining >= 2 && (
+              <>
+                <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-2">
+                  Hoje você pode gastar
                 </p>
-                <p className="text-slate-400 text-sm pb-0.5">
-                  {todayBudget < 0
-                    ? 'saldo esgotado'
-                    : `${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''} restante${daysRemaining !== 1 ? 's' : ''}`}
+                <div className="flex items-end gap-3 flex-wrap">
+                  <p className={`text-4xl font-bold leading-none ${balance / daysRemaining < 0 ? 'text-red-400' : 'text-violet-300'}`}>
+                    {balance / daysRemaining < 0 ? '−' : ''}{formatCurrency(Math.abs(balance / daysRemaining))}
+                  </p>
+                  <p className="text-slate-400 text-sm pb-0.5">
+                    {balance / daysRemaining < 0 ? 'saldo esgotado' : `${daysRemaining} dias restantes`}
+                  </p>
+                </div>
+              </>
+            )}
+
+            {daysRemaining === 1 && (
+              <>
+                <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-3">
+                  Último dia do mês
                 </p>
-              </div>
-            ) : (
-              <div className="flex items-end gap-3 flex-wrap">
-                <p className="text-4xl font-bold leading-none text-violet-300">
-                  {formatCurrency(todaySpent)}
+                <div className="flex gap-5 flex-wrap">
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Gasto hoje</p>
+                    <p className="text-white font-bold text-xl">{formatCurrency(todaySpent)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Sobra no mês</p>
+                    <p className={`font-bold text-xl ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {balance >= 0 ? '' : '−'}{formatCurrency(Math.abs(balance))}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {daysRemaining === 0 && (
+              <>
+                <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-3">
+                  Resumo final do mês
                 </p>
-                <p className="text-slate-400 text-sm pb-0.5">gastos no último dia do mês</p>
-              </div>
+                <div className="flex gap-5 flex-wrap">
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Total gasto</p>
+                    <p className="text-white font-bold text-xl">{formatCurrency(spent)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Total ganho</p>
+                    <p className="text-green-400 font-bold text-xl">{formatCurrency(income)}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Saldo final</p>
+                    <p className={`font-bold text-xl ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {balance >= 0 ? '' : '−'}{formatCurrency(Math.abs(balance))}
+                    </p>
+                  </div>
+                </div>
+              </>
             )}
           </div>
 
