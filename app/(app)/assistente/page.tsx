@@ -30,14 +30,26 @@ type Message = {
 };
 
 const SUGGESTIONS = [
-  'Gastei R$ 50 no iFood hoje',
-  'Quanto gastei esse mês?',
-  'Recebi meu salário de R$ 5.000',
-  'Quais meus maiores gastos?',
+  'Onde estou gastando errado?',
+  'Como sobrar R$2.000 esse mês?',
+  'Como está meu patrimônio?',
+  'O que posso cortar esse mês?',
 ];
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function renderBotText(text: string): string {
+  // Escape HTML to prevent XSS, then apply safe formatting
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
 }
 
 function formatDate(dateStr: string) {
@@ -318,9 +330,10 @@ export default function AssistentePage() {
                   <Bot size={14} className="text-violet-400" />
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
-                  <div className="inline-block max-w-[90%] bg-slate-800 text-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed">
-                    {msg.text}
-                  </div>
+                  <div
+                    className="inline-block max-w-[90%] bg-slate-800 text-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: renderBotText(msg.text) }}
+                  />
 
                   {msg.expense && msg.expenseStatus === 'pending' && (
                     <ExpenseCard

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, LogOut, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, LogOut, Plus, RefreshCw, Star } from 'lucide-react';
 import { getExpenses, getBudgets, getRecurringExpenses, getMonthlyPlan } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -29,6 +29,26 @@ interface SmartAlert {
   priority: number;
 }
 
+type ResumoData = {
+  resumo: string;
+  geradoEm: string;
+  cachedAt: number;
+};
+
+const RESUMO_CACHE_KEY = 'gastometro_resumo_semanal';
+const RESUMO_CACHE_TTL = 6 * 60 * 60 * 1000;
+
+function renderBotText(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
 const MOTIVATIONAL_MSGS = [
   'Nenhum gasto hoje ainda — dia econômico! 💪',
   'Sem lançamentos por enquanto. Guarde o dinheiro! 🎯',
@@ -44,6 +64,8 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [dailyChecked, setDailyChecked] = useState(false);
   const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
+  const [resumoData, setResumoData] = useState<ResumoData | null>(null);
+  const [resumoLoading, setResumoLoading] = useState(false);
   const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false });
 
   useEffect(() => {
@@ -91,6 +113,39 @@ export default function HomePage() {
   function handleDailyCheck() {
     localStorage.setItem('gastometro_daily_check', Date.now().toString());
     setDailyChecked(true);
+  }
+
+  async function loadResumo(forceRefresh = false) {
+    if (!forceRefresh) {
+      try {
+        const raw = localStorage.getItem(RESUMO_CACHE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as ResumoData;
+          if (Date.now() - cached.cachedAt < RESUMO_CACHE_TTL) {
+            setResumoData(cached);
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    setResumoLoading(true);
+    try {
+      const res = await fetch('/api/resumo-semanal');
+      const json = await res.json();
+      if (json.resumo) {
+        const data: ResumoData = {
+          resumo: json.resumo,
+          geradoEm: json.geradoEm,
+          cachedAt: Date.now(),
+        };
+        setResumoData(data);
+        try { localStorage.setItem(RESUMO_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+    finally {
+      setResumoLoading(false);
+    }
   }
 
   if (!ready) {
@@ -426,6 +481,67 @@ export default function HomePage() {
                 <p className="text-slate-500 text-xs mt-0.5">Não perca o ritmo!</p>
               )}
             </div>
+          </div>
+
+          {/* Resumo semanal IA */}
+          <div className="bg-slate-900 border border-violet-500/25 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Star size={15} className="text-violet-400" />
+                <p className="text-white font-semibold text-sm">Resumo da semana</p>
+                <span className="text-[10px] text-violet-400/60 font-semibold uppercase tracking-wider">IA</span>
+              </div>
+              {resumoData && !resumoLoading && (
+                <button
+                  onClick={() => loadResumo(true)}
+                  className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-800"
+                  title="Atualizar resumo"
+                >
+                  <RefreshCw size={13} />
+                </button>
+              )}
+            </div>
+
+            {!resumoData && !resumoLoading && (
+              <button
+                onClick={() => loadResumo()}
+                className="w-full flex items-center justify-center gap-2 bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 hover:text-violet-200 text-sm font-medium py-2.5 rounded-xl transition-colors border border-violet-500/20"
+              >
+                ✨ Ver resumo da semana
+              </button>
+            )}
+
+            {resumoLoading && (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>Gerando com IA…</span>
+                </div>
+                {[100, 90, 75, 85, 60].map((w, i) => (
+                  <div
+                    key={i}
+                    className="h-2.5 bg-slate-800 rounded-full animate-pulse"
+                    style={{ width: `${w}%` }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {resumoData && !resumoLoading && (
+              <>
+                <div
+                  className="text-slate-300 text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: renderBotText(resumoData.resumo) }}
+                />
+                <p className="mt-3 text-slate-600 text-[11px]">
+                  Gerado em{' '}
+                  {new Date(resumoData.geradoEm).toLocaleString('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Missões da semana */}
