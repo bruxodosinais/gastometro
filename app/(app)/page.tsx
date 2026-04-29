@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, LogOut, Plus } from 'lucide-react';
 import { getExpenses, getBudgets, getRecurringExpenses, getMonthlyPlan } from '@/lib/storage';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
+import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
 import { Budget, CategorySummary, Expense, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -42,6 +43,8 @@ export default function HomePage() {
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [ready, setReady] = useState(false);
   const [dailyChecked, setDailyChecked] = useState(false);
+  const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
+  const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false });
 
   useEffect(() => {
     Promise.all([getExpenses(), getBudgets(), getRecurringExpenses()]).then(([exp, bud, rec]) => {
@@ -55,6 +58,21 @@ export default function HomePage() {
   useEffect(() => {
     getMonthlyPlan(period).then(setMonthlyPlan);
   }, [period]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const { b1, b2, b3, b4 } = badgeEarnedRef.current;
+    const stored = localStorage.getItem('gastometro_badges_seen');
+    const seen = new Set<string>(stored ? JSON.parse(stored) : []);
+    const newOnes = (
+      [['primeiro_mil', b1], ['guardiao', b2], ['tres_meses', b3], ['streak_mestre', b4]] as [string, boolean][]
+    ).filter(([id, earned]) => earned && !seen.has(id)).map(([id]) => id);
+    if (newOnes.length > 0) {
+      setNewBadgeIds(new Set(newOnes));
+      localStorage.setItem('gastometro_badges_seen', JSON.stringify([...seen, ...newOnes]));
+      setTimeout(() => setNewBadgeIds(new Set()), 3000);
+    }
+  }, [ready]);
 
   useEffect(() => {
     const stored = localStorage.getItem('gastometro_daily_check');
@@ -175,6 +193,81 @@ export default function HomePage() {
   const todaySpent = todayEntries.filter((e) => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
   const todayIncome = todayEntries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
   const todayBalance = todayIncome - todaySpent;
+
+  const streak = isCurrentMonth ? calculateStreak(expenses) : 0;
+
+  // ── Missões ──────────────────────────────────────────────────────────────────
+
+  // Missão 1 — 3 dias sem delivery
+  const deliveryDates = new Set(
+    expenses.filter((e) => e.category === 'Delivery').map((e) => e.date)
+  );
+  let deliveryFreeStreak = 0;
+  {
+    const cursor = new Date(now);
+    while (deliveryFreeStreak < 3) {
+      const ds = [
+        cursor.getFullYear(),
+        String(cursor.getMonth() + 1).padStart(2, '0'),
+        String(cursor.getDate()).padStart(2, '0'),
+      ].join('-');
+      if (deliveryDates.has(ds)) break;
+      deliveryFreeStreak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+  }
+  const m1Done = deliveryFreeStreak >= 3;
+  const m1Pct = Math.min(deliveryFreeStreak / 3, 1);
+
+  // Missão 2 — fechar a semana abaixo da meta
+  const dayOfWeek = now.getDay();
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const weekMonday = new Date(now);
+  weekMonday.setDate(now.getDate() - daysFromMonday);
+  const fmtD = (d: Date) =>
+    [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  const weekMondayStr = fmtD(weekMonday);
+  const weekSunday = new Date(weekMonday);
+  weekSunday.setDate(weekMonday.getDate() + 6);
+  const weekSundayStr = fmtD(weekSunday);
+  const weekSpent = expenses
+    .filter((e) => e.type === 'expense' && e.date >= weekMondayStr && e.date <= weekSundayStr)
+    .reduce((s, e) => s + e.amount, 0);
+  const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
+  const weeklyRef = totalBudget > 0 ? totalBudget / 4 : income > 0 ? income / 4 : 0;
+  const m2Done = weeklyRef > 0 && weekSpent < weeklyRef;
+  const m2OverBudget = weeklyRef > 0 && weekSpent >= weeklyRef;
+
+  // Missão 3 — lançar tudo por 5 dias (reutiliza streak)
+  const m3Done = streak >= 5;
+  const m3Pct = Math.min(streak / 5, 1);
+
+  // ── Medalhas ─────────────────────────────────────────────────────────────────
+  const monthBalances = new Map<string, number>();
+  for (const e of expenses) {
+    const mk = e.date.slice(0, 7);
+    monthBalances.set(mk, (monthBalances.get(mk) ?? 0) + (e.type === 'income' ? e.amount : -e.amount));
+  }
+  const balanceValues = [...monthBalances.values()];
+  const badge1Earned = balanceValues.some((b) => b >= 1000);
+  const badge2Earned = balanceValues.some((b) => b >= 5000);
+
+  let badge3Earned = false;
+  const sortedMonthKeys = [...monthBalances.keys()].sort();
+  for (let i = 2; i < sortedMonthKeys.length; i++) {
+    const toN = (mk: string) => { const [y, m] = mk.split('-').map(Number); return y * 12 + m; };
+    if (
+      toN(sortedMonthKeys[i]) - toN(sortedMonthKeys[i - 1]) === 1 &&
+      toN(sortedMonthKeys[i - 1]) - toN(sortedMonthKeys[i - 2]) === 1 &&
+      (monthBalances.get(sortedMonthKeys[i - 2]) ?? 0) > 0 &&
+      (monthBalances.get(sortedMonthKeys[i - 1]) ?? 0) > 0 &&
+      (monthBalances.get(sortedMonthKeys[i]) ?? 0) > 0
+    ) { badge3Earned = true; break; }
+  }
+
+  const badge4Earned = streak >= 7;
+
+  badgeEarnedRef.current = { b1: badge1Earned, b2: badge2Earned, b3: badge3Earned, b4: badge4Earned };
 
   // Alertas inteligentes (máx 3, ordenados por relevância)
   const smartAlerts: SmartAlert[] = [];
@@ -310,6 +403,206 @@ export default function HomePage() {
                 </div>
               </>
             )}
+          </div>
+
+          {/* Streak */}
+          <div className={`rounded-2xl p-4 border flex items-center gap-3 ${
+            streak >= 3
+              ? 'bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/30'
+              : 'bg-slate-900 border-slate-800'
+          }`}>
+            <span className="text-2xl leading-none">{streak >= 2 ? '🔥' : streak === 1 ? '✨' : '💡'}</span>
+            <div>
+              {streak >= 2 ? (
+                <p className="text-white font-semibold text-sm">
+                  {streak} dias seguidos registrando
+                </p>
+              ) : streak === 1 ? (
+                <p className="text-white font-semibold text-sm">Começou hoje! Continue amanhã</p>
+              ) : (
+                <p className="text-slate-400 text-sm">Registre algo hoje para começar seu streak</p>
+              )}
+              {streak >= 2 && (
+                <p className="text-slate-500 text-xs mt-0.5">Não perca o ritmo!</p>
+              )}
+            </div>
+          </div>
+
+          {/* Missões da semana */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-4">
+              Missões da semana
+            </p>
+            <div className="space-y-4">
+
+              {/* M1 — 3 dias sem delivery */}
+              <div>
+                <div className="flex items-start gap-2.5 mb-2">
+                  <span className="text-base leading-none mt-0.5">🛵</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-white text-sm font-medium">3 dias sem delivery</p>
+                      {m1Done
+                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        : <span className="text-slate-400 text-xs flex-shrink-0">{deliveryFreeStreak}/3</span>
+                      }
+                    </div>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      {m1Done
+                        ? '3+ dias sem pedir delivery!'
+                        : deliveryFreeStreak === 0
+                        ? 'Teve delivery hoje ou ontem'
+                        : `${deliveryFreeStreak} dia${deliveryFreeStreak > 1 ? 's' : ''} sem delivery — continue!`}
+                    </p>
+                  </div>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${m1Done ? 'bg-green-500' : 'bg-violet-500'}`}
+                    style={{ width: `${Math.round(m1Pct * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800" />
+
+              {/* M2 — semana abaixo da meta */}
+              <div>
+                <div className="flex items-start gap-2.5 mb-2">
+                  <span className="text-base leading-none mt-0.5">🎯</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-white text-sm font-medium">Semana abaixo da meta</p>
+                      {m2Done
+                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        : m2OverBudget
+                        ? <span className="text-red-400 text-xs font-semibold flex-shrink-0">Excedido</span>
+                        : <span className="text-slate-400 text-xs flex-shrink-0">—</span>
+                      }
+                    </div>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      {weeklyRef === 0
+                        ? 'Defina orçamento ou registre receita'
+                        : m2Done
+                        ? `Dentro da meta — sobra ${formatCurrency(weeklyRef - weekSpent)}`
+                        : `${formatCurrency(weekSpent)} gasto · meta ${formatCurrency(weeklyRef)}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      m2Done ? 'bg-green-500' : m2OverBudget ? 'bg-red-500' : 'bg-slate-700'
+                    }`}
+                    style={{ width: m2Done || m2OverBudget ? '100%' : '0%' }}
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800" />
+
+              {/* M3 — streak 5 dias */}
+              <div>
+                <div className="flex items-start gap-2.5 mb-2">
+                  <span className="text-base leading-none mt-0.5">📅</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-white text-sm font-medium">Lançar tudo por 5 dias</p>
+                      {m3Done
+                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        : <span className="text-slate-400 text-xs flex-shrink-0">{streak}/5</span>
+                      }
+                    </div>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      {m3Done
+                        ? '5+ dias seguidos registrando!'
+                        : streak === 0
+                        ? 'Registre algo hoje para começar'
+                        : `${streak} dia${streak > 1 ? 's' : ''} seguido${streak > 1 ? 's' : ''} — faltam ${5 - streak}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${m3Done ? 'bg-green-500' : 'bg-violet-500'}`}
+                    style={{ width: `${Math.round(m3Pct * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Conquistas */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-4">
+              Conquistas
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  {
+                    id: 'primeiro_mil',
+                    icon: '🥉',
+                    name: 'Primeiro Mil',
+                    desc: 'Economizou R$1.000 em um mês',
+                    earned: badge1Earned,
+                    bg: 'bg-amber-700/20',
+                    border: 'border-amber-700/40',
+                    text: 'text-amber-600',
+                  },
+                  {
+                    id: 'guardiao',
+                    icon: '🥈',
+                    name: 'Guardião',
+                    desc: 'Economizou R$5.000 em um mês',
+                    earned: badge2Earned,
+                    bg: 'bg-slate-300/20',
+                    border: 'border-slate-300/40',
+                    text: 'text-slate-300',
+                  },
+                  {
+                    id: 'tres_meses',
+                    icon: '🥇',
+                    name: '3 Meses Positivos',
+                    desc: 'Saldo positivo por 3 meses seguidos',
+                    earned: badge3Earned,
+                    bg: 'bg-yellow-500/15',
+                    border: 'border-yellow-500/30',
+                    text: 'text-yellow-500',
+                  },
+                  {
+                    id: 'streak_mestre',
+                    icon: '🔥',
+                    name: 'Streak Mestre',
+                    desc: '7 dias seguidos registrando',
+                    earned: badge4Earned,
+                    bg: 'bg-orange-500/15',
+                    border: 'border-orange-500/30',
+                    text: 'text-orange-400',
+                  },
+                ] as const
+              ).map((badge) => (
+                <div
+                  key={badge.id}
+                  className={`rounded-xl p-3 border ${
+                    badge.earned
+                      ? `${badge.bg} ${badge.border}`
+                      : 'bg-slate-800/50 border-slate-700/50'
+                  } ${newBadgeIds.has(badge.id) ? 'animate-pulse' : ''}`}
+                >
+                  <span className={`text-3xl leading-none block mb-2 ${badge.earned ? '' : 'grayscale opacity-30'}`}>
+                    {badge.icon}
+                  </span>
+                  <p className={`font-semibold text-sm leading-tight ${badge.earned ? 'text-white' : 'text-slate-600'}`}>
+                    {badge.name}
+                  </p>
+                  <p className={`text-xs mt-1 leading-tight ${badge.earned ? badge.text : 'text-slate-600'}`}>
+                    {badge.earned ? badge.desc : 'Bloqueada'}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Ritmo do mês */}
