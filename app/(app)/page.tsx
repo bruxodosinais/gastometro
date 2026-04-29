@@ -256,7 +256,7 @@ export default function HomePage() {
             {projectionStatus === 'over'
               ? 'Acima da média'
               : projectionStatus === 'warning'
-              ? 'Atenção'
+              ? 'Próximo do limite'
               : projectionStatus === 'ok'
               ? 'Dentro do esperado'
               : !isCurrentMonth

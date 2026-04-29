@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Copy, Pencil, Search, X } from 'lucide-react';
-import { getExpenses } from '@/lib/storage';
+import { Copy, Pencil, Search, Trash2, X } from 'lucide-react';
+import { deleteExpense, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { ToastContainer, useToast } from '@/components/Toast';
 import {
   calculateTotalByType,
   formatCurrency,
@@ -26,18 +28,28 @@ export default function HistoricoPage() {
   const [ready, setReady] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | EntryType>('all');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
+  const { toasts, addToast, removeToast } = useToast();
 
   const handleEditSave = (updated: Expense) => {
     setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
     setEditingExpense(null);
+    addToast('Lançamento atualizado', 'success');
   };
 
   const handleDuplicateSave = (saved: Expense) => {
     setExpenses((prev) => [saved, ...prev]);
     setDuplicatingExpense(null);
+    addToast('Lançamento duplicado', 'success');
+  };
+
+  const handleDelete = async (id: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    await deleteExpense(id);
+    addToast('Lançamento excluído', 'success');
   };
 
   useEffect(() => {
@@ -63,7 +75,6 @@ export default function HistoricoPage() {
   const spent = calculateTotalByType(periodEntries, 'expense');
   const balance = income - spent;
 
-  // Opções de categoria dependem do filtro de tipo ativo
   const categoryOptions: Category[] =
     typeFilter === 'expense'
       ? EXPENSE_CATEGORIES
@@ -73,7 +84,6 @@ export default function HistoricoPage() {
 
   function handleTypeFilterChange(type: 'all' | EntryType) {
     setTypeFilter(type);
-    // Reseta categoria se ela não pertence ao novo tipo selecionado
     if (type === 'expense' && INCOME_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
     if (type === 'income' && EXPENSE_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
   }
@@ -93,7 +103,6 @@ export default function HistoricoPage() {
 
       <PeriodSelector />
 
-      {/* Resumo do período */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
           <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Ganhos</p>
@@ -103,21 +112,14 @@ export default function HistoricoPage() {
           <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Gastos</p>
           <p className="text-red-400 font-bold text-sm">{formatCurrency(spent)}</p>
         </div>
-        <div
-          className={`rounded-xl p-3 border ${
-            balance >= 0 ? 'bg-blue-500/5 border-blue-500/20' : 'bg-red-500/5 border-red-500/20'
-          }`}
-        >
+        <div className={`rounded-xl p-3 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
           <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Saldo</p>
-          <p
-            className={`font-bold text-sm ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}
-          >
+          <p className={`font-bold text-sm ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
             {balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(balance))}
           </p>
         </div>
       </div>
 
-      {/* Busca textual */}
       <div className="relative mb-3">
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         <input
@@ -138,7 +140,6 @@ export default function HistoricoPage() {
         )}
       </div>
 
-      {/* Filtros: tipo + categoria */}
       <div className="flex gap-2 mb-5">
         <div className="flex p-0.5 bg-slate-900 border border-slate-800 rounded-xl flex-1 min-w-0">
           {(['all', 'expense', 'income'] as const).map((t) => (
@@ -146,9 +147,7 @@ export default function HistoricoPage() {
               key={t}
               onClick={() => handleTypeFilterChange(t)}
               className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                typeFilter === t
-                  ? 'bg-slate-800 text-white shadow'
-                  : 'text-slate-500 hover:text-slate-300'
+                typeFilter === t ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               {t === 'all' ? 'Todos' : t === 'expense' ? 'Gastos' : 'Receitas'}
@@ -167,15 +166,10 @@ export default function HistoricoPage() {
         </select>
       </div>
 
-      {/* Lista de lançamentos */}
       {periodEntries.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-8">
-          Nenhum lançamento neste período
-        </p>
+        <p className="text-slate-500 text-sm text-center py-8">Nenhum lançamento neste período</p>
       ) : filteredEntries.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-8">
-          Nenhum resultado para os filtros aplicados
-        </p>
+        <p className="text-slate-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
       ) : (
         <div className="space-y-2">
           {filteredEntries.map((exp) => {
@@ -185,27 +179,16 @@ export default function HistoricoPage() {
             const isIncome = exp.type === 'income';
             const isFuture = exp.date > today;
             return (
-              <div
-                key={exp.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3"
-              >
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}
-                >
+              <div key={exp.id} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">{exp.description}</p>
-                  <p className="text-slate-500 text-xs">
-                    {exp.category} · {day}/{month}
-                  </p>
+                  <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span
-                    className={`font-semibold text-sm whitespace-nowrap ${
-                      isFuture ? 'text-slate-400' : isIncome ? 'text-green-400' : 'text-white'
-                    }`}
-                  >
+                  <span className={`font-semibold text-sm whitespace-nowrap ${isFuture ? 'text-slate-400' : isIncome ? 'text-green-400' : 'text-white'}`}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
                   {isFuture && (
@@ -214,19 +197,14 @@ export default function HistoricoPage() {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setEditingExpense(exp)}
-                  className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-2"
-                  aria-label="Editar"
-                >
+                <button onClick={() => setEditingExpense(exp)} className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-2" aria-label="Editar">
                   <Pencil size={15} />
                 </button>
-                <button
-                  onClick={() => setDuplicatingExpense(exp)}
-                  className="text-slate-600 hover:text-cyan-400 transition-colors flex-shrink-0"
-                  aria-label="Duplicar"
-                >
+                <button onClick={() => setDuplicatingExpense(exp)} className="text-slate-600 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
                   <Copy size={15} />
+                </button>
+                <button onClick={() => setDeletingExpense(exp)} className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
+                  <Trash2 size={15} />
                 </button>
               </div>
             );
@@ -236,20 +214,20 @@ export default function HistoricoPage() {
     </main>
 
     {editingExpense && (
-      <EditExpenseModal
-        expense={editingExpense}
-        onSave={handleEditSave}
-        onClose={() => setEditingExpense(null)}
-      />
+      <EditExpenseModal expense={editingExpense} onSave={handleEditSave} onClose={() => setEditingExpense(null)} />
     )}
     {duplicatingExpense && (
-      <EditExpenseModal
-        expense={duplicatingExpense}
-        mode="duplicate"
-        onSave={handleDuplicateSave}
-        onClose={() => setDuplicatingExpense(null)}
+      <EditExpenseModal expense={duplicatingExpense} mode="duplicate" onSave={handleDuplicateSave} onClose={() => setDuplicatingExpense(null)} />
+    )}
+    {deletingExpense && (
+      <ConfirmDeleteModal
+        title="Excluir lançamento"
+        description={`"${deletingExpense.description}" será removido permanentemente.`}
+        onConfirm={() => handleDelete(deletingExpense.id)}
+        onClose={() => setDeletingExpense(null)}
       />
     )}
+    <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 }

@@ -72,3 +72,34 @@ export interface Budget {
   category: ExpenseCategory;
   amount: number;
 }
+
+export type GoalType =
+  | 'reserva'
+  | 'viagem'
+  | 'carro'
+  | 'imovel'
+  | 'reforma'
+  | 'negocio'
+  | 'investimentos'
+  | 'personalizada';
+
+export interface Goal {
+  id: string;
+  name: string;
+  type: GoalType;
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: string; // YYYY-MM-DD
+  color: string;
+  status: 'active' | 'completed';
+  createdAt: string;
+}
+
+export interface GoalContribution {
+  id: string;
+  goalId: string;
+  amount: number;
+  note?: string;
+  date: string; // YYYY-MM-DD
+  createdAt: string;
+}
