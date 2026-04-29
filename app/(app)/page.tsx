@@ -22,6 +22,18 @@ import PlanningSection from '@/components/PlanningSection';
 const SpendingDonut = dynamic(() => import('@/components/SpendingDonut'), { ssr: false });
 const MonthlyBars = dynamic(() => import('@/components/MonthlyBars'), { ssr: false });
 
+interface SmartAlert {
+  emoji: string;
+  text: string;
+  priority: number;
+}
+
+const MOTIVATIONAL_MSGS = [
+  'Nenhum gasto hoje ainda — dia econômico! 💪',
+  'Sem lançamentos por enquanto. Guarde o dinheiro! 🎯',
+  'Dia limpo até agora. Continue assim! ✨',
+];
+
 export default function HomePage() {
   const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -29,6 +41,7 @@ export default function HomePage() {
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [ready, setReady] = useState(false);
+  const [dailyChecked, setDailyChecked] = useState(false);
 
   useEffect(() => {
     Promise.all([getExpenses(), getBudgets(), getRecurringExpenses()]).then(([exp, bud, rec]) => {
@@ -43,10 +56,23 @@ export default function HomePage() {
     getMonthlyPlan(period).then(setMonthlyPlan);
   }, [period]);
 
+  useEffect(() => {
+    const stored = localStorage.getItem('gastometro_daily_check');
+    if (stored) {
+      const ts = parseInt(stored, 10);
+      if (Date.now() - ts < 24 * 60 * 60 * 1000) setDailyChecked(true);
+    }
+  }, []);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/auth/login';
+  }
+
+  function handleDailyCheck() {
+    localStorage.setItem('gastometro_daily_check', Date.now().toString());
+    setDailyChecked(true);
   }
 
   if (!ready) {
@@ -104,7 +130,7 @@ export default function HomePage() {
     : spent;
   const projectedOverBudget = income > 0 && projectedSpending > income;
 
-  // Card 3 — vs mês anterior (% + valor absoluto)  — declarado antes de projectionStatus
+  // Card 3 — vs mês anterior
   const prevDate = new Date(periodYear, periodMonth - 2, 15);
   const prevPeriod = getMonthKey(prevDate);
   const prevSpent = calculateTotalByType(
@@ -114,7 +140,7 @@ export default function HomePage() {
   const spentChange = prevSpent > 0 ? ((spent - prevSpent) / prevSpent) * 100 : null;
   const spentDiff = spentChange !== null ? spent - prevSpent : null;
 
-  // Status da projeção (usa prevSpent — deve vir depois)
+  // Status da projeção
   type ProjStatus = 'ok' | 'warning' | 'over';
   const projectionStatus: ProjStatus | null =
     !isCurrentMonth || spent === 0
@@ -126,7 +152,7 @@ export default function HomePage() {
       ? 'warning'
       : 'ok';
 
-  // Card 4 — maior gasto individual + % do total
+  // Card 4 — maior gasto individual
   const biggestExpense = periodExpenses.reduce<Expense | null>(
     (max, e) => (!max || e.amount > max.amount ? e : max),
     null
@@ -137,6 +163,69 @@ export default function HomePage() {
 
   // Card 5 — sobra prevista
   const projectedSurplus = income - projectedSpending;
+
+  // ── Engajamento Diário ───────────────────────────────────────────────────────
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  const todayEntries = isCurrentMonth ? expenses.filter((e) => e.date === todayStr) : [];
+  const todaySpent = todayEntries.filter((e) => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  const todayIncome = todayEntries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const todayBalance = todayIncome - todaySpent;
+
+  // Orçamento do dia: saldo restante ÷ dias restantes; se acabaram, mostra o gasto de hoje
+  const todayBudget = daysRemaining > 0 ? balance / daysRemaining : null;
+
+  // Alertas inteligentes (máx 3, ordenados por relevância)
+  const smartAlerts: SmartAlert[] = [];
+
+  if (isCurrentMonth) {
+    const categoryAlertData = getCategoryAlerts(expenses, period);
+
+    // Delivery > 20% acima da média
+    const deliveryData = categoryAlertData.find((a) => a.category === 'Delivery');
+    if (deliveryData && deliveryData.average > 0 && deliveryData.percentChange > 20) {
+      smartAlerts.push({
+        emoji: '🛵',
+        text: `Delivery acima da média (+${Math.round(deliveryData.percentChange)}%)`,
+        priority: deliveryData.percentChange * 2,
+      });
+    }
+
+    // Demais categorias > 15% acima da média
+    for (const alert of categoryAlertData) {
+      if (alert.category === 'Delivery') continue;
+      if (alert.average > 0 && alert.percentChange > 15) {
+        smartAlerts.push({
+          emoji: '📈',
+          text: `${alert.category} subiu ${Math.round(alert.percentChange)}%`,
+          priority: alert.percentChange,
+        });
+      }
+    }
+
+    // Recorrentes sem lançamento no mês
+    for (const rec of recurringExpenses) {
+      if (!rec.active) continue;
+      const hasEntry = periodEntries.some((e) => e.recurringExpenseId === rec.id);
+      if (!hasEntry) {
+        smartAlerts.push({
+          emoji: '⚠️',
+          text: `${rec.description} ainda não foi lançado esse mês`,
+          priority: rec.amount / 10,
+        });
+      }
+    }
+  }
+
+  const topSmartAlerts = [...smartAlerts]
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 3);
+
+  const motivationalMsg = MOTIVATIONAL_MSGS[now.getDate() % MOTIVATIONAL_MSGS.length];
 
   return (
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
@@ -158,6 +247,131 @@ export default function HomePage() {
 
       {/* Seletor de período */}
       <PeriodSelector />
+
+      {/* ── Engajamento Diário — só aparece no mês atual ── */}
+      {isCurrentMonth && (
+        <div className="mt-4 mb-4 space-y-3">
+
+          {/* Card principal: Hoje você pode gastar */}
+          <div className="bg-violet-500/10 border border-violet-500/25 rounded-2xl p-5">
+            <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-2">
+              {daysRemaining > 0 ? 'Hoje você pode gastar' : 'Você gastou hoje'}
+            </p>
+            {todayBudget !== null ? (
+              <div className="flex items-end gap-3 flex-wrap">
+                <p className={`text-4xl font-bold leading-none ${todayBudget < 0 ? 'text-red-400' : 'text-violet-300'}`}>
+                  {todayBudget < 0 ? '−' : ''}{formatCurrency(Math.abs(todayBudget))}
+                </p>
+                <p className="text-slate-400 text-sm pb-0.5">
+                  {todayBudget < 0
+                    ? 'saldo esgotado'
+                    : `${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''} restante${daysRemaining !== 1 ? 's' : ''}`}
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-end gap-3 flex-wrap">
+                <p className="text-4xl font-bold leading-none text-violet-300">
+                  {formatCurrency(todaySpent)}
+                </p>
+                <p className="text-slate-400 text-sm pb-0.5">gastos no último dia do mês</p>
+              </div>
+            )}
+          </div>
+
+          {/* Ritmo do mês */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+                Fecha em
+              </p>
+              <p className={`text-lg font-bold ${income > 0 && projectedSpending > income ? 'text-red-400' : 'text-white'}`}>
+                {formatCurrency(projectedSpending)}
+              </p>
+              <p className="text-slate-500 text-xs mt-0.5">no ritmo atual</p>
+            </div>
+            <div className={`rounded-2xl p-4 border ${
+              projectedSurplus >= 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'
+            }`}>
+              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-1.5">
+                Economia prevista
+              </p>
+              <p className={`text-lg font-bold ${projectedSurplus >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {projectedSurplus >= 0 ? '' : '−'}{formatCurrency(Math.abs(projectedSurplus))}
+              </p>
+              <p className="text-slate-500 text-xs mt-0.5">
+                {income > 0 ? 'receita − projeção' : 'sem receita registrada'}
+              </p>
+            </div>
+          </div>
+
+          {/* Alertas inteligentes */}
+          {topSmartAlerts.length > 0 && (
+            <div className="bg-slate-900 border border-amber-500/20 rounded-2xl p-4">
+              <p className="text-amber-400/80 text-xs font-medium uppercase tracking-wider mb-3">
+                Alertas inteligentes
+              </p>
+              <div className="space-y-2.5">
+                {topSmartAlerts.map((alert, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <span className="text-base leading-none">{alert.emoji}</span>
+                    <span className="text-slate-300 text-sm">{alert.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Resumo do dia */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3 capitalize">
+              {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+            {todayEntries.length === 0 ? (
+              <p className="text-slate-400 text-sm">{motivationalMsg}</p>
+            ) : (
+              <div className="flex gap-5 flex-wrap">
+                {todaySpent > 0 && (
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Gastou</p>
+                    <p className="text-white font-semibold text-sm">{formatCurrency(todaySpent)}</p>
+                  </div>
+                )}
+                {todayIncome > 0 && (
+                  <div>
+                    <p className="text-slate-500 text-xs mb-0.5">Ganhou</p>
+                    <p className="text-green-400 font-semibold text-sm">{formatCurrency(todayIncome)}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-slate-500 text-xs mb-0.5">Saldo do dia</p>
+                  <p className={`font-semibold text-sm ${todayBalance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                    {todayBalance >= 0 ? '+' : '−'}{formatCurrency(Math.abs(todayBalance))}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Check diário */}
+          {!dailyChecked ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <p className="text-slate-300 text-sm">Registrou tudo hoje?</p>
+              <button
+                onClick={handleDailyCheck}
+                className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+              >
+                Sim, está tudo aqui ✓
+              </button>
+            </div>
+          ) : (
+            <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4 text-center">
+              <p className="text-green-400 text-sm font-medium">✓ Tudo registrado hoje!</p>
+              <p className="text-slate-500 text-xs mt-1">Você está no controle 🎯</p>
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* Cards: Saldo + Ganhos + Gastos */}
       {/* Mobile: Saldo em cima, Ganhos/Gastos em 2 colunas */}
