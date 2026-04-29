@@ -22,7 +22,9 @@
       "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
       "Bash(npx next *)",
       "Bash(git *)",
-      "Bash(node -e \"const r = require\\('/Users/anderson/gastometro/node_modules/recharts'\\); console.log\\(Object.keys\\(r\\).filter\\(k => /pie|bar|cell|tooltip|legend|responsive|cartesian|xaxis|yaxis/i.test\\(k\\)\\).join\\('\\\\n'\\)\\)\")"
+      "Bash(node -e \"const r = require\\('/Users/anderson/gastometro/node_modules/recharts'\\); console.log\\(Object.keys\\(r\\).filter\\(k => /pie|bar|cell|tooltip|legend|responsive|cartesian|xaxis|yaxis/i.test\\(k\\)\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node -e \"const {default: Anthropic} = require\\('@anthropic-ai/sdk'\\); console.log\\('ok'\\)\")",
+      "Bash(xxd ~/gastometro/.env.local)"
     ]
   }
 }

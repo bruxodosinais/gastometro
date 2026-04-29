@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, LayoutGrid, Clock, RefreshCw, Target } from 'lucide-react';
+import { Home, PlusCircle, LayoutGrid, Clock, RefreshCw, Target, Bot } from 'lucide-react';
 
 const tabs = [
   { href: '/', label: 'Home', Icon: Home },
@@ -11,6 +11,7 @@ const tabs = [
   { href: '/historico', label: 'Histórico', Icon: Clock },
   { href: '/metas', label: 'Metas', Icon: Target },
   { href: '/recorrentes', label: 'Recorrentes', Icon: RefreshCw },
+  { href: '/assistente', label: 'Assistente', Icon: Bot },
 ];
 
 export default function Navigation() {

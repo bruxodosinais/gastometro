@@ -59,6 +59,16 @@ export default function HistoricoPage() {
     });
   }, []);
 
+  useEffect(() => {
+    const refresh = () => getExpenses().then(setExpenses);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('gastometro_expense_added', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('gastometro_expense_added', refresh);
+    };
+  }, []);
+
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
