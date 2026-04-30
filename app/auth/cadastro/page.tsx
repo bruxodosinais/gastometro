@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function CadastroPage() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -32,7 +33,10 @@ export default function CadastroPage() {
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback`,
+        data: { full_name: name.trim() },
+      },
     });
 
     if (authError) {
@@ -90,6 +94,21 @@ export default function CadastroPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+              Nome
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu primeiro nome"
+              required
+              autoComplete="given-name"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+            />
+          </div>
+
           <div>
             <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
               E-mail
