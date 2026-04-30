@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowUp, ArrowDown, Minus, Pencil, Check, X, Trash2 } from 'lucide-react';
 import {
   BarChart,
@@ -23,6 +24,8 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
 import { Budget, CategorySummary, Expense, ExpenseCategory } from '@/lib/types';
+
+type InsightItem = { text: string; variant: 'above' | 'below' | 'neutral' };
 
 function shortLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-');
@@ -69,12 +72,14 @@ function CategoryTooltip({
 
 export default function CategoriasPage() {
   const { period } = usePeriod();
+  const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [ready, setReady] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
+  const insightCardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     Promise.all([getExpenses(), getBudgets()]).then(([exp, bud]) => {
@@ -128,33 +133,26 @@ export default function CategoriasPage() {
     }
   }
 
-  if (!ready) {
-    return (
-      <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-      </main>
-    );
-  }
-
-  const summaries: CategorySummary[] = getCategoryAlerts(expenses, period);
+  // All data computations — guarded so they return empty when not ready
+  const summaries: CategorySummary[] = ready ? getCategoryAlerts(expenses, period) : [];
   const maxTotal = Math.max(...summaries.map((s) => Math.max(s.total, s.average)), 1);
 
-  // Ranking: categorias com gasto > 0, ordenadas por valor
   const rankedSummaries = [...summaries]
     .filter((s) => s.total > 0)
     .sort((a, b) => b.total - a.total);
   const totalGasto = rankedSummaries.reduce((sum, s) => sum + s.total, 0);
   const maxRankTotal = rankedSummaries[0]?.total ?? 1;
 
-  // Top 3 categorias para o gráfico de evolução
   const top3 = [...summaries]
     .sort((a, b) => b.total - a.total)
     .slice(0, 3)
     .filter((s) => s.total > 0)
     .map((s) => s.category);
 
-  const last6Months = getLast6Months(period);
-  const groupedExpenses = groupByMonth(expenses.filter((e) => e.type === 'expense'));
+  const last6Months = ready ? getLast6Months(period) : [];
+  const groupedExpenses = ready
+    ? groupByMonth(expenses.filter((e) => e.type === 'expense'))
+    : {};
   const chartData = last6Months.map((month) => {
     const byCategory = calculateByCategory(groupedExpenses[month] ?? []);
     const entry: Record<string, string | number> = { month: shortLabel(month) };
@@ -164,6 +162,87 @@ export default function CategoriasPage() {
   const hasChartData =
     top3.length > 0 && chartData.some((d) => top3.some((cat) => (d[cat] as number) > 0));
 
+  // Tendência da categoria principal para contexto do gráfico
+  let chartTrendText = '';
+  if (top3.length > 0 && hasChartData) {
+    const topCat = top3[0];
+    const vals = chartData.map((d) => d[topCat] as number);
+    const last3 = vals.slice(-3);
+    const isRising = last3[2] > last3[1] && last3[1] > last3[0];
+    const isFalling = last3[2] < last3[1] && last3[1] < last3[0];
+    if (isRising) chartTrendText = `${topCat} teve alta recente`;
+    else if (isFalling) chartTrendText = `${topCat} caiu nos últimos meses`;
+    else chartTrendText = `${topCat} permanece estável`;
+  }
+
+  // Insight fixo: prioridade → acima da média → maior participação → abaixo da média
+  const mostAbove = [...summaries]
+    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange > 5)
+    .sort((a, b) => b.percentChange - a.percentChange)[0];
+
+  const topByShare = [...summaries]
+    .filter((s) => s.total > 0)
+    .sort((a, b) => b.total - a.total)[0];
+
+  const mostBelow = [...summaries]
+    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange < -5)
+    .sort((a, b) => a.percentChange - b.percentChange)[0];
+
+  const currentInsight: InsightItem | null = mostAbove
+    ? {
+        text: `⚠️ ${mostAbove.category} está ${Math.round(mostAbove.percentChange)}% acima da média`,
+        variant: 'above',
+      }
+    : topByShare && totalGasto > 0
+    ? {
+        text: `🔥 ${topByShare.category} representa ${Math.round((topByShare.total / totalGasto) * 100)}% dos gastos`,
+        variant: 'neutral',
+      }
+    : mostBelow
+    ? {
+        text: `✅ ${mostBelow.category} está ${Math.round(Math.abs(mostBelow.percentChange))}% abaixo da média`,
+        variant: 'below',
+      }
+    : null;
+
+  const insightBgClass = !currentInsight
+    ? 'bg-slate-800/50 border border-slate-700'
+    : currentInsight.variant === 'above'
+    ? 'bg-red-500/20 border border-red-500/30'
+    : currentInsight.variant === 'below'
+    ? 'bg-green-500/20 border border-green-500/30'
+    : 'bg-yellow-500/20 border border-yellow-500/30';
+
+  const insightTextClass = !currentInsight
+    ? 'text-slate-400'
+    : currentInsight.variant === 'above'
+    ? 'text-red-400'
+    : currentInsight.variant === 'below'
+    ? 'text-green-400'
+    : 'text-yellow-400';
+
+  // Categoria do insight: sincroniza destaque do card com o insight exibido
+  const insightCategory: ExpenseCategory | null =
+    mostAbove?.category ?? topByShare?.category ?? mostBelow?.category ?? null;
+
+  // Scroll suave para o card do insight após carregar
+  useEffect(() => {
+    if (!ready || !insightCategory) return;
+    const timer = setTimeout(() => {
+      insightCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [ready, insightCategory]);
+
+  // Early return for loading state — placed after all hooks
+  if (!ready) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-white mb-1">Categorias</h1>
@@ -171,9 +250,24 @@ export default function CategoriasPage() {
 
       <PeriodSelector />
 
+      {/* Insight principal */}
+      <div
+        className={`rounded-xl px-5 py-4 mb-6 cursor-pointer hover:opacity-90 transition-opacity duration-150 ease-out ${insightBgClass}`}
+        onClick={() =>
+          insightCategory &&
+          router.push(`/historico?categoria=${encodeURIComponent(insightCategory)}`)
+        }
+      >
+        <p className={`text-lg font-semibold ${insightTextClass}`}>
+          {currentInsight
+            ? currentInsight.text
+            : 'Sem dados suficientes para gerar insights'}
+        </p>
+      </div>
+
       {/* Ranking de categorias do mês */}
       {rankedSummaries.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-5">
+        <div className="opacity-[0.85] bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-5">
           <h2 className="text-white font-semibold text-sm mb-3">Ranking do mês</h2>
           <div className="space-y-2.5">
             {rankedSummaries.map((s, i) => {
@@ -202,7 +296,7 @@ export default function CategoriasPage() {
                     </div>
                     <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${cfg.barClass}`}
+                        className={`h-full rounded-full transition-all duration-500 brightness-90 ${cfg.barClass}`}
                         style={{ width: `${barWidth}%` }}
                       />
                     </div>
@@ -230,6 +324,7 @@ export default function CategoriasPage() {
         </div>
       </div>
 
+      {/* Cards de categorias */}
       <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
         {summaries.map((summary) => {
           const cfg = CATEGORY_CONFIG[summary.category];
@@ -239,6 +334,7 @@ export default function CategoriasPage() {
           const budget = budgetMap[summary.category];
           const budgetPct = budget != null && budget > 0 ? (summary.total / budget) * 100 : null;
           const isEditing = editingCategory === summary.category;
+          const isDominant = summary.category === insightCategory;
 
           let budgetBarColor = 'bg-green-500';
           if (budgetPct != null) {
@@ -259,12 +355,18 @@ export default function CategoriasPage() {
                 : null
               : null;
 
+          const cardBaseClass = `bg-slate-900 rounded-2xl p-4 transition-all duration-200 ease-out`;
+          const cardBorderClass = isDominant
+            ? 'border border-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.35)] shadow-lg transform scale-[1.05]'
+            : summary.isAlert
+            ? 'border border-red-500/30'
+            : 'border border-slate-800';
+
           return (
             <div
               key={summary.category}
-              className={`bg-slate-900 border rounded-2xl p-4 ${
-                summary.isAlert ? 'border-red-500/30' : 'border-slate-800'
-              }`}
+              ref={isDominant ? insightCardRef : null}
+              className={`${cardBaseClass} ${cardBorderClass}`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -461,6 +563,39 @@ export default function CategoriasPage() {
               {!hasData && !isEditing && budget == null && (
                 <p className="text-slate-600 text-xs">Sem lançamentos nesta categoria</p>
               )}
+
+              {/* Micro ações */}
+              {hasData && !isEditing && (
+                <div className="flex gap-3 mt-2">
+                  {trendUp ? (
+                    <>
+                      <span
+                        className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                        onClick={() =>
+                          router.push(`/historico?categoria=${encodeURIComponent(summary.category)}`)
+                        }
+                      >
+                        Ver gastos
+                      </span>
+                      <span
+                        className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                        onClick={() => console.log('ajustar-meta', summary.category)}
+                      >
+                        Reduzir meta
+                      </span>
+                    </>
+                  ) : (
+                    <span
+                      className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                      onClick={() =>
+                        router.push(`/historico?categoria=${encodeURIComponent(summary.category)}`)
+                      }
+                    >
+                      Ver histórico
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -468,9 +603,12 @@ export default function CategoriasPage() {
 
       {/* Evolução por categoria — últimos 6 meses */}
       {hasChartData && (
-        <div className="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="mt-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
           <h2 className="text-white font-semibold text-sm mb-0.5">Evolução por categoria</h2>
-          <p className="text-slate-500 text-xs mb-4">Top 3 categorias — últimos 6 meses</p>
+          <p className="text-slate-500 text-xs mb-1">Top 3 categorias — últimos 6 meses</p>
+          {chartTrendText && (
+            <p className="text-xs text-slate-400 mb-2">{chartTrendText}</p>
+          )}
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%" minHeight={0}>
               <BarChart data={chartData} barCategoryGap="28%" barGap={3}>
