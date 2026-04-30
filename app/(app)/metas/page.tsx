@@ -85,88 +85,23 @@ function completionLabel(monthsFromNow: number): string {
   return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
 }
 
-type GoalHealthStatus = 'verde' | 'amarelo' | 'vermelho';
-
-function computeStatus(goal: Goal, contributions: GoalContribution[]): GoalHealthStatus | null {
-  if (goal.status === 'completed' || !goal.deadline) return null;
-
-  const now = new Date();
-  const dl = new Date(goal.deadline + 'T12:00:00');
-  const monthsLeft = monthsDiff(now, dl);
-
-  if (monthsLeft <= 0) return 'vermelho';
-
-  const remaining = goal.targetAmount - goal.currentAmount;
-  const requiredPace = remaining / monthsLeft;
-
-  if (contributions.length === 0) {
-    return monthsLeft <= 2 ? 'vermelho' : 'amarelo';
-  }
-
-  const totalContribs = contributions.reduce((s, c) => s + c.amount, 0);
-  const oldest = contributions[contributions.length - 1];
-  const firstDate = new Date(oldest.date + 'T12:00:00');
-  const contribMonths = Math.max(monthsDiff(firstDate, now), 1);
-  const actualPace = totalContribs / contribMonths;
-
-  if (actualPace >= requiredPace * 0.9) return 'verde';
-  if (actualPace >= requiredPace * 0.5) return 'amarelo';
-  return 'vermelho';
+function getSimulatorMessage(meses: number): { text: string; cls: string } {
+  if (meses > 60) return { text: `Muito lento — levará ${meses} meses`, cls: 'text-red-400' };
+  if (meses > 24) return { text: `Lento — levará ${meses} meses`,       cls: 'text-yellow-400' };
+  return { text: `Você conclui em ${meses} meses`,                       cls: 'text-green-400' };
 }
 
-type InsightItem = { icon: string; text: string };
-
-function computeInsights(goal: Goal, contributions: GoalContribution[], avgMonthlySpent: number): InsightItem[] {
-  const now = new Date();
-  const pct = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
-  const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
-
-  if (pct >= 100) return [{ icon: '🎉', text: 'Meta concluída!' }];
-
-  const items: InsightItem[] = [];
-
-  items.push({ icon: '💰', text: `Faltam ${formatCurrency(remaining)} para concluir` });
-
-  if (contributions.length > 0) {
-    const totalContribs = contributions.reduce((s, c) => s + c.amount, 0);
-    const oldest = contributions[contributions.length - 1];
-    const firstDate = new Date(oldest.date + 'T12:00:00');
-    const months = Math.max(monthsDiff(firstDate, now), 1);
-    const pace = totalContribs / months;
-    if (pace > 0) {
-      const monthsToGo = Math.ceil(remaining / pace);
-      items.push({ icon: '📈', text: `No ritmo atual, conclui em ${monthsToGo} ${monthsToGo === 1 ? 'mês' : 'meses'}` });
-    }
-  }
-
-  if (goal.deadline) {
-    const dl = new Date(goal.deadline + 'T12:00:00');
-    const left = monthsDiff(now, dl);
-    if (left <= 0) {
-      items.push({ icon: '⚠️', text: 'Prazo atingido — meta ainda em aberto' });
-    } else if (contributions.length > 0) {
-      const totalContribs = contributions.reduce((s, c) => s + c.amount, 0);
-      const oldest = contributions[contributions.length - 1];
-      const contribMonths = Math.max(monthsDiff(new Date(oldest.date + 'T12:00:00'), now), 1);
-      const pace = totalContribs / contribMonths;
-      const needed = remaining / left;
-      if (pace > 0 && pace < needed * 0.75) {
-        items.push({ icon: '⚠️', text: `Ritmo insuficiente — precisa de ${formatCurrency(needed)}/mês` });
-      }
-    }
-  }
-
-  if (goal.type === 'reserva' && avgMonthlySpent > 0) {
-    const ideal = avgMonthlySpent * 6;
-    if (goal.targetAmount < ideal * 0.9) {
-      items.push({ icon: '🛡️', text: `Reserva ideal (6× gastos médios): ${formatCurrency(ideal)}` });
-    } else {
-      items.push({ icon: '✅', text: 'Meta alinhada com 6× seus gastos médios' });
-    }
-  }
-
-  return items;
+function getStatus(progress: number) {
+  if (progress < 0.6) return 'atrasada';
+  if (progress < 0.9) return 'atencao';
+  return 'no-ritmo';
 }
+
+const STATUS_CONFIG = {
+  atrasada:  { label: '🔴 Atrasada', cls: 'text-red-400',    bar: 'bg-red-500',    btnLabel: 'Aportar agora' },
+  atencao:   { label: '🟡 Atenção',  cls: 'text-yellow-400', bar: 'bg-yellow-500', btnLabel: 'Aumentar aporte' },
+  'no-ritmo':{ label: '🟢 No ritmo', cls: 'text-green-400',  bar: 'bg-green-500',  btnLabel: 'Manter plano' },
+};
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -198,6 +133,7 @@ export default function MetasPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Contribuição
   const [contributingGoal, setContributingGoal] = useState<Goal | null>(null);
@@ -241,6 +177,7 @@ export default function MetasPage() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormError(null);
+    setShowAdvanced(false);
     setShowForm(true);
   }
 
@@ -257,6 +194,7 @@ export default function MetasPage() {
       emoji: goal.emoji ?? '',
     });
     setFormError(null);
+    setShowAdvanced(false);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -266,6 +204,7 @@ export default function MetasPage() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormError(null);
+    setShowAdvanced(false);
   }
 
   function handleTypeChange(type: GoalType) {
@@ -399,6 +338,15 @@ export default function MetasPage() {
 
   const goalIcon = (goal: Goal) => goal.emoji ?? GOAL_TYPES[goal.type].icon;
 
+  const statusPriority: Record<string, number> = { atrasada: 0, atencao: 1, 'no-ritmo': 2 };
+  const sortedActiveGoals = [...activeGoals].sort((a, b) => {
+    const progA = a.targetAmount > 0 ? a.currentAmount / a.targetAmount : 0;
+    const progB = b.targetAmount > 0 ? b.currentAmount / b.targetAmount : 0;
+    const statusDiff = statusPriority[getStatus(progA)] - statusPriority[getStatus(progB)];
+    if (statusDiff !== 0) return statusDiff;
+    return progB - progA;
+  });
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -467,59 +415,6 @@ export default function MetasPage() {
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
                 />
               </div>
-              {/* Tipo */}
-              <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {(Object.keys(GOAL_TYPES) as GoalType[]).map((t) => {
-                    const cfg = GOAL_TYPES[t];
-                    const active = form.type === t;
-                    return (
-                      <button key={t} type="button" onClick={() => handleTypeChange(t)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
-                          active ? 'bg-violet-500/10 border-violet-500/40 text-white'
-                                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'
-                        }`}
-                      >
-                        <span>{cfg.icon}</span>
-                        <span className="text-xs font-medium truncate">{cfg.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Emoji personalizado */}
-              <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                  Emoji da meta{' '}
-                  <span className="normal-case text-slate-600">(opcional — substitui o ícone de categoria)</span>
-                </label>
-                <div className="grid grid-cols-7 md:grid-cols-14 gap-1.5">
-                  {EMOJI_OPTIONS.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, emoji: f.emoji === e ? '' : e }))}
-                      className={`h-9 rounded-xl text-lg flex items-center justify-center transition-all ${
-                        form.emoji === e
-                          ? 'bg-violet-500/20 border border-violet-500/50 scale-110'
-                          : 'bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:scale-105'
-                      }`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-                {form.emoji && (
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
-                    className="mt-1.5 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    ✕ Remover emoji
-                  </button>
-                )}
-              </div>
               {/* Valores */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -545,53 +440,119 @@ export default function MetasPage() {
                   </div>
                 </div>
               </div>
-              {/* Prazo e cor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
-                  <input type="date" value={form.deadline}
-                    onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors [color-scheme:dark]"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {COLORS.map((c) => (
-                      <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
-                        className={`w-7 h-7 rounded-full ${COLOR_CONFIG[c].dot} transition-all ${
-                          form.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : 'opacity-70 hover:opacity-100'
-                        }`}
-                      />
-                    ))}
+              {/* Configurações avançadas */}
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex items-center gap-1 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors"
+              >
+                {showAdvanced ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                Configurações avançadas
+              </button>
+              {showAdvanced && (
+                <>
+                  {/* Tipo */}
+                  <div>
+                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {(Object.keys(GOAL_TYPES) as GoalType[]).map((t) => {
+                        const cfg = GOAL_TYPES[t];
+                        const active = form.type === t;
+                        return (
+                          <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
+                              active ? 'bg-violet-500/10 border-violet-500/40 text-white'
+                                     : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                            }`}
+                          >
+                            <span>{cfg.icon}</span>
+                            <span className="text-xs font-medium truncate">{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
-              {/* Classificação de prazo */}
-              <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                  Classificação de prazo <span className="normal-case text-slate-600">(opcional)</span>
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {TERM_OPTIONS.map((opt) => {
-                    const active = form.term === opt.value;
-                    return (
+                  {/* Emoji personalizado */}
+                  <div>
+                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                      Emoji da meta{' '}
+                      <span className="normal-case text-slate-600">(opcional — substitui o ícone de categoria)</span>
+                    </label>
+                    <div className="grid grid-cols-7 md:grid-cols-14 gap-1.5">
+                      {EMOJI_OPTIONS.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, emoji: f.emoji === e ? '' : e }))}
+                          className={`h-9 rounded-xl text-lg flex items-center justify-center transition-all ${
+                            form.emoji === e
+                              ? 'bg-violet-500/20 border border-violet-500/50 scale-110'
+                              : 'bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:scale-105'
+                          }`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                    {form.emoji && (
                       <button
-                        key={opt.value}
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, term: f.term === opt.value ? '' : opt.value }))}
-                        className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
-                          active
-                            ? opt.badge
-                            : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300'
-                        }`}
+                        onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
+                        className="mt-1.5 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
                       >
-                        {opt.label}
+                        ✕ Remover emoji
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
+                    )}
+                  </div>
+                  {/* Prazo e cor */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
+                      <input type="date" value={form.deadline}
+                        onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors [color-scheme:dark]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {COLORS.map((c) => (
+                          <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
+                            className={`w-7 h-7 rounded-full ${COLOR_CONFIG[c].dot} transition-all ${
+                              form.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : 'opacity-70 hover:opacity-100'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Classificação de prazo */}
+                  <div>
+                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                      Classificação de prazo <span className="normal-case text-slate-600">(opcional)</span>
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {TERM_OPTIONS.map((opt) => {
+                        const active = form.term === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, term: f.term === opt.value ? '' : opt.value }))}
+                            className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                              active
+                                ? opt.badge
+                                : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {formError && (
@@ -642,12 +603,11 @@ export default function MetasPage() {
               <h2 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Ativas</h2>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {activeGoals.map((goal) => (
+              {sortedActiveGoals.map((goal, i) => (
                 <GoalCard key={goal.id} goal={goal}
                   contributions={contribsByGoal[goal.id] ?? []}
-                  avgMonthlySpent={avgMonthlySpent}
-                  currentMonthBalance={currentMonthBalance}
                   icon={goalIcon(goal)}
+                  isPriority={i === 0}
                   onEdit={openEdit}
                   onContrib={openContrib}
                 />
@@ -971,59 +931,35 @@ function VictoryCard({
 function GoalCard({
   goal,
   contributions,
-  avgMonthlySpent,
-  currentMonthBalance,
   icon,
+  isPriority,
   onEdit,
   onContrib,
 }: {
   goal: Goal;
   contributions: GoalContribution[];
-  avgMonthlySpent: number;
-  currentMonthBalance: number;
   icon: string;
+  isPriority: boolean;
   onEdit: (g: Goal) => void;
   onContrib: (g: Goal) => void;
 }) {
   const [simInput, setSimInput] = useState('');
 
-  const now = new Date();
   const cfg = colorCfg(goal.color);
-  const typeCfg = GOAL_TYPES[goal.type];
   const pct = goal.targetAmount > 0 ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
   const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
   const isCompleted = goal.status === 'completed';
 
-  const deadlineDate = goal.deadline ? new Date(goal.deadline + 'T12:00:00') : null;
-  const monthsLeft = deadlineDate
-    ? Math.max(0, (deadlineDate.getFullYear() - now.getFullYear()) * 12 + (deadlineDate.getMonth() - now.getMonth()))
-    : null;
-  const monthlySuggestion = monthsLeft && monthsLeft > 0 && remaining > 0 ? remaining / monthsLeft : null;
-
-  const status = computeStatus(goal, contributions);
-  const insights = computeInsights(goal, contributions, avgMonthlySpent);
-
-  const statusLabel: Record<'verde' | 'amarelo' | 'vermelho', string> = {
-    verde: 'No prazo',
-    amarelo: 'Atenção',
-    vermelho: 'Atrasada',
-  };
-  const statusClass: Record<'verde' | 'amarelo' | 'vermelho', string> = {
-    verde: 'bg-green-500/15 text-green-400',
-    amarelo: 'bg-yellow-500/15 text-yellow-400',
-    vermelho: 'bg-red-500/15 text-red-400',
-  };
+  const progress = goal.targetAmount > 0 ? goal.currentAmount / goal.targetAmount : 0;
+  const statusKey = getStatus(progress);
+  const sc = STATUS_CONFIG[statusKey];
 
   const simMonthly = parseFloat(simInput.replace(',', '.'));
   const simValid = simMonthly > 0 && remaining > 0;
   const simMonths = simValid ? Math.ceil(remaining / simMonthly) : null;
 
-  const suggestMonths = currentMonthBalance > 0 && remaining > 0
-    ? Math.ceil(remaining / currentMonthBalance)
-    : null;
-
   return (
-    <div className={`rounded-2xl p-5 border ${isCompleted ? 'bg-green-500/5 border-green-500/20' : 'bg-slate-900 border-slate-800'}`}>
+    <div className={`rounded-2xl p-5 border bg-slate-900 ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-slate-800'}`}>
 
       {/* Cabeçalho */}
       <div className="flex items-start justify-between mb-4">
@@ -1032,20 +968,8 @@ function GoalCard({
             {icon}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-white font-semibold text-sm leading-tight truncate">{goal.name}</p>
-              {status && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusClass[status]}`}>
-                  {statusLabel[status].toUpperCase()}
-                </span>
-              )}
-              {goal.term && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${termBadge(goal.term).badge}`}>
-                  {termBadge(goal.term).label.toUpperCase()}
-                </span>
-              )}
-            </div>
-            <p className="text-slate-500 text-xs mt-0.5">{typeCfg.label}</p>
+            <p className="text-lg font-semibold text-white truncate">{goal.name}</p>
+            {!isCompleted && <p className={`text-xs font-medium ${sc.cls}`}>{sc.label}</p>}
           </div>
         </div>
         <button onClick={() => onEdit(goal)}
@@ -1055,62 +979,26 @@ function GoalCard({
         </button>
       </div>
 
-      {/* Valores e barra */}
-      <div className="mb-3">
-        <div className="flex items-end justify-between mb-1.5">
-          <div>
-            <p className={`text-2xl font-bold ${isCompleted ? 'text-green-400' : cfg.text}`}>
-              {formatCurrency(goal.currentAmount)}
-            </p>
-            <p className="text-slate-500 text-xs mt-0.5">de {formatCurrency(goal.targetAmount)}</p>
-          </div>
-          <p className={`text-xl font-bold ${isCompleted ? 'text-green-400' : 'text-slate-300'}`}>
-            {Math.round(pct)}%
-          </p>
-        </div>
-        <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : cfg.bar}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+      {/* Valor, percentual e barra */}
+      <div className="flex items-end justify-between mb-2">
+        <p className="text-sm text-slate-300">
+          {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
+        </p>
+        <p className={`text-sm font-bold ${isCompleted ? 'text-green-400' : sc.cls}`}>
+          {Math.round(pct)}%
+        </p>
       </div>
-
-      {/* Prazo e sugestão mensal */}
-      {!isCompleted && (deadlineDate || monthlySuggestion) && (
-        <div className="flex items-center justify-between mb-3 text-xs">
-          <span className="text-slate-500">
-            {deadlineDate && (
-              monthsLeft === 0
-                ? <span className="text-red-400 font-medium">⚠ Prazo atingido</span>
-                : <span>Até {deadlineDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })} · {monthsLeft} {monthsLeft === 1 ? 'mês' : 'meses'}</span>
-            )}
-          </span>
-          {monthlySuggestion && (
-            <span className={`font-semibold ${cfg.text}`}>
-              {formatCurrency(monthlySuggestion)}/mês
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Insights */}
-      {insights.length > 0 && (
-        <ul className="space-y-1.5 mb-4">
-          {insights.slice(0, 3).map((ins, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
-              <span className="flex-shrink-0 text-sm leading-none mt-px">{ins.icon}</span>
-              <span>{ins.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ease-out ${isCompleted ? 'bg-green-500' : sc.bar}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
 
       {/* Simulador */}
       {!isCompleted && (
-        <div className="mb-4 pt-3 border-t border-slate-800">
-          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-2">Simulador</p>
-          <div className="relative mb-2">
+        <div className="mt-4 pt-3 border-t border-slate-800">
+          <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">R$</span>
             <input
               type="number"
@@ -1119,62 +1007,38 @@ function GoalCard({
               min="0"
               value={simInput}
               onChange={(e) => setSimInput(e.target.value)}
-              placeholder="Se eu aportar… /mês"
+              placeholder="Quanto deseja aportar por mês?"
               className="w-full bg-slate-800/60 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors"
             />
           </div>
-          {simInput !== '' && (
-            simMonths === null
-              ? <p className="text-slate-500 text-xs">Informe um valor maior que zero.</p>
-              : <p className="text-slate-300 text-xs">
-                  Você conclui em{' '}
-                  <span className={`font-bold ${cfg.text}`}>{simMonths} {simMonths === 1 ? 'mês' : 'meses'}</span>
-                  {' '}({completionLabel(simMonths)})
-                </p>
-          )}
-          {currentMonthBalance > 0 && suggestMonths !== null && (
-            <div className="mt-2 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
-              <p className="text-slate-400 text-xs leading-relaxed">
-                💡 Com seu saldo de{' '}
-                <span className="text-white font-semibold">{formatCurrency(currentMonthBalance)}</span>
-                {' '}este mês, você poderia aportar esse valor e concluir em{' '}
-                <span className={`font-bold ${cfg.text}`}>{suggestMonths} {suggestMonths === 1 ? 'mês' : 'meses'}</span>
-                {' '}({completionLabel(suggestMonths)})
+          {simInput !== '' && simMonths !== null && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-slate-400 mt-2">Simulação</p>
+              <p className={`text-[13px] text-sm leading-snug break-words line-clamp-2 ${getSimulatorMessage(simMonths).cls}`}>
+                R$ {simMonthly.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mês → {simMonths} meses
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Últimos aportes */}
-      {contributions.length > 0 && (
-        <div className="mb-4 pt-3 border-t border-slate-800">
-          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-2">Últimos aportes</p>
-          <div className="space-y-1.5">
-            {contributions.slice(0, 3).map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-600 text-xs flex-shrink-0">{formatShortDate(c.date)}</span>
-                  {c.note && <span className="text-slate-500 text-xs truncate">{c.note}</span>}
-                </div>
-                <span className={`text-xs font-semibold flex-shrink-0 ${cfg.text}`}>
-                  +{formatCurrency(c.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Botão aportar */}
+      {/* Botão de ação */}
       {!isCompleted ? (
-        <button onClick={() => onContrib(goal)}
-          className={`w-full py-2.5 rounded-xl border ${cfg.border} ${cfg.bg} ${cfg.text} hover:opacity-80 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all`}
+        <button
+          onClick={() => {
+            if (simInput !== '') {
+              console.log('aportar-agora', goal.name, simMonthly);
+            } else {
+              console.log('aportar-agora', goal.name);
+            }
+            onContrib(goal);
+          }}
+          className="mt-4 w-full py-2 rounded-xl bg-purple-600 text-white text-sm font-medium active:scale-95 transition-all"
         >
-          <Plus size={15} /> Adicionar valor
+          {sc.btnLabel}
         </button>
       ) : (
-        <div className="w-full py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold text-center">
+        <div className="mt-4 w-full py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium text-center">
           🎉 Meta alcançada!
         </div>
       )}
