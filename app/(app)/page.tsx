@@ -141,7 +141,7 @@ export default function HomePage() {
     const totalDays = new Date(py, pm, 0).getDate();
     const daysRem = isCur ? totalDays - now2.getDate() : 0;
     const heroBase2 = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : inc;
-    const target = isCur && daysRem > 0 ? Math.abs((heroBase2 - sp) / daysRem) : 0;
+    const target = isCur ? Math.abs((heroBase2 - sp) / Math.max(daysRem, 1)) : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -374,7 +374,7 @@ export default function HomePage() {
 
   // ── V2: Hero Card ────────────────────────────────────────────────────────────
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
-  const canSpendToday = isCurrentMonth && daysRemaining > 0 ? (heroBase - spent) / daysRemaining : null;
+  const canSpendToday = isCurrentMonth ? (heroBase - spent) / Math.max(daysRemaining, 1) : null;
   const budgetPct = heroBase > 0 ? Math.min((spent / heroBase) * 100, 100) : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
   const heroStatusLabel = heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
@@ -500,13 +500,17 @@ export default function HomePage() {
         >
           <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-3">Pode gastar hoje</p>
 
-          {daysRemaining > 0 && canSpendToday !== null ? (
+          {canSpendToday !== null && (
             <>
               <p className={`text-5xl font-bold leading-none mb-2 ${canSpendToday < 0 ? 'text-red-400' : 'text-violet-200'}`}>
                 {canSpendToday < 0 ? '−' : ''}{formatCurrency(heroDisplayValue)}
               </p>
               <p className="text-slate-400 text-sm mb-4">
-                {canSpendToday < 0 ? 'saldo esgotado' : `${daysRemaining} ${daysRemaining === 1 ? 'dia restante' : 'dias restantes'} no mês`}
+                {canSpendToday < 0
+                  ? 'saldo esgotado'
+                  : daysRemaining === 0
+                  ? 'Último dia do mês'
+                  : `${daysRemaining} ${daysRemaining === 1 ? 'dia restante' : 'dias restantes'} no mês`}
               </p>
               <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mb-2">
                 <div className={`h-full rounded-full ${heroBarColor}`} style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out' }} />
@@ -516,26 +520,6 @@ export default function HomePage() {
                 <span className="text-slate-500 text-xs">{Math.round(budgetPct)}% do orçamento</span>
               </div>
             </>
-          ) : (
-            <div className="mb-2">
-              <p className="text-slate-400 text-sm mb-3">Resumo final do mês</p>
-              <div className="flex gap-5 flex-wrap">
-                <div>
-                  <p className="text-slate-500 text-xs mb-0.5">Total gasto</p>
-                  <p className="text-white font-bold text-xl">{formatCurrency(spent)}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-xs mb-0.5">Total ganho</p>
-                  <p className="text-green-400 font-bold text-xl">{formatCurrency(income)}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-xs mb-0.5">Saldo final</p>
-                  <p className={`font-bold text-xl ${balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {balance >= 0 ? '' : '−'}{formatCurrency(Math.abs(balance))}
-                  </p>
-                </div>
-              </div>
-            </div>
           )}
 
           <Link href="/lancamentos" className="mt-4 hidden md:block text-center bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
