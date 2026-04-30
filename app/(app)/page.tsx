@@ -72,6 +72,7 @@ export default function HomePage() {
   const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false, b5: false, b6: false, b7: false, b8: false });
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [heroDisplayValue, setHeroDisplayValue] = useState(0);
+  const [userName, setUserName] = useState('');
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
@@ -80,6 +81,17 @@ export default function HomePage() {
       setBudgets(bud);
       setRecurringExpenses(rec);
       setReady(true);
+    });
+    createClient().auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const meta = u.user_metadata as Record<string, string> | undefined;
+      const name =
+        meta?.full_name?.split(' ')[0] ||
+        meta?.name?.split(' ')[0] ||
+        u.email?.split('@')[0] ||
+        '';
+      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
     });
   }, []);
 
@@ -447,7 +459,7 @@ export default function HomePage() {
       {/* ── HEADER PREMIUM ─────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-1">
         <div>
-          <h1 className="text-2xl font-bold text-white">{greeting}, Anderson</h1>
+          <h1 className="text-2xl font-bold text-white">{greeting}{userName ? `, ${userName}` : ''}</h1>
           <p className="text-slate-400 text-sm capitalize">{currentMonthLabel}</p>
         </div>
         <div className="flex items-center gap-2">
