@@ -52,6 +52,23 @@ function formatLabel(text: string): string {
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
+function formatBrand(text: string): string {
+  const map: Record<string, string> = {
+    ifood: 'iFood',
+    uber: 'Uber',
+    spotify: 'Spotify',
+  };
+  const key = text.toLowerCase().trim();
+  if (map[key]) return map[key];
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+}
+
+function patternContext(count: number): string {
+  if (count >= 7) return 'Uso frequente';
+  if (count >= 4) return 'Recorrente na semana';
+  return 'Uso ocasional';
+}
+
 export default function HistoricoPage() {
   const { period } = usePeriod();
   const prevPeriodRef = useRef(period);
@@ -200,18 +217,25 @@ export default function HistoricoPage() {
     topGastosMap[key].total += e.amount;
     topGastosMap[key].count += 1;
   }
-  const topGastos = Object.values(topGastosMap).sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return b.total - a.total;
-  }).slice(0, 3);
+  // Top Gastos: sorted by total desc (valor)
+  const topGastosByValue = Object.values(topGastosMap)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 3);
+
+  // Padrões: sorted by count desc (frequência), only recurring (>= 2)
+  const topGastosByCount = Object.values(topGastosMap)
+    .filter((g) => g.count >= 2)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.total - a.total;
+    })
+    .slice(0, 3);
 
   // ── Insight hero (frequência > desvio, nunca count === 1) ────────────────────
-  const insightGroup = Object.values(topGastosMap)
-    .filter((g) => g.count >= 2)
-    .sort((a, b) => b.count - a.count)[0] ?? null;
+  const insightGroup = topGastosByCount[0] ?? null;
 
   const insightText = insightGroup
-    ? `${formatLabel(insightGroup.displayName)} apareceu ${insightGroup.count} vezes nos seus gastos`
+    ? `${formatBrand(insightGroup.displayName)} apareceu ${insightGroup.count} vezes nos seus gastos`
     : 'Nenhum padrão relevante encontrado';
 
   return (
@@ -353,24 +377,35 @@ export default function HistoricoPage() {
             className="mt-2 text-sm text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
             onClick={() => setSearch(insightGroup.displayName)}
           >
-            Abrir gastos com {formatLabel(insightGroup.displayName)}
+            Ver padrões
           </p>
         )}
       </div>
 
+      {/* Top gastos */}
+      {topGastosByValue.length > 0 && (
+        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 mb-4">
+          <p className="text-lg font-semibold text-white mb-3">Top gastos</p>
+          <div>
+            {topGastosByValue.map((g) => (
+              <div key={g.displayName} className="flex items-center justify-between py-2">
+                <span className="text-sm text-slate-200 truncate">{formatBrand(g.displayName)}</span>
+                <span className="text-sm font-semibold text-white flex-shrink-0 ml-3">{formatCurrency(g.total)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Padrões de gasto */}
-      {topGastos.length > 0 && (
+      {topGastosByCount.length > 0 && (
         <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 mb-4">
           <p className="text-lg font-semibold text-white mb-3">Padrões de gasto</p>
           <div>
-            {topGastos.map((g) => (
-              <div key={g.displayName} className="flex items-center justify-between py-2">
-                <span className="text-base font-semibold text-white truncate">
-                  {formatLabel(g.displayName)} ({g.count}x)
-                </span>
-                <span className="text-sm font-normal text-slate-400 flex-shrink-0 ml-3">
-                  {formatCurrency(g.total)}
-                </span>
+            {topGastosByCount.map((g) => (
+              <div key={g.displayName} className="flex flex-col py-2">
+                <span className="text-base font-semibold text-white">{formatBrand(g.displayName)}</span>
+                <span className="text-xs text-slate-400 mt-1">{patternContext(g.count)} · {g.count}x</span>
               </div>
             ))}
           </div>
@@ -398,7 +433,7 @@ export default function HistoricoPage() {
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{formatLabel(exp.description)}</p>
+                  <p className="text-white text-sm font-medium truncate">{formatBrand(exp.description)}</p>
                   <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
