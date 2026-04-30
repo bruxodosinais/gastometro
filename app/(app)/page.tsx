@@ -40,6 +40,18 @@ function renderBotText(text: string): string {
     .replace(/\n/g, '<br>');
 }
 
+// expanded animation properties — avoids shorthand + animationDelay conflict warning
+function anim(delay: number, duration = 350): React.CSSProperties {
+  return {
+    animationName: 'block-fade-in',
+    animationDuration: `${duration}ms`,
+    animationTimingFunction: 'ease-out',
+    animationFillMode: 'both',
+    animationDelay: `${delay}ms`,
+  };
+}
+const hidden: React.CSSProperties = { opacity: 0, transform: 'translateY(12px)' };
+
 export default function HomePage() {
   const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -47,6 +59,7 @@ export default function HomePage() {
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [ready, setReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
   const [resumoData, setResumoData] = useState<ResumoData | null>(null);
   const [resumoLoading, setResumoLoading] = useState(false);
@@ -56,7 +69,10 @@ export default function HomePage() {
   const [showBellMenu, setShowBellMenu] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const bellMenuRef = useRef<HTMLDivElement>(null);
-  const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false });
+  const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false, b5: false, b6: false, b7: false, b8: false });
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [heroDisplayValue, setHeroDisplayValue] = useState(0);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     Promise.all([getExpenses(), getBudgets(), getRecurringExpenses()]).then(([exp, bud, rec]) => {
@@ -73,17 +89,23 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!ready) return;
-    const { b1, b2, b3, b4 } = badgeEarnedRef.current;
     const stored = localStorage.getItem('gastometro_badges_seen');
     const seen = new Set<string>(stored ? JSON.parse(stored) : []);
+    const { b1, b2, b3, b4, b5, b6, b7, b8 } = badgeEarnedRef.current;
     const newOnes = (
-      [['primeiro_mil', b1], ['guardiao', b2], ['tres_meses', b3], ['streak_mestre', b4]] as [string, boolean][]
+      [['primeiro_mil', b1], ['guardiao', b2], ['tres_meses', b3], ['streak_mestre', b4],
+       ['streak_15', b5], ['streak_30', b6], ['semana_controlada', b7], ['mes_perfeito', b8]] as [string, boolean][]
     ).filter(([id, earned]) => earned && !seen.has(id)).map(([id]) => id);
     if (newOnes.length > 0) {
       setNewBadgeIds(new Set(newOnes));
       localStorage.setItem('gastometro_badges_seen', JSON.stringify([...seen, ...newOnes]));
       setTimeout(() => setNewBadgeIds(new Set()), 3000);
     }
+  }, [ready]);
+
+  // trigger cascade animations after data loads
+  useEffect(() => {
+    if (ready) setMounted(true);
   }, [ready]);
 
   useEffect(() => {
@@ -107,6 +129,40 @@ export default function HomePage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBellMenu]);
+
+  useEffect(() => {
+    if (!ready || !mounted) return;
+    const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
+    const inc = calculateTotalByType(periodEntries, 'income');
+    const sp = calculateTotalByType(periodEntries, 'expense');
+    const now2 = new Date();
+    const isCur = period === getMonthKey(now2);
+    const [py, pm] = period.split('-').map(Number);
+    const totalDays = new Date(py, pm, 0).getDate();
+    const daysRem = isCur ? totalDays - now2.getDate() : 0;
+    const heroBase2 = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : inc;
+    const target = isCur && daysRem > 0 ? Math.abs((heroBase2 - sp) / daysRem) : 0;
+    if (target === 0) { setHeroDisplayValue(0); return; }
+    const duration = 600;
+    const startTime = performance.now();
+    function step(now3: number) {
+      const t = Math.min((now3 - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 2);
+      setHeroDisplayValue(target * eased);
+      if (t < 1) { rafRef.current = requestAnimationFrame(step); }
+      else { setHeroDisplayValue(target); }
+    }
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [ready, mounted, period, expenses, monthlyPlan]);
+
+  useEffect(() => {
+    if (!ready) return;
+    setPhraseIndex(0);
+    const id = setInterval(() => setPhraseIndex((i) => i + 1), 8000);
+    return () => clearInterval(id);
+  }, [ready, period]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -142,8 +198,50 @@ export default function HomePage() {
 
   if (!ready) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-10">
+        <div className="flex items-start justify-between mb-1">
+          <div>
+            <div className="skeleton h-7 w-44 rounded-lg mb-2" />
+            <div className="skeleton h-4 w-28 rounded" />
+          </div>
+          <div className="flex gap-2">
+            <div className="skeleton w-10 h-10 rounded-2xl" />
+            <div className="skeleton w-10 h-10 rounded-2xl" />
+          </div>
+        </div>
+        <div className="skeleton h-4 w-52 rounded mb-6 mt-2" />
+        <div className="mt-4 mb-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div className="skeleton h-3 w-28 rounded mb-4" />
+          <div className="skeleton h-12 w-52 rounded mb-3" />
+          <div className="skeleton h-4 w-40 rounded mb-5" />
+          <div className="skeleton h-1.5 rounded-full mb-3" />
+          <div className="flex justify-between">
+            <div className="skeleton h-3 w-24 rounded" />
+            <div className="skeleton h-3 w-20 rounded" />
+          </div>
+        </div>
+        <div className="flex gap-3 mb-4">
+          {[0, 1, 2].map((i) => <div key={i} className="flex-1 skeleton rounded-2xl h-20" />)}
+        </div>
+        <div className="mb-3 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="skeleton h-4 w-32 rounded mb-3" />
+          {[100, 85, 92, 70].map((w, i) => (
+            <div key={i} className="skeleton h-2.5 rounded mb-2" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="skeleton h-4 w-36 rounded mb-3" />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-3 mb-3">
+              <div className="skeleton w-8 h-8 rounded-xl flex-shrink-0" />
+              <div className="flex-1">
+                <div className="skeleton h-3 w-36 rounded mb-1.5" />
+                <div className="skeleton h-2.5 w-24 rounded" />
+              </div>
+              <div className="skeleton h-3 w-16 rounded" />
+            </div>
+          ))}
+        </div>
       </main>
     );
   }
@@ -245,27 +343,34 @@ export default function HomePage() {
     ) { badge3Earned = true; break; }
   }
   const badge4Earned = streak >= 7;
-  badgeEarnedRef.current = { b1: badge1Earned, b2: badge2Earned, b3: badge3Earned, b4: badge4Earned };
+  const badge5Earned = streak >= 15;
+  const badge6Earned = streak >= 30;
+  const dailyAvgBudget = totalBudget > 0 ? totalBudget / 30 : income > 0 ? income / 30 : 0;
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 6);
+  const sevenDaysAgoStr = fmtD(sevenDaysAgo);
+  const last7DaysSpent = expenses
+    .filter((e) => e.type === 'expense' && e.date >= sevenDaysAgoStr && e.date <= fmtD(now))
+    .reduce((s, e) => s + e.amount, 0);
+  const badge7Earned = dailyAvgBudget > 0 && last7DaysSpent < dailyAvgBudget * 7;
+  const badge8Earned = balance > 0 && !!monthlyPlan && monthlyPlan.savingsGoal > 0 && balance >= monthlyPlan.savingsGoal;
+  badgeEarnedRef.current = { b1: badge1Earned, b2: badge2Earned, b3: badge3Earned, b4: badge4Earned, b5: badge5Earned, b6: badge6Earned, b7: badge7Earned, b8: badge8Earned };
 
   const badges = [
     { id: 'primeiro_mil', icon: '🥉', name: 'Primeiro Mil', desc: 'Economizou R$1.000 em um mês', earned: badge1Earned, bg: 'bg-amber-700/20', border: 'border-amber-700/40', text: 'text-amber-600' },
     { id: 'guardiao', icon: '🥈', name: 'Guardião', desc: 'Economizou R$5.000 em um mês', earned: badge2Earned, bg: 'bg-slate-300/20', border: 'border-slate-300/40', text: 'text-slate-300' },
     { id: 'tres_meses', icon: '🥇', name: '3 Meses Positivos', desc: 'Saldo positivo por 3 meses seguidos', earned: badge3Earned, bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', text: 'text-yellow-500' },
     { id: 'streak_mestre', icon: '🔥', name: 'Streak Mestre', desc: '7 dias seguidos registrando', earned: badge4Earned, bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-400' },
+    { id: 'streak_15', icon: '🔥', name: 'Streak 15 dias', desc: '15 dias consecutivos com lançamentos', earned: badge5Earned, bg: 'bg-orange-600/20', border: 'border-orange-500/40', text: 'text-orange-300' },
+    { id: 'streak_30', icon: '🏆', name: 'Streak 30 dias', desc: '30 dias consecutivos com lançamentos', earned: badge6Earned, bg: 'bg-yellow-500/15', border: 'border-yellow-400/30', text: 'text-yellow-400' },
+    { id: 'semana_controlada', icon: '💚', name: 'Semana Controlada', desc: '7 dias abaixo da média diária de gastos', earned: badge7Earned, bg: 'bg-green-500/15', border: 'border-green-500/30', text: 'text-green-400' },
+    { id: 'mes_perfeito', icon: '🌟', name: 'Mês Perfeito', desc: 'Saldo positivo e meta de poupança atingida', earned: badge8Earned, bg: 'bg-violet-500/15', border: 'border-violet-500/30', text: 'text-violet-400' },
   ] as const;
 
   // ── V2: Header ───────────────────────────────────────────────────────────────
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const currentMonthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-  let dynamicPhrase = 'Cada lançamento conta. Continue.';
-  if (isCurrentMonth) {
-    const baseRef = monthlyPlan?.expectedIncome ?? income;
-    if (baseRef > 0 && balance > baseRef * 0.3) dynamicPhrase = 'Excelente ritmo este mês.';
-    else if (balance > 0) dynamicPhrase = 'Você está no controle.';
-    else if (dailyAvailable !== null && dailyAvailable > 0) dynamicPhrase = 'Hoje dá para acelerar sua meta.';
-  }
 
   // ── V2: Hero Card ────────────────────────────────────────────────────────────
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
@@ -275,6 +380,17 @@ export default function HomePage() {
   const heroStatusLabel = heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
   const heroStatusColor = heroStatus === 'excellent' ? 'text-emerald-400' : heroStatus === 'ok' ? 'text-yellow-400' : 'text-red-400';
   const heroBarColor = heroStatus === 'excellent' ? 'bg-violet-500' : heroStatus === 'ok' ? 'bg-yellow-500' : 'bg-red-500';
+
+  // ── Frases dinâmicas ─────────────────────────────────────────────────────────
+  const POSITIVE_PHRASES = ['Você está no controle 💚', 'Excelente ritmo esse mês', `${currentMonthLabel} melhor que o esperado`];
+  const MEDIUM_PHRASES = ['Ainda dá pra ajustar 🎯', 'Fique atento ao ritmo', 'Metade do mês, metade do orçamento'];
+  const CRITICAL_PHRASES = ['Você está acelerando demais ⚠️', 'Risco de estourar o orçamento', 'Revise seus gastos hoje'];
+  const dynamicPhrases = !isCurrentMonth
+    ? ['Cada lançamento conta. Continue.']
+    : budgetPct < 50 ? POSITIVE_PHRASES
+    : budgetPct < 80 ? MEDIUM_PHRASES
+    : CRITICAL_PHRASES;
+  const dynamicPhrase = dynamicPhrases[phraseIndex % dynamicPhrases.length];
 
   // ── V2: Resumo IA bullets ────────────────────────────────────────────────────
   const categoryTotals = EXPENSE_CATEGORIES.map((cat) => ({
@@ -320,13 +436,13 @@ export default function HomePage() {
   const missaoUrgencia = !isCurrentMonth || !missaoPrincipal
     ? null
     : streak >= 3
-    ? `⚡ Registre hoje ou perde o streak de ${streak} dias`
+    ? `⚡ Se falhar hoje, perde o streak de ${streak} dias`
     : streak >= 1
-    ? `💪 ${streak} ${streak === 1 ? 'dia' : 'dias'} de sequência — continue hoje`
-    : '⚠ Sem registros hoje — streak zerado';
+    ? '💪 Continue, você está quase lá'
+    : '🔄 Recomece hoje — um registro já conta';
 
   return (
-    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-10">
+    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-10" style={{ animation: 'fade-in 200ms ease-out both' }}>
 
       {/* ── HEADER PREMIUM ─────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-1">
@@ -378,19 +494,22 @@ export default function HomePage() {
 
       {/* ── HERO CARD ──────────────────────────────────────────────────────────── */}
       {isCurrentMonth && (
-        <div className="mt-4 mb-3 bg-gradient-to-br from-violet-600/20 via-violet-500/10 to-transparent border border-violet-500/30 rounded-2xl p-6">
+        <div
+          className="mt-4 mb-3 bg-gradient-to-br from-violet-600/20 via-violet-500/10 to-transparent border border-violet-500/30 rounded-2xl p-6"
+          style={mounted ? anim(0, 600) : hidden}
+        >
           <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-3">Pode gastar hoje</p>
 
           {daysRemaining > 0 && canSpendToday !== null ? (
             <>
               <p className={`text-5xl font-bold leading-none mb-2 ${canSpendToday < 0 ? 'text-red-400' : 'text-violet-200'}`}>
-                {canSpendToday < 0 ? '−' : ''}{formatCurrency(Math.abs(canSpendToday))}
+                {canSpendToday < 0 ? '−' : ''}{formatCurrency(heroDisplayValue)}
               </p>
               <p className="text-slate-400 text-sm mb-4">
                 {canSpendToday < 0 ? 'saldo esgotado' : `${daysRemaining} ${daysRemaining === 1 ? 'dia restante' : 'dias restantes'} no mês`}
               </p>
               <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mb-2">
-                <div className={`h-full rounded-full transition-all ${heroBarColor}`} style={{ width: `${budgetPct}%` }} />
+                <div className={`h-full rounded-full ${heroBarColor}`} style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out' }} />
               </div>
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
@@ -427,19 +546,19 @@ export default function HomePage() {
 
       {/* ── MINI CARDS: Saldo / Gastos / Receitas ──────────────────────────────── */}
       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-3 md:overflow-visible md:snap-none md:mx-0 md:px-0 md:pb-0 md:mb-3">
-        <div className={`snap-start flex-shrink-0 w-[78vw] md:w-auto rounded-2xl p-4 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
+        <div className={`snap-start flex-shrink-0 w-[78vw] md:w-auto rounded-2xl p-4 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/15' : 'bg-red-500/5 border-red-500/15'}`} style={mounted ? anim(100) : hidden}>
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Saldo atual</p>
           <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
             {balance >= 0 ? '' : '−'}{formatCurrency(Math.abs(balance))}
           </p>
           <p className="text-slate-500 text-xs mt-1">receitas − gastos</p>
         </div>
-        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-red-500/5 border border-red-500/15 rounded-2xl p-4">
+        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-red-500/5 border border-red-500/15 rounded-2xl p-4" style={mounted ? anim(180) : hidden}>
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Gastos do mês</p>
           <p className="text-2xl font-bold text-red-400">{formatCurrency(spent)}</p>
           <p className="text-slate-500 text-xs mt-1">despesas lançadas</p>
         </div>
-        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-green-500/5 border border-green-500/15 rounded-2xl p-4 pr-4 md:pr-4">
+        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-green-500/5 border border-green-500/15 rounded-2xl p-4 pr-4 md:pr-4" style={mounted ? anim(260) : hidden}>
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Receitas</p>
           <p className="text-2xl font-bold text-green-400">{formatCurrency(income)}</p>
           <p className="text-slate-500 text-xs mt-1">entradas do mês</p>
@@ -453,7 +572,7 @@ export default function HomePage() {
       </div>
 
       {/* ── RESUMO IA COMPACTO ─────────────────────────────────────────────────── */}
-      <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-3">
+      <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-3" style={mounted ? anim(180) : hidden}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Star size={13} className="text-violet-400" />
@@ -478,7 +597,7 @@ export default function HomePage() {
       </div>
 
       {/* ── ALERTAS INTELIGENTES ───────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4">
+      <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(240) : hidden}>
         <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Alertas</p>
         {topNewAlerts.length > 0 ? (
           <div className="space-y-2.5">
@@ -498,7 +617,7 @@ export default function HomePage() {
       </div>
 
       {/* ── GRÁFICO DE CATEGORIAS ──────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-5" style={mounted ? anim(300) : hidden}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-slate-200 font-semibold text-sm">Gastos por Categoria</h2>
           {topCat && spent > 0 && (
@@ -532,7 +651,7 @@ export default function HomePage() {
       </div>
 
       {/* ── ÚLTIMAS MOVIMENTAÇÕES ──────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-4" style={mounted ? anim(380) : hidden}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-white font-semibold text-sm">Últimas movimentações</h2>
           <Link href="/historico" className="text-violet-400 hover:text-violet-300 text-xs font-medium transition-colors">
@@ -548,13 +667,13 @@ export default function HomePage() {
         ) : (
           <>
             <div className="space-y-3">
-              {recent.map((exp) => {
+              {recent.map((exp, idx) => {
                 const cfg = CATEGORY_CONFIG[exp.category];
                 const isIncome = exp.type === 'income';
                 const day = exp.date.slice(8, 10);
                 const month = exp.date.slice(5, 7);
                 return (
-                  <div key={exp.id} className="flex items-center gap-3">
+                  <div key={exp.id} className="flex items-center gap-3" style={mounted ? anim(380 + idx * 60) : hidden}>
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg.bgClass}`}>
                       {cfg.icon}
                     </div>
@@ -582,7 +701,7 @@ export default function HomePage() {
       {isCurrentMonth && (
         <>
           {/* Missões compactas */}
-          <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-4">
+          <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(440) : hidden}>
             <div className="flex items-center justify-between mb-3">
               <p className="text-white font-semibold text-sm">Missões</p>
               <button
@@ -620,7 +739,7 @@ export default function HomePage() {
                   <span className="text-slate-400 text-xs">{Math.round(missaoPrincipal.pct * 100)}%</span>
                 </div>
                 <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${missaoPrincipal.pct * 100}%` }} />
+                  <div className="h-full rounded-full bg-violet-500" style={{ width: mounted ? `${missaoPrincipal.pct * 100}%` : '0%', transition: 'width 400ms cubic-bezier(0.34, 1.56, 0.64, 1)' }} />
                 </div>
                 {missaoUrgencia && (
                   <p className="mt-2 text-xs text-slate-500">{missaoUrgencia}</p>
@@ -635,14 +754,14 @@ export default function HomePage() {
           </div>
 
           {/* Conquistas — scroll horizontal */}
-          <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4">
+          <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(500) : hidden}>
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Conquistas</p>
             <div className="overflow-x-auto -mx-1 px-1">
               <div className="flex gap-3 pb-1" style={{ minWidth: 'max-content' }}>
                 {badges.map((badge) => (
                   <div
                     key={badge.id}
-                    className={`w-28 flex-shrink-0 rounded-xl p-3 border ${badge.earned ? `${badge.bg} ${badge.border}` : 'bg-slate-800/50 border-slate-700/50'} ${newBadgeIds.has(badge.id) ? 'animate-pulse' : ''}`}
+                    className={`w-28 flex-shrink-0 rounded-xl p-3 border ${badge.earned ? `${badge.bg} ${badge.border} badge-glow` : 'bg-slate-800/50 border-slate-700/50'} ${newBadgeIds.has(badge.id) ? 'animate-pulse' : ''}`}
                   >
                     <span className={`text-2xl leading-none block mb-1.5 ${badge.earned ? '' : 'grayscale opacity-30'}`}>{badge.icon}</span>
                     <p className={`font-semibold text-xs leading-tight ${badge.earned ? 'text-white' : 'text-slate-600'}`}>{badge.name}</p>
