@@ -27,7 +27,6 @@ type QuickFilter = 'today' | '7d' | '30d' | 'thisMonth' | 'prevMonth' | null;
 type SortOrder = 'recent' | 'oldest' | 'highest' | 'lowest';
 
 interface TopGasto { displayName: string; total: number; count: number }
-interface Insight { icon: string; text: string }
 
 const QUICK_FILTER_LABELS: Record<Exclude<QuickFilter, null>, string> = {
   today: 'Hoje',
@@ -39,6 +38,18 @@ const QUICK_FILTER_LABELS: Record<Exclude<QuickFilter, null>, string> = {
 
 function isoDate(d: Date): string {
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
+
+function normalizeDescription(description: string): string {
+  return description.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function formatLabel(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 export default function HistoricoPage() {
@@ -184,72 +195,24 @@ export default function HistoricoPage() {
   // ── Top gastos (grouping by description) ────────────────────────────────────
   const topGastosMap: Record<string, TopGasto> = {};
   for (const e of filteredEntries.filter((e) => e.type === 'expense')) {
-    const key = e.description.trim().toLowerCase();
+    const key = normalizeDescription(e.description);
     if (!topGastosMap[key]) topGastosMap[key] = { displayName: e.description, total: 0, count: 0 };
     topGastosMap[key].total += e.amount;
     topGastosMap[key].count += 1;
   }
-  const topGastos = Object.values(topGastosMap).sort((a, b) => b.total - a.total).slice(0, 5);
+  const topGastos = Object.values(topGastosMap).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.total - a.total;
+  }).slice(0, 3);
 
-  // ── Insights ─────────────────────────────────────────────────────────────────
-  const rangeFromMs = new Date(rangeFrom + 'T12:00:00').getTime();
-  const rangeToMs = new Date(rangeTo + 'T12:00:00').getTime();
-  const durationMs = rangeToMs - rangeFromMs;
-  const prevRangeToDate = new Date(rangeFromMs - 24 * 60 * 60 * 1000);
-  const prevRangeFromDate = new Date(prevRangeToDate.getTime() - durationMs);
-  const prevRangeTo = isoDate(prevRangeToDate);
-  const prevRangeFrom = isoDate(prevRangeFromDate);
-  const prevRangeEntries = expenses.filter((e) => e.date >= prevRangeFrom && e.date <= prevRangeTo);
+  // ── Insight hero (frequência > desvio, nunca count === 1) ────────────────────
+  const insightGroup = Object.values(topGastosMap)
+    .filter((g) => g.count >= 2)
+    .sort((a, b) => b.count - a.count)[0] ?? null;
 
-  const insights: Insight[] = [];
-
-  // Insight 1: top category vs previous comparable range
-  const expByCat: Record<string, number> = {};
-  for (const e of filteredEntries.filter((e) => e.type === 'expense')) {
-    expByCat[e.category as string] = (expByCat[e.category as string] || 0) + e.amount;
-  }
-  const topCatEntry = Object.entries(expByCat).sort((a, b) => b[1] - a[1])[0];
-  if (topCatEntry) {
-    const [topCat, topCatTotal] = topCatEntry;
-    const prevCatTotal = prevRangeEntries
-      .filter((e) => e.type === 'expense' && e.category === topCat)
-      .reduce((s, e) => s + e.amount, 0);
-    if (prevCatTotal > 0) {
-      const pct = ((topCatTotal - prevCatTotal) / prevCatTotal) * 100;
-      if (Math.abs(pct) >= 10) {
-        insights.push({
-          icon: pct > 0 ? '📈' : '📉',
-          text: `${topCat} ${pct > 0 ? 'subiu' : 'caiu'} ${Math.abs(Math.round(pct))}% em relação ao período anterior`,
-        });
-      }
-    }
-  }
-
-  // Insight 2: best month for savings
-  if (insights.length < 2) {
-    const monthGroups: Record<string, { income: number; spent: number }> = {};
-    for (const e of expenses) {
-      const month = e.date.slice(0, 7);
-      if (!monthGroups[month]) monthGroups[month] = { income: 0, spent: 0 };
-      if (e.type === 'income') monthGroups[month].income += e.amount;
-      else monthGroups[month].spent += e.amount;
-    }
-    const monthsWithIncome = Object.entries(monthGroups).filter(([, v]) => v.income > 0);
-    if (monthsWithIncome.length >= 2) {
-      const [bestMonth, bestData] = [...monthsWithIncome].sort(
-        (a, b) => (b[1].income - b[1].spent) - (a[1].income - a[1].spent)
-      )[0];
-      const bestBalance = bestData.income - bestData.spent;
-      if (bestBalance > 0) {
-        const [y, m] = bestMonth.split('-').map(Number);
-        const mn = new Date(y, m - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-        insights.push({
-          icon: '🏆',
-          text: `${mn.charAt(0).toUpperCase() + mn.slice(1)} foi seu melhor mês (${formatCurrency(bestBalance)} economizados)`,
-        });
-      }
-    }
-  }
+  const insightText = insightGroup
+    ? `${formatLabel(insightGroup.displayName)} apareceu ${insightGroup.count} vezes nos seus gastos`
+    : 'Nenhum padrão relevante encontrado';
 
   return (
     <>
@@ -347,13 +310,13 @@ export default function HistoricoPage() {
 
       {/* Tipo + Categoria + Ordenação */}
       <div className="flex gap-2 mb-5 flex-wrap">
-        <div className="flex p-0.5 bg-slate-900 border border-slate-800 rounded-xl flex-1 min-w-0">
+        <div className="flex gap-2">
           {(['all', 'expense', 'income'] as const).map((t) => (
             <button
               key={t}
               onClick={() => handleTypeFilterChange(t)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                typeFilter === t ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+              className={`px-3 py-1.5 rounded-full text-sm ${
+                typeFilter === t ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400'
               }`}
             >
               {t === 'all' ? 'Todos' : t === 'expense' ? 'Gastos' : 'Receitas'}
@@ -382,40 +345,32 @@ export default function HistoricoPage() {
         </select>
       </div>
 
-      {/* Top gastos do período */}
-      {topGastos.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">
-            Top gastos do período
+      {/* Insight hero */}
+      <div className="rounded-2xl bg-slate-800/80 border border-slate-700/70 px-5 py-4 mb-4 min-h-[88px] overflow-hidden">
+        <p className="text-lg font-semibold text-white line-clamp-2 overflow-hidden text-ellipsis">{insightText}</p>
+        {insightGroup && (
+          <p
+            className="mt-2 text-sm text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+            onClick={() => setSearch(insightGroup.displayName)}
+          >
+            Abrir gastos com {formatLabel(insightGroup.displayName)}
           </p>
-          <div className="space-y-2.5">
-            {topGastos.map((g, i) => (
-              <div key={g.displayName} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-slate-600 text-xs font-bold w-4 flex-shrink-0 text-right">{i + 1}</span>
-                  <p className="text-slate-300 text-sm truncate">{g.displayName}</p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-slate-500 text-xs">{g.count}×</span>
-                  <span className="text-white font-semibold text-sm">{formatCurrency(g.total)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Insights históricos */}
-      {insights.length > 0 && (
-        <div className="bg-slate-900 border border-violet-500/20 rounded-2xl p-4 mb-4">
-          <p className="text-violet-400/80 text-xs font-medium uppercase tracking-wider mb-3">
-            Insights
-          </p>
-          <div className="space-y-2.5">
-            {insights.map((insight, i) => (
-              <div key={i} className="flex items-center gap-2.5">
-                <span className="text-base leading-none">{insight.icon}</span>
-                <span className="text-slate-300 text-sm">{insight.text}</span>
+      {/* Padrões de gasto */}
+      {topGastos.length > 0 && (
+        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 mb-4">
+          <p className="text-lg font-semibold text-white mb-3">Padrões de gasto</p>
+          <div>
+            {topGastos.map((g) => (
+              <div key={g.displayName} className="flex items-center justify-between py-2">
+                <span className="text-base font-semibold text-white truncate">
+                  {formatLabel(g.displayName)} ({g.count}x)
+                </span>
+                <span className="text-sm font-normal text-slate-400 flex-shrink-0 ml-3">
+                  {formatCurrency(g.total)}
+                </span>
               </div>
             ))}
           </div>
@@ -428,7 +383,9 @@ export default function HistoricoPage() {
       ) : filteredEntries.length === 0 ? (
         <p className="text-slate-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
       ) : (
-        <div className="space-y-2">
+        <div className="opacity-[0.78] mb-6">
+          <p className="text-sm font-medium text-slate-500 mb-3">Lançamentos</p>
+          <div className="space-y-2">
           {filteredEntries.map((exp) => {
             const cfg = CATEGORY_CONFIG[exp.category];
             const day = exp.date.slice(8, 10);
@@ -441,7 +398,7 @@ export default function HistoricoPage() {
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{exp.description}</p>
+                  <p className="text-white text-sm font-medium truncate">{formatLabel(exp.description)}</p>
                   <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -466,6 +423,7 @@ export default function HistoricoPage() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </main>
