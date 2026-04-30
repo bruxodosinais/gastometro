@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, LayoutGrid, Clock, RefreshCw, Target, Bot, TrendingUp } from 'lucide-react';
+import { Home, PlusCircle, LayoutGrid, Clock, RefreshCw, Target, Bot, TrendingUp, UserCircle } from 'lucide-react';
 
 const tabs = [
   { href: '/', label: 'Home', Icon: Home },
@@ -13,6 +13,7 @@ const tabs = [
   { href: '/patrimonio', label: 'Patrimônio', Icon: TrendingUp },
   { href: '/recorrentes', label: 'Recorrentes', Icon: RefreshCw },
   { href: '/assistente', label: 'Assistente', Icon: Bot },
+  { href: '/perfil', label: 'Perfil', Icon: UserCircle },
 ];
 
 export default function Navigation() {

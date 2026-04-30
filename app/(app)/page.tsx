@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bell, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
 import { getExpenses, getBudgets, getRecurringExpenses, getMonthlyPlan } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
@@ -53,6 +54,7 @@ function anim(delay: number, duration = 350): React.CSSProperties {
 const hidden: React.CSSProperties = { opacity: 0, transform: 'translateY(12px)' };
 
 export default function HomePage() {
+  const router = useRouter();
   const { period } = usePeriod();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -87,6 +89,7 @@ export default function HomePage() {
       if (!u) return;
       const meta = u.user_metadata as Record<string, string> | undefined;
       const name =
+        meta?.display_name ||
         meta?.full_name?.split(' ')[0] ||
         meta?.name?.split(' ')[0] ||
         u.email?.split('@')[0] ||
@@ -483,11 +486,11 @@ export default function HomePage() {
               title="Menu do perfil"
               className="w-10 h-10 rounded-2xl bg-violet-600/20 border border-violet-500/40 flex items-center justify-center text-violet-300 font-bold text-sm hover:bg-violet-600/30 transition-colors"
             >
-              A
+              {userName ? userName.charAt(0).toUpperCase() : '?'}
             </button>
             {showAvatarMenu && (
               <div className="absolute right-0 top-12 w-40 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-50">
-                <button onClick={() => setShowAvatarMenu(false)} className="w-full text-left px-4 py-3 text-slate-300 text-sm hover:bg-slate-800 transition-colors">
+                <button onClick={() => { setShowAvatarMenu(false); router.push('/perfil'); }} className="w-full text-left px-4 py-3 text-slate-300 text-sm hover:bg-slate-800 transition-colors">
                   Perfil
                 </button>
                 <div className="border-t border-slate-800" />
