@@ -91,6 +91,36 @@ function getSimulatorMessage(meses: number): { text: string; cls: string } {
   return { text: `Você conclui em ${meses} meses`,                       cls: 'text-green-400' };
 }
 
+function formatDeadlineMonth(dateStr: string): string {
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const [y, m] = dateStr.split('-');
+  return `${months[parseInt(m, 10) - 1]}/${y}`;
+}
+
+function formatFutureMonth(monthsFromNow: number): string {
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsFromNow);
+  return `${months[d.getMonth()]}/${d.getFullYear()}`;
+}
+
+function formatCompactCurrency(value: number): string {
+  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`;
+  if (value >= 1_000) return `R$ ${(value / 1_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`;
+  return formatCurrency(value);
+}
+
+function avgMonthlyContributions(contributions: GoalContribution[]): number {
+  if (contributions.length === 0) return 0;
+  const byMonth: Record<string, number> = {};
+  contributions.forEach((c) => {
+    const month = c.date.slice(0, 7);
+    byMonth[month] = (byMonth[month] ?? 0) + c.amount;
+  });
+  const totals = Object.values(byMonth);
+  return totals.reduce((a, b) => a + b, 0) / totals.length;
+}
+
 function getStatus(progress: number) {
   if (progress < 0.6) return 'atrasada';
   if (progress < 0.9) return 'atencao';
@@ -374,7 +404,7 @@ export default function MetasPage() {
           <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Total guardado</p>
-              <p className="text-green-400 font-bold text-lg leading-tight">{formatCurrency(totalSaved)}</p>
+              <p className="text-green-400 font-bold text-lg leading-tight truncate">{formatCompactCurrency(totalSaved)}</p>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Metas ativas</p>
@@ -958,6 +988,9 @@ function GoalCard({
   const simValid = simMonthly > 0 && remaining > 0;
   const simMonths = simValid ? Math.ceil(remaining / simMonthly) : null;
 
+  const avgContrib = avgMonthlyContributions(contributions);
+  const projectedMonths = avgContrib > 0 && remaining > 0 ? Math.ceil(remaining / avgContrib) : null;
+
   return (
     <div className={`rounded-2xl p-5 border bg-slate-900 ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-slate-800'}`}>
 
@@ -970,6 +1003,18 @@ function GoalCard({
           <div className="min-w-0">
             <p className="text-lg font-semibold text-white truncate">{goal.name}</p>
             {!isCompleted && <p className={`text-xs font-medium ${sc.cls}`}>{sc.label}</p>}
+            {!isCompleted && (
+              goal.deadline ? (
+                <p className="text-xs text-slate-500 mt-0.5">Até {formatDeadlineMonth(goal.deadline)}</p>
+              ) : (
+                <p className="text-xs text-slate-600 mt-0.5">Sem prazo definido</p>
+              )
+            )}
+            {!isCompleted && projectedMonths !== null && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                No ritmo atual, você chega em {formatFutureMonth(projectedMonths)}
+              </p>
+            )}
           </div>
         </div>
         <button onClick={() => onEdit(goal)}
