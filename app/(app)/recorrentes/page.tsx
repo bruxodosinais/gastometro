@@ -10,6 +10,7 @@ import {
   getMonthlyObligations,
   getRecurringExpenses,
   markObligationAsPaid,
+  unmarkObligationAsPaid,
   toggleRecurringExpense,
 } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
@@ -27,6 +28,9 @@ export default function RecorrentesPage() {
   const [recurrings, setRecurrings] = useState<RecurringExpense[]>([]);
   const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
+  const [undoingIds, setUndoingIds] = useState<Set<string>>(new Set());
+  // obligationId → expenseId criado ao marcar pago (só persiste na sessão)
+  const [paidExpenseIds, setPaidExpenseIds] = useState<Map<string, string>>(new Map());
   const [ready, setReady] = useState(false);
 
   // form
@@ -125,13 +129,41 @@ export default function RecorrentesPage() {
       prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
     );
     try {
-      await markObligationAsPaid(obligationId, ob);
+      const { expense } = await markObligationAsPaid(obligationId, ob);
+      setPaidExpenseIds((prev) => new Map(prev).set(obligationId, expense.id));
     } catch {
       setObligations((prev) =>
         prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
       );
     } finally {
       setPayingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(obligationId);
+        return next;
+      });
+    }
+  }
+
+  async function handleUnmarkObligationPaid(obligationId: string) {
+    const expenseId = paidExpenseIds.get(obligationId);
+    if (!expenseId || undoingIds.has(obligationId)) return;
+    setUndoingIds((prev) => new Set([...prev, obligationId]));
+    setObligations((prev) =>
+      prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
+    );
+    try {
+      await unmarkObligationAsPaid(obligationId, expenseId);
+      setPaidExpenseIds((prev) => {
+        const next = new Map(prev);
+        next.delete(obligationId);
+        return next;
+      });
+    } catch {
+      setObligations((prev) =>
+        prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
+      );
+    } finally {
+      setUndoingIds((prev) => {
         const next = new Set(prev);
         next.delete(obligationId);
         return next;
@@ -334,7 +366,8 @@ export default function RecorrentesPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 bg-[#7C3AED] hover:bg-[#6d28d9]"
+            className="w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
+            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
           >
             {saving ? <Loader2 size={18} className="animate-spin" /> : 'Cadastrar recorrente'}
           </button>
@@ -473,7 +506,7 @@ export default function RecorrentesPage() {
                           </div>
                         </div>
 
-                        {/* Row 2: meta + badge + mark-paid */}
+                        {/* Row 2: meta + badge + mark-paid / desfazer */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-gray-400 text-xs flex-1 min-w-0 truncate">
                             {rec.category} · Dia {rec.dayOfMonth}
@@ -492,6 +525,17 @@ export default function RecorrentesPage() {
                               {isPaying
                                 ? <Loader2 size={10} className="animate-spin" />
                                 : 'Marcar pago'}
+                            </button>
+                          )}
+                          {hasObligation && isPaid && paidExpenseIds.has(obligation!.id) && (
+                            <button
+                              onClick={() => handleUnmarkObligationPaid(obligation!.id)}
+                              disabled={undoingIds.has(obligation!.id)}
+                              className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              {undoingIds.has(obligation!.id)
+                                ? <Loader2 size={10} className="animate-spin" />
+                                : 'Desfazer'}
                             </button>
                           )}
                         </div>

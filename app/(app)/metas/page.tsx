@@ -121,16 +121,25 @@ function avgMonthlyContributions(contributions: GoalContribution[]): number {
   return totals.reduce((a, b) => a + b, 0) / totals.length;
 }
 
-function getStatus(progress: number) {
-  if (progress < 0.6) return 'atrasada';
-  if (progress < 0.9) return 'atencao';
-  return 'no-ritmo';
+type StatusKey = 'no-prazo' | 'atencao' | 'atrasada' | 'sem-prazo';
+
+function computeStatus(goal: Goal, avgMonthly: number): StatusKey {
+  if (!goal.deadline) return 'sem-prazo';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deadline = new Date(goal.deadline + 'T00:00:00');
+  const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
+  if (deadline < today && remaining > 0) return 'atrasada';
+  if (remaining <= 0) return 'no-prazo';
+  const months = Math.max(1, monthsDiff(today, deadline));
+  return avgMonthly >= remaining / months ? 'no-prazo' : 'atencao';
 }
 
-const STATUS_CONFIG = {
-  atrasada:  { label: '🔴 Atrasada', cls: 'text-red-400',    bar: 'bg-red-500',    btnLabel: 'Aportar agora' },
-  atencao:   { label: '🟡 Atenção',  cls: 'text-yellow-400', bar: 'bg-yellow-500', btnLabel: 'Aumentar aporte' },
-  'no-ritmo':{ label: '🟢 No ritmo', cls: 'text-mint-500',  bar: 'bg-mint',  btnLabel: 'Manter plano' },
+const STATUS_CONFIG: Record<StatusKey, { label: string; cls: string; btnLabel: string }> = {
+  'no-prazo':  { label: '🟢 No prazo',  cls: 'text-mint-500',   btnLabel: 'Manter plano' },
+  'atencao':   { label: '🟡 Atenção',   cls: 'text-yellow-400', btnLabel: 'Aumentar aporte' },
+  'atrasada':  { label: '🔴 Atrasada',  cls: 'text-red-400',    btnLabel: 'Aportar agora' },
+  'sem-prazo': { label: '⚪ Sem prazo', cls: 'text-gray-400',   btnLabel: 'Aportar' },
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -368,12 +377,14 @@ export default function MetasPage() {
 
   const goalIcon = (goal: Goal) => goal.emoji ?? GOAL_TYPES[goal.type].icon;
 
-  const statusPriority: Record<string, number> = { atrasada: 0, atencao: 1, 'no-ritmo': 2 };
+  const statusPriority: Record<StatusKey, number> = { atrasada: 0, atencao: 1, 'no-prazo': 2, 'sem-prazo': 3 };
   const sortedActiveGoals = [...activeGoals].sort((a, b) => {
+    const avgA = avgMonthlyContributions(contribsByGoal[a.id] ?? []);
+    const avgB = avgMonthlyContributions(contribsByGoal[b.id] ?? []);
+    const statusDiff = statusPriority[computeStatus(a, avgA)] - statusPriority[computeStatus(b, avgB)];
+    if (statusDiff !== 0) return statusDiff;
     const progA = a.targetAmount > 0 ? a.currentAmount / a.targetAmount : 0;
     const progB = b.targetAmount > 0 ? b.currentAmount / b.targetAmount : 0;
-    const statusDiff = statusPriority[getStatus(progA)] - statusPriority[getStatus(progB)];
-    if (statusDiff !== 0) return statusDiff;
     return progB - progA;
   });
 
@@ -981,16 +992,23 @@ function GoalCard({
   const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
   const isCompleted = goal.status === 'completed';
 
-  const progress = goal.targetAmount > 0 ? goal.currentAmount / goal.targetAmount : 0;
-  const statusKey = getStatus(progress);
+  const avgContrib = avgMonthlyContributions(contributions);
+  const statusKey = computeStatus(goal, avgContrib);
   const sc = STATUS_CONFIG[statusKey];
 
   const simMonthly = parseFloat(simInput.replace(',', '.'));
   const simValid = simMonthly > 0 && remaining > 0;
   const simMonths = simValid ? Math.ceil(remaining / simMonthly) : null;
 
-  const avgContrib = avgMonthlyContributions(contributions);
   const projectedMonths = avgContrib > 0 && remaining > 0 ? Math.ceil(remaining / avgContrib) : null;
+
+  // Aporte necessário para bater o prazo (exibido sempre que há prazo futuro)
+  const mesesRestantes = goal.deadline
+    ? Math.max(1, monthsDiff(new Date(), new Date(goal.deadline + 'T00:00:00')))
+    : null;
+  const requiredMonthly = mesesRestantes !== null && remaining > 0 && statusKey !== 'atrasada'
+    ? remaining / mesesRestantes
+    : null;
 
   return (
     <div className={`rounded-2xl p-5 border bg-white ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-gray-100'}`}>
@@ -1004,12 +1022,16 @@ function GoalCard({
           <div className="min-w-0">
             <p className="text-lg font-semibold text-gray-900 truncate">{goal.name}</p>
             {!isCompleted && <p className={`text-xs font-medium ${sc.cls}`}>{sc.label}</p>}
-            {!isCompleted && (
-              goal.deadline ? (
-                <p className="text-xs text-gray-500 mt-0.5">Até {formatDeadlineMonth(goal.deadline)}</p>
-              ) : (
-                <p className="text-xs text-gray-500 mt-0.5">Sem prazo definido</p>
-              )
+            {!isCompleted && requiredMonthly !== null && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                {formatCurrency(requiredMonthly)}/mês para chegar até {formatDeadlineMonth(goal.deadline!)}
+              </p>
+            )}
+            {!isCompleted && statusKey === 'atrasada' && goal.deadline && (
+              <p className="text-xs text-red-400/80 mt-0.5">Prazo encerrado em {formatDeadlineMonth(goal.deadline)}</p>
+            )}
+            {!isCompleted && statusKey === 'sem-prazo' && (
+              <p className="text-xs text-gray-500 mt-0.5">Sem prazo definido</p>
             )}
             {!isCompleted && projectedMonths !== null && (
               <p className="text-xs text-gray-500 mt-0.5">

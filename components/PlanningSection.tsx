@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Check, Loader2, Pencil, X } from 'lucide-react';
 import { upsertMonthlyPlan } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
-import { Budget, Expense, MonthlyPlan } from '@/lib/types';
+import { Budget, Expense, GoalContribution, MonthlyPlan } from '@/lib/types';
 
 interface Props {
   period: string;
@@ -14,6 +14,7 @@ interface Props {
   budgets: Budget[];
   periodExpenses: Expense[];
   monthlyPlan: MonthlyPlan | null;
+  contributions: GoalContribution[];
   onPlanUpdate: (plan: MonthlyPlan) => void;
 }
 
@@ -25,6 +26,7 @@ export default function PlanningSection({
   budgets,
   periodExpenses,
   monthlyPlan,
+  contributions,
   onPlanUpdate,
 }: Props) {
   const [editMode, setEditMode] = useState(false);
@@ -37,8 +39,14 @@ export default function PlanningSection({
   const hasPlan = monthlyPlan !== null;
 
   // Métricas derivadas
-  const currentSavings = income - spent;
-  const savingsPct = savingsGoal > 0 ? (currentSavings / savingsGoal) * 100 : null;
+  const balance = income - spent;
+  const manualContribution = contributions
+    .filter((c) => c.date.startsWith(period))
+    .reduce((s, c) => s + c.amount, 0);
+  const savedAmount = savingsGoal > 0 && balance >= savingsGoal
+    ? savingsGoal
+    : manualContribution;
+  const savingsPct = savingsGoal > 0 ? (savedAmount / savingsGoal) * 100 : null;
   const freeAmount = expectedIncome - fixedCosts - savingsGoal;
   const freeRemaining = expectedIncome - savingsGoal - spent;
 
@@ -56,7 +64,7 @@ export default function PlanningSection({
   const insights: string[] = [];
   if (savingsPct !== null) {
     if (savingsPct >= 100) {
-      insights.push(`✓ Meta de poupança atingida! ${formatCurrency(currentSavings)} guardados`);
+      insights.push(`✓ Meta de poupança atingida! (${formatCurrency(savingsGoal)})`);
     } else if (savingsPct > 0) {
       insights.push(`Você já atingiu ${Math.round(Math.max(0, savingsPct))}% da meta de economia`);
     }
@@ -277,14 +285,12 @@ export default function PlanningSection({
             </p>
             <p
               className={`text-xl font-bold ${
-                currentSavings >= savingsGoal && currentSavings > 0
+                savedAmount >= savingsGoal && savingsGoal > 0
                   ? 'text-mint-500'
-                  : currentSavings < 0
-                  ? 'text-red-400'
                   : 'text-gray-900'
               }`}
             >
-              {formatCurrency(Math.max(0, currentSavings))}
+              {formatCurrency(savedAmount)}
             </p>
             {savingsGoal > 0 ? (
               <>

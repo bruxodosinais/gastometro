@@ -12,6 +12,7 @@ import {
   getMonthlyObligations,
   checkAndGenerateObligations,
   markObligationAsPaid,
+  getAllGoalContributions,
 } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -24,7 +25,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Category, Expense, EXPENSE_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, Expense, EXPENSE_CATEGORIES, GoalContribution, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
 
@@ -91,6 +92,7 @@ export default function HomePage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
+  const [contributions, setContributions] = useState<GoalContribution[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
@@ -117,19 +119,24 @@ export default function HomePage() {
       getBudgets(),
       getRecurringExpenses(),
       checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
-    ]).then(([exp, bud, rec, obs]) => {
+      getAllGoalContributions(),
+    ]).then(([exp, bud, rec, obs, contrib]) => {
       setExpenses(exp);
       setBudgets(bud);
       setRecurringExpenses(rec);
       setObligations(obs);
+      setContributions(contrib);
       setReady(true);
     });
 
-    // Recarrega obrigações quando o usuário volta para esta aba
+    // Recarrega obrigações e expenses quando o usuário volta para esta aba
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
         const month = new Date().toISOString().slice(0, 7);
-        getMonthlyObligations(month).then(setObligations);
+        Promise.all([getMonthlyObligations(month), getExpenses()]).then(([obs, exp]) => {
+          setObligations(obs);
+          setExpenses(exp);
+        });
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -205,8 +212,10 @@ export default function HomePage() {
     const [py, pm] = period.split('-').map(Number);
     const totalDays = new Date(py, pm, 0).getDate();
     const daysRem = isCur ? totalDays - now2.getDate() : 0;
-    const heroBase2 = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : inc;
-    const target = isCur ? Math.abs((heroBase2 - sp) / Math.max(daysRem, 1)) : 0;
+    const savingsGoal2 = monthlyPlan?.savingsGoal ?? 0;
+    const daysForLimit2 = isCur ? totalDays - now2.getDate() + 1 : 0;
+    const valorLivre2 = inc - sp - savingsGoal2;
+    const target = isCur && valorLivre2 > 0 ? valorLivre2 / Math.max(daysForLimit2, 1) : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -471,11 +480,14 @@ export default function HomePage() {
 
   // ── V2: Hero Card ────────────────────────────────────────────────────────────
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
-  const canSpendToday = isCurrentMonth ? (heroBase - spent) / Math.max(daysRemaining, 1) : null;
+  const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
+  const daysForLimit = isCurrentMonth ? totalDaysInMonth - todayDay + 1 : 0;
+  const valorLivreParaGastar = balance - savingsGoal;
+  const canSpendToday = isCurrentMonth ? (valorLivreParaGastar > 0 ? valorLivreParaGastar / Math.max(daysForLimit, 1) : 0) : null;
   const budgetPct = heroBase > 0 ? Math.min((spent / heroBase) * 100, 100) : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
-  const heroStatusLabel = heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
-  const heroStatusColor = heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
+  const heroStatusLabel = valorLivreParaGastar < 0 ? 'Orçamento estourado' : heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
+  const heroStatusColor = valorLivreParaGastar < 0 ? 'text-white/70' : heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
   const heroBarColor = 'bg-white/90';
 
   // ── Frases dinâmicas ─────────────────────────────────────────────────────────
@@ -989,6 +1001,7 @@ export default function HomePage() {
         budgets={budgets}
         periodExpenses={periodExpenses}
         monthlyPlan={monthlyPlan}
+        contributions={contributions}
         onPlanUpdate={setMonthlyPlan}
       />
       </div>

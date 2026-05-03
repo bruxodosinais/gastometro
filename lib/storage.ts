@@ -683,10 +683,8 @@ export async function markObligationAsPaid(
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Usuário não autenticado');
 
-  const [year, month] = obligation.month.split('-').map(Number);
-  const lastDay = new Date(year, month, 0).getDate();
-  const day = Math.min(obligation.dueDay, lastDay);
-  const date = `${obligation.month}-${String(day).padStart(2, '0')}`;
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMonth = today.slice(0, 7);
 
   const { data: obligationRow, error: obErr } = await supabase
     .from('monthly_obligations')
@@ -698,6 +696,25 @@ export async function markObligationAsPaid(
 
   if (obErr) throw obErr;
 
+  // Dedup: se já existe expense com o mesmo recurring_expense_id neste mês, reutiliza
+  if (obligation.recurringExpenseId) {
+    const { data: existing } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('recurring_expense_id', obligation.recurringExpenseId)
+      .gte('date', `${currentMonth}-01`)
+      .lte('date', `${currentMonth}-31`)
+      .maybeSingle();
+
+    if (existing) {
+      return {
+        obligation: toMonthlyObligation(obligationRow),
+        expense: toExpense(existing),
+      };
+    }
+  }
+
   const { data: expenseRow, error: expErr } = await supabase
     .from('expenses')
     .insert({
@@ -706,7 +723,7 @@ export async function markObligationAsPaid(
       amount: obligation.amount,
       description: obligation.description,
       category: obligation.category,
-      date,
+      date: today,
       recurring_expense_id: obligation.recurringExpenseId,
     })
     .select()
@@ -718,6 +735,30 @@ export async function markObligationAsPaid(
     obligation: toMonthlyObligation(obligationRow),
     expense: toExpense(expenseRow),
   };
+}
+
+export async function unmarkObligationAsPaid(
+  obligationId: string,
+  expenseId: string
+): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  await Promise.all([
+    supabase
+      .from('monthly_obligations')
+      .update({ status: 'pending', paid_at: null })
+      .eq('id', obligationId)
+      .eq('user_id', user.id),
+    supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expenseId)
+      .eq('user_id', user.id),
+  ]);
 }
 
 // Cria obrigação imediata para um recorrente recém-cadastrado no mês atual.
