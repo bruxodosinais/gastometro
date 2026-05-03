@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
   formatCurrency,
+  formatCompact,
   getMonthKey,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -52,6 +53,28 @@ function anim(delay: number, duration = 350): React.CSSProperties {
   };
 }
 const hidden: React.CSSProperties = { opacity: 0, transform: 'translateY(12px)' };
+
+// Exibe valor completo; só aplica formato compacto se o texto transbordar o card.
+function AutoValue({ value, className = '' }: { value: number; className?: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [compact, setCompact] = useState(false);
+
+  useLayoutEffect(() => {
+    setCompact(false);
+  }, [value]);
+
+  useLayoutEffect(() => {
+    if (compact) return;
+    const el = ref.current;
+    if (el && el.scrollWidth > el.clientWidth) setCompact(true);
+  });
+
+  return (
+    <p ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`}>
+      {compact ? formatCompact(value) : formatCurrency(value)}
+    </p>
+  );
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -514,70 +537,97 @@ export default function HomePage() {
       <p className="text-violet-300/70 text-sm italic mb-4">{dynamicPhrase}</p>
 
       {/* ── SELETOR DE PERÍODO ─────────────────────────────────────────────────── */}
-      <PeriodSelector />
+      <div className="flex justify-end mb-3">
+        <PeriodSelector compact />
+      </div>
 
-      {/* ── HERO CARD ──────────────────────────────────────────────────────────── */}
+      {/* ── RESUMO CARDS (1 + 2) ────────────────────────────────────────────────── */}
+      <div className="mb-3 space-y-2" style={mounted ? anim(0, 400) : hidden}>
+        {/* Saldo — card largo, destaque principal */}
+        <div className={`rounded-2xl p-4 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Saldo</p>
+          <AutoValue value={balance} className={`text-3xl font-bold leading-none ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`} />
+          <p className="text-slate-500 text-xs mt-1">receitas − gastos</p>
+        </div>
+        {/* Receitas + Despesas — 2 cards lado a lado */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-green-500/5 border border-green-500/15 rounded-2xl p-4">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Receitas</p>
+            <AutoValue value={income} className="text-xl font-bold text-green-400 leading-none" />
+            <p className="text-slate-500 text-xs mt-1">entradas do mês</p>
+          </div>
+          <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-4">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Despesas</p>
+            <AutoValue value={spent} className="text-xl font-bold text-red-400 leading-none" />
+            <p className="text-slate-500 text-xs mt-1">lançadas</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── LIMITE DE HOJE ──────────────────────────────────────────────────────── */}
       {isCurrentMonth && (
         <div
-          className="mt-4 mb-3 bg-gradient-to-br from-violet-600/20 via-violet-500/10 to-transparent border border-violet-500/30 rounded-2xl p-6"
-          style={mounted ? anim(0, 600) : hidden}
+          className="mb-3 bg-gradient-to-br from-violet-600/15 via-violet-500/8 to-transparent border border-violet-500/25 rounded-2xl p-4"
+          style={mounted ? anim(80, 500) : hidden}
         >
-          <p className="text-violet-300/70 text-xs font-medium uppercase tracking-wider mb-3">Pode gastar hoje</p>
-
-          {canSpendToday !== null && (
+          {todayDay === 1 && spent === 0 ? (
+            <div>
+              <p className="text-violet-200 font-semibold mb-1">Mês novo!</p>
+              <p className="text-slate-400 text-sm mb-3">Configure seu orçamento para começar com controle.</p>
+              <a href="#planejamento" className="inline-block bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-colors">
+                Configurar orçamento
+              </a>
+            </div>
+          ) : canSpendToday !== null && (
             <>
-              <p className={`text-5xl font-bold leading-none mb-2 ${canSpendToday < 0 ? 'text-red-400' : 'text-violet-200'}`}>
-                {canSpendToday < 0 ? '−' : ''}{formatCurrency(heroDisplayValue)}
-              </p>
-              <p className="text-slate-400 text-sm mb-4">
-                {canSpendToday < 0
-                  ? 'saldo esgotado'
-                  : daysRemaining === 0
-                  ? 'Último dia do mês'
-                  : `${daysRemaining} ${daysRemaining === 1 ? 'dia restante' : 'dias restantes'} no mês`}
-              </p>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-violet-300/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Limite de hoje</p>
+                  {canSpendToday >= 0 ? (
+                    <p className="text-2xl font-bold text-violet-200 leading-none">{formatCurrency(heroDisplayValue)}</p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-red-400/80 leading-snug">Limite do dia atingido</p>
+                      <p className="text-red-500/60 text-xs">−{formatCurrency(Math.abs(canSpendToday))}</p>
+                    </>
+                  )}
+                </div>
+                <div className="text-center shrink-0">
+                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Orçamento</p>
+                  <p className="text-xl font-bold text-slate-300 leading-none">{Math.round(budgetPct)}%</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">
+                    {daysRemaining === 0 ? 'Último dia' : 'Dias'}
+                  </p>
+                  <p className="text-xl font-bold text-slate-300 leading-none">
+                    {daysRemaining === 0 ? '—' : daysRemaining}
+                  </p>
+                  {daysRemaining > 0 && (
+                    <p className="text-slate-500 text-[10px]">restantes</p>
+                  )}
+                </div>
+              </div>
               <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mb-2">
-                <div className={`h-full rounded-full ${heroBarColor}`} style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out' }} />
+                <div
+                  className={`h-full rounded-full ${heroBarColor}`}
+                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out' }}
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
-                <span className="text-slate-500 text-xs">{Math.round(budgetPct)}% do orçamento</span>
-              </div>
+              <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
             </>
           )}
-
-          <Link href="/lancamentos" className="mt-4 hidden md:block text-center bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
-            + Lançar gasto
-          </Link>
         </div>
       )}
 
-      {/* ── MINI CARDS: Saldo / Gastos / Receitas ──────────────────────────────── */}
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-3 md:overflow-visible md:snap-none md:mx-0 md:px-0 md:pb-0 md:mb-3">
-        <div className={`snap-start flex-shrink-0 w-[78vw] md:w-auto rounded-2xl p-4 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/15' : 'bg-red-500/5 border-red-500/15'}`} style={mounted ? anim(100) : hidden}>
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Saldo atual</p>
-          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-            {balance >= 0 ? '' : '−'}{formatCurrency(Math.abs(balance))}
-          </p>
-          <p className="text-slate-500 text-xs mt-1">receitas − gastos</p>
-        </div>
-        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-red-500/5 border border-red-500/15 rounded-2xl p-4" style={mounted ? anim(180) : hidden}>
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Gastos do mês</p>
-          <p className="text-2xl font-bold text-red-400">{formatCurrency(spent)}</p>
-          <p className="text-slate-500 text-xs mt-1">despesas lançadas</p>
-        </div>
-        <div className="snap-start flex-shrink-0 w-[78vw] md:w-auto bg-green-500/5 border border-green-500/15 rounded-2xl p-4 pr-4 md:pr-4" style={mounted ? anim(260) : hidden}>
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Receitas</p>
-          <p className="text-2xl font-bold text-green-400">{formatCurrency(income)}</p>
-          <p className="text-slate-500 text-xs mt-1">entradas do mês</p>
-        </div>
-      </div>
-      {/* indicador de scroll nos mini cards — mobile only */}
-      <div className="flex justify-center gap-1 mb-3 md:hidden">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className={`w-1 h-1 rounded-full ${i === 0 ? 'bg-violet-400/60' : 'bg-slate-700'}`} />
-        ))}
-      </div>
+      {/* ── LANÇAR GASTO (desktop) ──────────────────────────────────────────────── */}
+      <Link
+        href="/lancamentos"
+        className="mb-4 hidden md:block text-center bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+        style={mounted ? anim(160) : hidden}
+      >
+        + Lançar gasto
+      </Link>
 
       {/* ── RESUMO IA COMPACTO ─────────────────────────────────────────────────── */}
       <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-3" style={mounted ? anim(180) : hidden}>
@@ -785,6 +835,7 @@ export default function HomePage() {
       )}
 
       {/* ── PLANEJAMENTO MENSAL ────────────────────────────────────────────────── */}
+      <div id="planejamento">
       <PlanningSection
         period={period}
         income={income}
@@ -795,6 +846,7 @@ export default function HomePage() {
         monthlyPlan={monthlyPlan}
         onPlanUpdate={setMonthlyPlan}
       />
+      </div>
 
       {/* ── CTA FIXO MOBILE ────────────────────────────────────────────────────── */}
       <Link

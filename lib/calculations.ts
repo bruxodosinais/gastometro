@@ -16,6 +16,18 @@ export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+export function formatCompact(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? '−' : '';
+  if (abs >= 1_000_000) {
+    return `${sign}R$ ${(abs / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`;
+  }
+  if (abs >= 100_000) {
+    return `${sign}R$ ${Math.round(abs / 1_000).toLocaleString('pt-BR')}k`;
+  }
+  return formatCurrency(value);
+}
+
 export function groupByMonth(expenses: Expense[]): Record<string, Expense[]> {
   return expenses.reduce<Record<string, Expense[]>>((acc, e) => {
     const key = e.date.slice(0, 7);

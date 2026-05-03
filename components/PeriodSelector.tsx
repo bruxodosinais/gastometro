@@ -13,7 +13,7 @@ function shiftMonth(monthKey: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export default function PeriodSelector() {
+export default function PeriodSelector({ compact = false }: { compact?: boolean }) {
   const { period, setPeriod } = usePeriod();
   const [open, setOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => parseInt(period.split('-')[0]));
@@ -38,31 +38,57 @@ export default function PeriodSelector() {
   return (
     <>
       {/* Barra de navegação */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-2 py-2 mb-5">
-        <button
-          onClick={() => setPeriod(shiftMonth(period, -1))}
-          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
-          aria-label="Mês anterior"
-        >
-          <ChevronLeft size={20} />
-        </button>
+      {compact ? (
+        <div className="inline-flex items-center bg-slate-900 border border-slate-800 rounded-xl px-1 py-1 gap-0.5">
+          <button
+            onClick={() => setPeriod(shiftMonth(period, -1))}
+            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <button
+            onClick={openPicker}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <span className="text-white font-semibold text-xs whitespace-nowrap">{labelCap}</span>
+            <ChevronDown size={11} className="text-slate-400" />
+          </button>
+          <button
+            onClick={() => setPeriod(shiftMonth(period, 1))}
+            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Próximo mês"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-2 py-2 mb-5">
+          <button
+            onClick={() => setPeriod(shiftMonth(period, -1))}
+            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft size={20} />
+          </button>
 
-        <button
-          onClick={openPicker}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors"
-        >
-          <span className="text-white font-semibold text-sm">{labelCap}</span>
-          <ChevronDown size={14} className="text-slate-400" />
-        </button>
+          <button
+            onClick={openPicker}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors"
+          >
+            <span className="text-white font-semibold text-sm">{labelCap}</span>
+            <ChevronDown size={14} className="text-slate-400" />
+          </button>
 
-        <button
-          onClick={() => setPeriod(shiftMonth(period, 1))}
-          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
-          aria-label="Próximo mês"
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
+          <button
+            onClick={() => setPeriod(shiftMonth(period, 1))}
+            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            aria-label="Próximo mês"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Modal picker */}
       {open && (
