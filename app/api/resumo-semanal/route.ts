@@ -154,22 +154,22 @@ METAS:
 ${goalsLines}
 
 INSTRUÇÕES:
-Escreva um resumo com exatamente 5 seções curtas em português. Cada seção começa com um emoji e título em **negrito**. Use listas com • quando listar itens. Seja direto e motivador, como um consultor financeiro de confiança.
+Escreva um resumo com exatamente 5 seções ultra-curtas em português. Cada seção: emoji + título em **negrito** + 1 frase (máximo). Sem bullets, sem listas, sem parágrafos longos. Tom direto e motivador.
 
-Estrutura obrigatória:
-**Performance da semana** — como foi a semana (1-2 frases)
-**Destaque** — maior gasto ou categoria que mais pesou (1-2 frases)
-**Mês em perspectiva** — como está o mês, projeção (1-2 frases)
-**Dica da semana** — 1 dica personalizada e acionável baseada nos dados
+Estrutura obrigatória (1 frase cada):
+**Performance da semana** — 1 frase sobre como foi a semana
+**Destaque** — 1 frase sobre o maior gasto ou categoria
+**Mês em perspectiva** — 1 frase sobre projeção do mês
+**Dica da semana** — 1 dica acionável específica para os dados
 **Próximo passo** — 1 ação concreta para a semana que vem
 
-Máximo 180 palavras. Não use ### nem ---. Não use JSON. Retorne apenas o texto do resumo.`;
+Máximo 100 palavras. Não use ### nem ---. Não use JSON. Retorne apenas o texto do resumo.`;
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+      max_tokens: 350,
       messages: [{ role: 'user', content: prompt }],
     });
 

@@ -179,6 +179,15 @@ export default function HomePage() {
     return () => clearInterval(id);
   }, [ready, period]);
 
+  useEffect(() => {
+    if (showResumoModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showResumoModal]);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -799,10 +808,11 @@ export default function HomePage() {
       {/* ── MODAL: Análise IA Completa ─────────────────────────────────────────── */}
       {showResumoModal && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-hidden"
+          style={{ touchAction: 'none' }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowResumoModal(false); }}
         >
-          <div className="bg-[#0f1117] border border-slate-800 rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+          <div className="bg-[#0f1117] border border-slate-800 rounded-2xl p-6 w-full max-w-lg max-h-[70vh] overflow-y-auto overscroll-contain" style={{ touchAction: 'pan-y' }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Star size={15} className="text-violet-400" />
