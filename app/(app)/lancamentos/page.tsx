@@ -312,53 +312,63 @@ export default function LancamentosPage() {
               <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
                 R$
               </span>
-              <input
-                ref={amountRef}
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                  setInputScale(true);
-                  setTimeout(() => setInputScale(false), 100);
-                }}
-                onFocus={(e) => {
-                  setInputFocused(true);
-                  if (e.target.value === '0') setAmount('');
-                }}
-                onBlur={() => setInputFocused(false)}
-                placeholder="0"
-                className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-48 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
-                style={{
-                  transform: inputScale ? 'scale(1.02)' : 'scale(1)',
-                  opacity: valueOpacity,
-                  transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
-                  caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
-                }}
-              />
+              <div className="relative w-48">
+                <input
+                  ref={amountRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
+                    setInputScale(true);
+                    setTimeout(() => setInputScale(false), 100);
+                  }}
+                  onFocus={(e) => {
+                    setInputFocused(true);
+                    if (e.target.value === '0') setAmount('');
+                  }}
+                  onBlur={() => setInputFocused(false)}
+                  placeholder="0"
+                  className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
+                  style={{
+                    transform: inputScale ? 'scale(1.02)' : 'scale(1)',
+                    opacity: valueOpacity,
+                    transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
+                    caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+                    cursor: inputFocused ? 'text' : 'pointer',
+                  }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
+                <div
+                  className="absolute bottom-0 left-0 h-[2px]"
+                  style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+                />
+              </div>
             </div>
 
             {/* 2. TOGGLE */}
-            <div className="flex gap-2 justify-center mb-6">
+            <div className="flex mb-6 p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
               <button
                 type="button"
                 onClick={() => handleTypeChange('expense')}
-                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
                   entryType === 'expense'
-                    ? 'bg-red-500/15 border border-red-500/40 text-red-400'
-                    : 'border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-slate-600'
+                    ? 'text-white'
+                    : 'bg-transparent text-[#6B7280]'
                 }`}
+                style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
               >
                 Gasto
               </button>
               <button
                 type="button"
                 onClick={() => handleTypeChange('income')}
-                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
                   entryType === 'income'
-                    ? 'bg-mint-50 border border-green-500/60 text-mint-500'
-                    : 'border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-slate-600'
+                    ? 'text-white'
+                    : 'bg-transparent text-[#6B7280]'
                 }`}
+                style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
               >
                 Receita
               </button>
@@ -397,7 +407,7 @@ export default function LancamentosPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
-                  className="w-full bg-white/60 border border-gray-100 rounded-xl px-4 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
                 />
               )}
 
@@ -420,7 +430,7 @@ export default function LancamentosPage() {
                     autoFocus
                     onChange={(e) => { setDate(e.target.value); setShowDatePicker(false); }}
                     onBlur={() => setShowDatePicker(false)}
-                    className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-gray-900 text-sm focus:outline-none focus:border-mint-500"
+                    className="bg-white border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED]"
                   />
                 )}
               </div>
@@ -456,7 +466,7 @@ export default function LancamentosPage() {
                       <input
                         type="number" inputMode="numeric" min={2} max={48} value={installments}
                         onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-mint-500 transition-colors"
+                        className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:border-[#7C3AED] transition-colors"
                       />
                       <p className="text-gray-500 text-xs mt-1">
                         {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
@@ -470,7 +480,7 @@ export default function LancamentosPage() {
                       <input
                         type="number" inputMode="numeric" min={1} max={31} value={recurringDay}
                         onChange={(e) => setRecurringDay(e.target.value)} placeholder="Ex: 5"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                        className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
                       />
                       <p className="text-gray-500 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
                     </div>

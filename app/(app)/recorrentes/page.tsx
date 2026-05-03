@@ -180,26 +180,28 @@ export default function RecorrentesPage() {
           <p className="text-gray-700 text-sm font-semibold">Novo recorrente</p>
 
           {/* Toggle Gasto / Receita */}
-          <div className="flex p-1 bg-gray-50 rounded-xl">
+          <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
             <button
               type="button"
               onClick={() => handleTypeChange('expense')}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
                 entryType === 'expense'
-                  ? 'bg-white text-gray-900 shadow'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-white'
+                  : 'bg-transparent text-[#6B7280]'
               }`}
+              style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
             >
               Gasto
             </button>
             <button
               type="button"
               onClick={() => handleTypeChange('income')}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
                 entryType === 'income'
-                  ? 'bg-white text-mint-500 shadow'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-white'
+                  : 'bg-transparent text-[#6B7280]'
               }`}
+              style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
             >
               Receita
             </button>
@@ -216,29 +218,37 @@ export default function RecorrentesPage() {
             <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
               R$
             </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                setInputScale(true);
-                setTimeout(() => setInputScale(false), 100);
-              }}
-              onFocus={(e) => {
-                setInputFocused(true);
-                if (e.target.value === '0') setAmount('');
-              }}
-              onBlur={() => setInputFocused(false)}
-              placeholder="0"
-              required
-              className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-48 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
-              style={{
-                transform: inputScale ? 'scale(1.02)' : 'scale(1)',
-                transition: 'transform 100ms ease-out, color 200ms ease',
-                caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
-              }}
-            />
+            <div className="relative w-48">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
+                  setInputScale(true);
+                  setTimeout(() => setInputScale(false), 100);
+                }}
+                onFocus={(e) => {
+                  setInputFocused(true);
+                  if (e.target.value === '0') setAmount('');
+                }}
+                onBlur={() => setInputFocused(false)}
+                placeholder="0"
+                required
+                className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
+                style={{
+                  transform: inputScale ? 'scale(1.02)' : 'scale(1)',
+                  transition: 'transform 100ms ease-out, color 200ms ease',
+                  caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+                  cursor: inputFocused ? 'text' : 'pointer',
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
+              <div
+                className="absolute bottom-0 left-0 h-[2px]"
+                style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+              />
+            </div>
           </div>
 
           {/* Descrição */}
@@ -257,7 +267,7 @@ export default function RecorrentesPage() {
               }
               maxLength={80}
               required
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
             />
           </div>
 
@@ -276,7 +286,7 @@ export default function RecorrentesPage() {
                 onChange={(e) => setDayOfMonth(e.target.value)}
                 placeholder="Ex: 1 (dia do mês)"
                 required
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
               />
               <p className="text-gray-500 text-xs mt-1">Quando aparece no histórico</p>
             </div>
@@ -292,7 +302,7 @@ export default function RecorrentesPage() {
                 value={dueDay}
                 onChange={(e) => setDueDay(e.target.value)}
                 placeholder="Ex: 10"
-                className="w-full bg-gray-50 border border-violet-400/40 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
+                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
               />
               <p className="text-gray-500 text-xs mt-1">Limite para pagar sem atraso</p>
             </div>
@@ -306,7 +316,7 @@ export default function RecorrentesPage() {
             <button
               type="button"
               onClick={() => setShowCategoryPicker(true)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-gray-300"
+              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
             >
               <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
               <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
@@ -380,10 +390,10 @@ export default function RecorrentesPage() {
                 const cardBgClass = !hasObligation
                   ? 'bg-white'
                   : isPaid
-                  ? 'bg-emerald-500/5'
+                  ? 'bg-[#F0FDF4]'
                   : daysLate > 0
-                  ? 'bg-red-500/[0.06]'
-                  : 'bg-white';
+                  ? 'bg-[#FEF2F2]'
+                  : 'bg-[#FFFBEB]';
 
                 // badge
                 const badgeClass = isPaid
@@ -405,11 +415,12 @@ export default function RecorrentesPage() {
                 return (
                   <div
                     key={rec.id}
-                    className={`border border-gray-100 rounded-xl transition-all ${cardBgClass} ${!rec.active ? 'opacity-50' : ''}`}
+                    className={`border border-[#F3F4F6] rounded-xl transition-all ${cardBgClass} ${!rec.active ? 'opacity-50' : ''}`}
                     style={{
                       padding: '12px 14px',
                       borderLeftWidth: '3px',
                       borderLeftColor: leftBorderColor,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
                     <div className="flex items-start gap-2.5">
