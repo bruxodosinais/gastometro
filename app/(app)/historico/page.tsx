@@ -129,7 +129,7 @@ export default function HistoricoPage() {
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
       </main>
     );
   }
@@ -241,8 +241,8 @@ export default function HistoricoPage() {
   return (
     <>
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
-      <h1 className="text-2xl font-bold text-white mb-1">Histórico</h1>
-      <p className="text-slate-400 text-sm mb-4 capitalize">{periodLabel}</p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Histórico</h1>
+      <p className="text-gray-500 text-sm mb-4 capitalize">{periodLabel}</p>
 
       {/* Filtros rápidos de período */}
       <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
@@ -252,15 +252,15 @@ export default function HistoricoPage() {
             onClick={() => setQuickFilter(key)}
             className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               quickFilter === key
-                ? 'bg-violet-600 text-white'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                ? 'bg-mint text-gray-900'
+                : 'bg-white border border-gray-100 text-gray-500 hover:text-gray-900 hover:border-gray-200'
             }`}
           >
             {label}
           </button>
         ))}
         {quickFilter === null && (
-          <span className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-violet-600 text-white">
+          <span className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-mint text-gray-900">
             {periodLabel}
           </span>
         )}
@@ -273,16 +273,16 @@ export default function HistoricoPage() {
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-3 gap-2 mb-5">
-        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
-          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Ganhos</p>
-          <p className="text-green-400 font-bold text-sm">{formatCurrency(income)}</p>
+        <div className="bg-mint/5 border border-green-500/20 rounded-xl p-3">
+          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Ganhos</p>
+          <p className="text-mint-500 font-bold text-sm">{formatCurrency(income)}</p>
         </div>
         <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
-          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Gastos</p>
+          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Gastos</p>
           <p className="text-red-400 font-bold text-sm">{formatCurrency(spent)}</p>
         </div>
         <div className={`rounded-xl p-3 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-          <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Saldo</p>
+          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Saldo</p>
           <p className={`font-bold text-sm ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
             {balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(balance))}
           </p>
@@ -291,18 +291,18 @@ export default function HistoricoPage() {
 
       {/* Busca */}
       <div className="relative mb-2">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por descrição..."
-          className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-9 py-2.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+          className="w-full bg-white border border-gray-100 rounded-xl pl-9 pr-9 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
         />
         {search && (
           <button
             onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors"
             aria-label="Limpar busca"
           >
             <X size={14} />
@@ -319,7 +319,7 @@ export default function HistoricoPage() {
           placeholder="Valor mínimo"
           min="0"
           step="0.01"
-          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+          className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
         />
         <input
           type="number"
@@ -328,7 +328,7 @@ export default function HistoricoPage() {
           placeholder="Valor máximo"
           min="0"
           step="0.01"
-          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+          className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
         />
       </div>
 
@@ -340,7 +340,7 @@ export default function HistoricoPage() {
               key={t}
               onClick={() => handleTypeFilterChange(t)}
               className={`px-3 py-1.5 rounded-full text-sm ${
-                typeFilter === t ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400'
+                typeFilter === t ? 'bg-gray-100 text-gray-900' : 'bg-gray-50 text-gray-500'
               }`}
             >
               {t === 'all' ? 'Todos' : t === 'expense' ? 'Gastos' : 'Receitas'}
@@ -350,7 +350,7 @@ export default function HistoricoPage() {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as Category | 'all')}
-          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 transition-colors shrink-0"
+          className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
         >
           <option value="all">Todas</option>
           {categoryOptions.map((cat) => (
@@ -360,7 +360,7 @@ export default function HistoricoPage() {
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500 transition-colors shrink-0"
+          className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
         >
           <option value="recent">Mais recente</option>
           <option value="oldest">Mais antigo</option>
@@ -370,11 +370,11 @@ export default function HistoricoPage() {
       </div>
 
       {/* Insight hero */}
-      <div className="rounded-2xl bg-slate-800/80 border border-slate-700/70 px-5 py-4 mb-4 min-h-[88px] overflow-hidden">
-        <p className="text-lg font-semibold text-white line-clamp-2 overflow-hidden text-ellipsis">{insightText}</p>
+      <div className="rounded-2xl bg-gray-50/80 border border-gray-200/70 px-5 py-4 mb-4 min-h-[88px] overflow-hidden">
+        <p className="text-lg font-semibold text-gray-900 line-clamp-2 overflow-hidden text-ellipsis">{insightText}</p>
         {insightGroup && (
           <p
-            className="mt-2 text-sm text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+            className="mt-2 text-sm text-gray-500 hover:text-gray-900 cursor-pointer transition-colors duration-150 ease-out"
             onClick={() => setSearch(insightGroup.displayName)}
           >
             Ver padrões
@@ -384,13 +384,13 @@ export default function HistoricoPage() {
 
       {/* Top gastos */}
       {topGastosByValue.length > 0 && (
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 mb-4">
-          <p className="text-lg font-semibold text-white mb-3">Top gastos</p>
+        <div className="rounded-2xl bg-white/80 border border-gray-100 p-4 mb-4">
+          <p className="text-lg font-semibold text-gray-900 mb-3">Top gastos</p>
           <div>
             {topGastosByValue.map((g) => (
               <div key={g.displayName} className="flex items-center justify-between py-2">
-                <span className="text-sm text-slate-200 truncate">{formatBrand(g.displayName)}</span>
-                <span className="text-sm font-semibold text-white flex-shrink-0 ml-3">{formatCurrency(g.total)}</span>
+                <span className="text-sm text-gray-800 truncate">{formatBrand(g.displayName)}</span>
+                <span className="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">{formatCurrency(g.total)}</span>
               </div>
             ))}
           </div>
@@ -399,13 +399,13 @@ export default function HistoricoPage() {
 
       {/* Padrões de gasto */}
       {topGastosByCount.length > 0 && (
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 mb-4">
-          <p className="text-lg font-semibold text-white mb-3">Padrões de gasto</p>
+        <div className="rounded-2xl bg-white/80 border border-gray-100 p-4 mb-4">
+          <p className="text-lg font-semibold text-gray-900 mb-3">Padrões de gasto</p>
           <div>
             {topGastosByCount.map((g) => (
               <div key={g.displayName} className="flex flex-col py-2">
-                <span className="text-base font-semibold text-white">{formatBrand(g.displayName)}</span>
-                <span className="text-xs text-slate-400 mt-1">{patternContext(g.count)} · {g.count}x</span>
+                <span className="text-base font-semibold text-gray-900">{formatBrand(g.displayName)}</span>
+                <span className="text-xs text-gray-500 mt-1">{patternContext(g.count)} · {g.count}x</span>
               </div>
             ))}
           </div>
@@ -414,12 +414,12 @@ export default function HistoricoPage() {
 
       {/* Lista */}
       {baseEntries.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-8">Nenhum lançamento neste período</p>
+        <p className="text-gray-500 text-sm text-center py-8">Nenhum lançamento neste período</p>
       ) : filteredEntries.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
+        <p className="text-gray-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
       ) : (
         <div className="opacity-[0.78] mb-6">
-          <p className="text-sm font-medium text-slate-500 mb-3">Lançamentos</p>
+          <p className="text-sm font-medium text-gray-500 mb-3">Lançamentos</p>
           <div className="space-y-2">
           {filteredEntries.map((exp) => {
             const cfg = CATEGORY_CONFIG[exp.category];
@@ -428,31 +428,31 @@ export default function HistoricoPage() {
             const isIncome = exp.type === 'income';
             const isFuture = exp.date > todayIso;
             return (
-              <div key={exp.id} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div key={exp.id} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{formatBrand(exp.description)}</p>
-                  <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
+                  <p className="text-gray-900 text-sm font-medium truncate">{formatBrand(exp.description)}</p>
+                  <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className={`font-semibold text-sm whitespace-nowrap ${isFuture ? 'text-slate-400' : isIncome ? 'text-green-400' : 'text-white'}`}>
+                  <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isFuture ? '#9a9aaa' : isIncome ? '#00b87a' : '#f04e5e' }}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
                   {isFuture && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-500 border border-gray-200">
                       futuro
                     </span>
                   )}
                 </div>
-                <button onClick={() => setEditingExpense(exp)} className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-2" aria-label="Editar">
+                <button onClick={() => setEditingExpense(exp)} className="text-gray-500 hover:text-mint-500 transition-colors flex-shrink-0 ml-2" aria-label="Editar">
                   <Pencil size={15} />
                 </button>
-                <button onClick={() => setDuplicatingExpense(exp)} className="text-slate-600 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
+                <button onClick={() => setDuplicatingExpense(exp)} className="text-gray-500 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
                   <Copy size={15} />
                 </button>
-                <button onClick={() => setDeletingExpense(exp)} className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
+                <button onClick={() => setDeletingExpense(exp)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
                   <Trash2 size={15} />
                 </button>
               </div>

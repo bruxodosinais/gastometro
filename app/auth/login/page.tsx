@@ -35,16 +35,16 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
+          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
             📊
           </div>
-          <h1 className="text-2xl font-bold text-white">GastôMetro</h1>
-          <p className="text-slate-400 text-sm mt-1">Entre na sua conta</p>
+          <h1 className="text-2xl font-bold text-gray-900">GastôMetro</h1>
+          <p className="text-gray-500 text-sm mt-1">Entre na sua conta</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               E-mail
             </label>
             <input
@@ -54,12 +54,12 @@ export default function LoginPage() {
               placeholder="seu@email.com"
               required
               autoComplete="email"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               Senha
             </label>
             <input
@@ -69,7 +69,7 @@ export default function LoginPage() {
               placeholder="••••••••"
               required
               autoComplete="current-password"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
@@ -82,15 +82,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors"
+            className="w-full py-3.5 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors"
+            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
-        <p className="text-center text-slate-500 text-sm mt-6">
+        <p className="text-center text-gray-500 text-sm mt-6">
           Não tem conta?{' '}
-          <Link href="/auth/cadastro" className="text-violet-400 hover:text-violet-300 font-medium">
+          <Link href="/auth/cadastro" className="text-mint-500 hover:text-mint-500 font-medium">
             Criar conta
           </Link>
         </p>

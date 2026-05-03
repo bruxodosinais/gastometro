@@ -19,10 +19,10 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   const { name, value } = payload[0];
   const cfg = CATEGORY_CONFIG[name as ExpenseCategory];
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm shadow-xl">
+    <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-xl">
       <span className="mr-1">{cfg?.icon}</span>
-      <span className="text-white font-medium">{name}</span>
-      <span className="text-slate-300 ml-2">{formatCurrency(value)}</span>
+      <span className="text-gray-900 font-medium">{name}</span>
+      <span className="text-gray-700 ml-2">{formatCurrency(value)}</span>
     </div>
   );
 }
@@ -41,7 +41,7 @@ export default function SpendingDonut({ entries }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-500 text-sm">
+      <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
         Nenhum gasto neste período
       </div>
     );
@@ -76,8 +76,8 @@ export default function SpendingDonut({ entries }: Props) {
         </ResponsiveContainer>
         {/* total no centro */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xs text-slate-400">Total</span>
-          <span className="text-white font-bold text-base">{formatCurrency(total)}</span>
+          <span className="text-xs text-gray-500">Total</span>
+          <span className="text-gray-900 font-bold text-base">{formatCurrency(total)}</span>
         </div>
       </div>
 
@@ -93,11 +93,11 @@ export default function SpendingDonut({ entries }: Props) {
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: cfg?.color ?? '#94a3b8' }}
                 />
-                <span className="text-slate-300 truncate">{cfg?.icon} {entry.name}</span>
+                <span className="text-gray-700 truncate">{cfg?.icon} {entry.name}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                <span className="text-slate-400 text-xs">{pct}%</span>
-                <span className="text-white font-medium">{formatCurrency(entry.value)}</span>
+                <span className="text-gray-500 text-xs">{pct}%</span>
+                <span className="text-gray-900 font-medium">{formatCurrency(entry.value)}</span>
               </div>
             </div>
           );

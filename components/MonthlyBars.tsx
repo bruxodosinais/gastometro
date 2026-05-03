@@ -35,8 +35,8 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm shadow-xl">
-      <p className="text-slate-400 text-xs mb-1">{label}</p>
+    <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-xl">
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="font-medium">
           {p.name}: {formatCurrency(p.value)}
@@ -78,7 +78,7 @@ export default function MonthlyBars({ allExpenses, currentPeriod }: Props) {
   const hasAny = data.some((d) => d.Ganhos > 0 || d.Gastos > 0);
   if (!hasAny) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-500 text-sm">
+      <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
         Sem dados nos últimos 6 meses
       </div>
     );
@@ -105,7 +105,7 @@ export default function MonthlyBars({ allExpenses, currentPeriod }: Props) {
             width={36}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
-          <Bar dataKey="Ganhos" fill="#22c55e" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Ganhos" fill="#00b87a" radius={[4, 4, 0, 0]} />
           <Bar dataKey="Gastos" fill="#f43f5e" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

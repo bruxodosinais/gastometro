@@ -61,18 +61,18 @@ export default function CadastroPage() {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
-          <div className="w-16 h-16 rounded-3xl bg-green-500/20 border border-green-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
+          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-green-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
             ✉️
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Verifique seu e-mail</h2>
-          <p className="text-slate-400 text-sm">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Verifique seu e-mail</h2>
+          <p className="text-gray-500 text-sm">
             Enviamos um link de confirmação para{' '}
-            <span className="text-white font-medium">{email}</span>. Clique no link para ativar
+            <span className="text-gray-900 font-medium">{email}</span>. Clique no link para ativar
             sua conta.
           </p>
           <Link
             href="/auth/login"
-            className="inline-block mt-6 text-violet-400 hover:text-violet-300 text-sm font-medium"
+            className="inline-block mt-6 text-mint-500 hover:text-mint-500 text-sm font-medium"
           >
             ← Voltar para o login
           </Link>
@@ -86,16 +86,16 @@ export default function CadastroPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
+          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
             📊
           </div>
-          <h1 className="text-2xl font-bold text-white">GastôMetro</h1>
-          <p className="text-slate-400 text-sm mt-1">Crie sua conta gratuita</p>
+          <h1 className="text-2xl font-bold text-gray-900">GastôMetro</h1>
+          <p className="text-gray-500 text-sm mt-1">Crie sua conta gratuita</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               Nome
             </label>
             <input
@@ -105,12 +105,12 @@ export default function CadastroPage() {
               placeholder="Seu primeiro nome"
               required
               autoComplete="given-name"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               E-mail
             </label>
             <input
@@ -120,12 +120,12 @@ export default function CadastroPage() {
               placeholder="seu@email.com"
               required
               autoComplete="email"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               Senha
             </label>
             <input
@@ -135,12 +135,12 @@ export default function CadastroPage() {
               placeholder="Mínimo 6 caracteres"
               required
               autoComplete="new-password"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               Confirmar senha
             </label>
             <input
@@ -150,7 +150,7 @@ export default function CadastroPage() {
               placeholder="••••••••"
               required
               autoComplete="new-password"
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
           </div>
 
@@ -163,15 +163,15 @@ export default function CadastroPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors"
+            className="w-full py-3.5 bg-mint hover:bg-mint-700 disabled:opacity-60 rounded-xl font-semibold text-gray-900 transition-colors"
           >
             {loading ? 'Criando conta...' : 'Criar conta'}
           </button>
         </form>
 
-        <p className="text-center text-slate-500 text-sm mt-6">
+        <p className="text-center text-gray-500 text-sm mt-6">
           Já tem conta?{' '}
-          <Link href="/auth/login" className="text-violet-400 hover:text-violet-300 font-medium">
+          <Link href="/auth/login" className="text-mint-500 hover:text-mint-500 font-medium">
             Entrar
           </Link>
         </p>

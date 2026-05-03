@@ -32,15 +32,15 @@ const GOAL_TYPES: Record<GoalType, { label: string; icon: string; color: ColorKe
 const COLORS: ColorKey[] = ['violet', 'blue', 'green', 'amber', 'orange', 'cyan', 'emerald', 'rose', 'slate'];
 
 const COLOR_CONFIG: Record<ColorKey, { bar: string; text: string; bg: string; border: string; dot: string }> = {
-  violet:  { bar: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20',  dot: 'bg-violet-500' },
+  violet:  { bar: 'bg-mint-500',  text: 'text-mint-500',  bg: 'bg-mint-50',  border: 'border-mint-500/20',  dot: 'bg-mint-500' },
   blue:    { bar: 'bg-blue-500',    text: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    dot: 'bg-blue-500' },
-  green:   { bar: 'bg-green-500',   text: 'text-green-400',   bg: 'bg-green-500/10',   border: 'border-green-500/20',   dot: 'bg-green-500' },
+  green:   { bar: 'bg-mint',   text: 'text-mint-500',   bg: 'bg-mint-50',   border: 'border-green-500/20',   dot: 'bg-mint' },
   amber:   { bar: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   dot: 'bg-amber-500' },
   orange:  { bar: 'bg-orange-500',  text: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  dot: 'bg-orange-500' },
   cyan:    { bar: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20',    dot: 'bg-cyan-500' },
-  emerald: { bar: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
+  emerald: { bar: 'bg-mint', text: 'text-mint-500', bg: 'bg-mint-50', border: 'border-emerald-500/20', dot: 'bg-mint' },
   rose:    { bar: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/20',    dot: 'bg-rose-500' },
-  slate:   { bar: 'bg-slate-500',   text: 'text-slate-400',   bg: 'bg-slate-800',      border: 'border-slate-700',      dot: 'bg-slate-500' },
+  slate:   { bar: 'bg-slate-500',   text: 'text-gray-500',   bg: 'bg-gray-50',      border: 'border-gray-200',      dot: 'bg-slate-500' },
 };
 
 function colorCfg(color: string) {
@@ -50,9 +50,9 @@ function colorCfg(color: string) {
 // ─── Prazo (term) ─────────────────────────────────────────────────────────────
 
 const TERM_OPTIONS: { value: GoalTerm; label: string; badge: string }[] = [
-  { value: 'curto', label: 'Curto prazo', badge: 'bg-green-500/15 text-green-400 border-green-500/20' },
+  { value: 'curto', label: 'Curto prazo', badge: 'bg-mint-50 text-mint-500 border-green-500/20' },
   { value: 'medio', label: 'Médio prazo', badge: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20' },
-  { value: 'longo', label: 'Longo prazo', badge: 'bg-violet-500/15 text-violet-400 border-violet-500/20' },
+  { value: 'longo', label: 'Longo prazo', badge: 'bg-mint-50 text-mint-500 border-mint-500/20' },
 ];
 
 function termBadge(term: GoalTerm) {
@@ -88,7 +88,7 @@ function completionLabel(monthsFromNow: number): string {
 function getSimulatorMessage(meses: number): { text: string; cls: string } {
   if (meses > 60) return { text: `Muito lento — levará ${meses} meses`, cls: 'text-red-400' };
   if (meses > 24) return { text: `Lento — levará ${meses} meses`,       cls: 'text-yellow-400' };
-  return { text: `Você conclui em ${meses} meses`,                       cls: 'text-green-400' };
+  return { text: `Você conclui em ${meses} meses`,                       cls: 'text-mint-500' };
 }
 
 function formatDeadlineMonth(dateStr: string): string {
@@ -130,7 +130,7 @@ function getStatus(progress: number) {
 const STATUS_CONFIG = {
   atrasada:  { label: '🔴 Atrasada', cls: 'text-red-400',    bar: 'bg-red-500',    btnLabel: 'Aportar agora' },
   atencao:   { label: '🟡 Atenção',  cls: 'text-yellow-400', bar: 'bg-yellow-500', btnLabel: 'Aumentar aporte' },
-  'no-ritmo':{ label: '🟢 No ritmo', cls: 'text-green-400',  bar: 'bg-green-500',  btnLabel: 'Manter plano' },
+  'no-ritmo':{ label: '🟢 No ritmo', cls: 'text-mint-500',  bar: 'bg-mint',  btnLabel: 'Manter plano' },
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ export default function MetasPage() {
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
       </main>
     );
   }
@@ -386,13 +386,14 @@ export default function MetasPage() {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-2xl font-bold text-white">Metas</h1>
-            <p className="text-slate-400 text-sm">Construindo patrimônio</p>
+            <h1 className="text-2xl font-bold text-gray-900">Metas</h1>
+            <p className="text-gray-500 text-sm">Construindo patrimônio</p>
           </div>
           {!showForm && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-95 text-white text-sm font-semibold transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-95 text-white text-sm font-semibold transition-all"
+              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
             >
               <Plus size={16} /> Nova meta
             </button>
@@ -402,25 +403,25 @@ export default function MetasPage() {
         {/* Cards de resumo */}
         {goals.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Total guardado</p>
-              <p className="text-green-400 font-bold text-lg leading-tight truncate">{formatCompactCurrency(totalSaved)}</p>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4">
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Total guardado</p>
+              <p className="text-mint-500 font-bold text-lg leading-tight truncate">{formatCompactCurrency(totalSaved)}</p>
             </div>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Metas ativas</p>
-              <p className="text-white font-bold text-lg leading-tight">{activeGoals.length}</p>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4">
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Metas ativas</p>
+              <p className="text-gray-900 font-bold text-lg leading-tight">{activeGoals.length}</p>
             </div>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Próxima</p>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4">
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Próxima</p>
               {nextGoal ? (
                 <>
-                  <p className="text-white font-bold text-sm leading-tight truncate">{nextGoal.name}</p>
+                  <p className="text-gray-900 font-bold text-sm leading-tight truncate">{nextGoal.name}</p>
                   <p className={`text-xs mt-0.5 font-semibold ${colorCfg(nextGoal.color).text}`}>
                     {Math.round((nextGoal.currentAmount / nextGoal.targetAmount) * 100)}%
                   </p>
                 </>
               ) : (
-                <p className="text-slate-600 text-sm">—</p>
+                <p className="text-gray-500 text-sm">—</p>
               )}
             </div>
           </div>
@@ -428,44 +429,44 @@ export default function MetasPage() {
 
         {/* Formulário de criação / edição */}
         {showForm && (
-          <div className="bg-slate-900 border border-violet-500/30 rounded-2xl p-5 mb-6">
-            <p className="text-slate-200 font-semibold text-sm mb-4">
+          <div className="bg-white border border-mint-500/30 rounded-2xl p-5 mb-6">
+            <p className="text-gray-800 font-semibold text-sm mb-4">
               {editingId ? 'Editar meta' : 'Nova meta'}
             </p>
             <div className="space-y-4">
               {/* Nome */}
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Nome da meta</label>
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Nome da meta</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Ex: Viagem Europa, Reserva de emergência…"
                   autoFocus
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
               {/* Valores */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor alvo (R$)</label>
+                  <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor alvo (R$)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
                     <input type="number" inputMode="decimal" step="0.01" min="0" value={form.targetAmount}
                       onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))}
                       placeholder="0,00"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Já tenho (R$)</label>
+                  <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Já tenho (R$)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
                     <input type="number" inputMode="decimal" step="0.01" min="0" value={form.currentAmount}
                       onChange={(e) => setForm((f) => ({ ...f, currentAmount: e.target.value }))}
                       placeholder="0,00"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                     />
                   </div>
                 </div>
@@ -474,7 +475,7 @@ export default function MetasPage() {
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="flex items-center gap-1 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors"
+                className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-xs font-medium transition-colors"
               >
                 {showAdvanced ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 Configurações avançadas
@@ -483,7 +484,7 @@ export default function MetasPage() {
                 <>
                   {/* Tipo */}
                   <div>
-                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
+                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {(Object.keys(GOAL_TYPES) as GoalType[]).map((t) => {
                         const cfg = GOAL_TYPES[t];
@@ -491,8 +492,8 @@ export default function MetasPage() {
                         return (
                           <button key={t} type="button" onClick={() => handleTypeChange(t)}
                             className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
-                              active ? 'bg-violet-500/10 border-violet-500/40 text-white'
-                                     : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                              active ? 'bg-mint-50 border-mint-500/40 text-gray-900'
+                                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
                             }`}
                           >
                             <span>{cfg.icon}</span>
@@ -504,9 +505,9 @@ export default function MetasPage() {
                   </div>
                   {/* Emoji personalizado */}
                   <div>
-                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                       Emoji da meta{' '}
-                      <span className="normal-case text-slate-600">(opcional — substitui o ícone de categoria)</span>
+                      <span className="normal-case text-gray-500">(opcional — substitui o ícone de categoria)</span>
                     </label>
                     <div className="grid grid-cols-7 md:grid-cols-14 gap-1.5">
                       {EMOJI_OPTIONS.map((e) => (
@@ -516,8 +517,8 @@ export default function MetasPage() {
                           onClick={() => setForm((f) => ({ ...f, emoji: f.emoji === e ? '' : e }))}
                           className={`h-9 rounded-xl text-lg flex items-center justify-center transition-all ${
                             form.emoji === e
-                              ? 'bg-violet-500/20 border border-violet-500/50 scale-110'
-                              : 'bg-slate-800 border border-slate-700 hover:bg-slate-700 hover:scale-105'
+                              ? 'bg-mint-50 border border-mint-500/50 scale-110'
+                              : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:scale-105'
                           }`}
                         >
                           {e}
@@ -528,7 +529,7 @@ export default function MetasPage() {
                       <button
                         type="button"
                         onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
-                        className="mt-1.5 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                        className="mt-1.5 text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
                       >
                         ✕ Remover emoji
                       </button>
@@ -537,14 +538,14 @@ export default function MetasPage() {
                   {/* Prazo e cor */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
+                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
                       <input type="date" value={form.deadline}
                         onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors [color-scheme:dark]"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
                       />
                     </div>
                     <div>
-                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
+                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
                       <div className="flex flex-wrap gap-2 pt-1">
                         {COLORS.map((c) => (
                           <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
@@ -558,8 +559,8 @@ export default function MetasPage() {
                   </div>
                   {/* Classificação de prazo */}
                   <div>
-                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                      Classificação de prazo <span className="normal-case text-slate-600">(opcional)</span>
+                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                      Classificação de prazo <span className="normal-case text-gray-500">(opcional)</span>
                     </label>
                     <div className="flex gap-2 flex-wrap">
                       {TERM_OPTIONS.map((opt) => {
@@ -572,7 +573,7 @@ export default function MetasPage() {
                             className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
                               active
                                 ? opt.badge
-                                : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
                             }`}
                           >
                             {opt.label}
@@ -591,19 +592,19 @@ export default function MetasPage() {
 
             <div className="flex gap-2 mt-4">
               <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.targetAmount}
-                className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="flex-1 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> {editingId ? 'Salvar' : 'Criar meta'}</>}
               </button>
               {editingId && (
                 <button onClick={() => handleDelete(editingId)} disabled={deletingId === editingId}
-                  className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-red-500/10 hover:border-red-500/30 border border-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+                  className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-red-500/10 hover:border-red-500/30 border border-gray-200 text-gray-500 hover:text-red-400 transition-colors"
                 >
                   {deletingId === editingId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 </button>
               )}
               <button onClick={closeForm}
-                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
                 aria-label="Cancelar"
               >
                 <X size={16} />
@@ -614,12 +615,12 @@ export default function MetasPage() {
 
         {/* Estado vazio */}
         {goals.length === 0 && !showForm && (
-          <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-10 text-center">
-            <Target size={32} className="text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400 text-sm mb-1">Nenhuma meta criada ainda</p>
-            <p className="text-slate-600 text-xs mb-5">Defina seus objetivos e acompanhe a evolução</p>
+          <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
+            <Target size={32} className="text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm mb-1">Nenhuma meta criada ainda</p>
+            <p className="text-gray-500 text-xs mb-5">Defina seus objetivos e acompanhe a evolução</p>
             <button onClick={openCreate}
-              className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-95 text-white text-sm font-semibold transition-all"
+              className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 active:scale-95 text-gray-900 text-sm font-semibold transition-all"
             >
               Criar primeira meta
             </button>
@@ -630,7 +631,7 @@ export default function MetasPage() {
         {activeGoals.length > 0 && (
           <>
             {completedGoals.length > 0 && (
-              <h2 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Ativas</h2>
+              <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">Ativas</h2>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {sortedActiveGoals.map((goal, i) => (
@@ -650,8 +651,8 @@ export default function MetasPage() {
         {completedGoals.length > 0 && (
           <>
             <div className="flex items-center gap-2 mb-3">
-              <Trophy size={13} className="text-emerald-400" />
-              <h2 className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Vitórias</h2>
+              <Trophy size={13} className="text-mint-500" />
+              <h2 className="text-mint-500 text-xs font-semibold uppercase tracking-wider">Vitórias</h2>
               <span className="text-emerald-900 text-xs">({completedGoals.length})</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -673,21 +674,21 @@ export default function MetasPage() {
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setContributingGoal(null); }}
         >
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${colorCfg(contributingGoal.color).bg} border ${colorCfg(contributingGoal.color).border}`}>
                   {goalIcon(contributingGoal)}
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">{contributingGoal.name}</p>
-                  <p className="text-slate-500 text-xs mt-0.5">
+                  <p className="text-gray-900 font-semibold text-sm">{contributingGoal.name}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">
                     {formatCurrency(contributingGoal.currentAmount)} / {formatCurrency(contributingGoal.targetAmount)}
                   </p>
                 </div>
               </div>
               <button onClick={() => setContributingGoal(null)}
-                className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
               >
                 <X size={15} />
               </button>
@@ -695,31 +696,31 @@ export default function MetasPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor (R$)</label>
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor (R$)</label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
                   <input type="number" inputMode="decimal" step="0.01" min="0.01" value={contribAmount}
                     onChange={(e) => setContribAmount(e.target.value)}
                     placeholder="0,00" autoFocus
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Data</label>
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Data</label>
                 <input type="date" value={contribDate}
                   onChange={(e) => setContribDate(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors [color-scheme:dark]"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
                 />
               </div>
 
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Observação (opcional)</label>
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Observação (opcional)</label>
                 <input type="text" value={contribNote}
                   onChange={(e) => setContribNote(e.target.value)}
                   placeholder="Ex: salário de abril, bônus…"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
             </div>
@@ -729,7 +730,7 @@ export default function MetasPage() {
             )}
 
             <button onClick={handleContrib} disabled={contribSaving || !contribAmount}
-              className="w-full mt-4 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="w-full mt-4 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
               {contribSaving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={16} /> Registrar aporte</>}
             </button>
@@ -813,15 +814,15 @@ function CelebrationOverlay({
         onClick={onDone}
       >
         <div
-          className="celebrate-card bg-slate-900 border border-emerald-500/40 rounded-3xl px-10 py-8 text-center shadow-2xl shadow-emerald-900/50 pointer-events-auto"
+          className="celebrate-card bg-white border border-emerald-500/40 rounded-3xl px-10 py-8 text-center shadow-2xl shadow-emerald-900/50 pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-5xl mb-2 animate-bounce">{icon}</div>
           <div className="text-3xl mb-3">🎉</div>
-          <p className="text-white font-bold text-xl mb-1">Meta concluída!</p>
-          <p className="text-emerald-400 text-sm font-medium mb-1">{goal.name}</p>
-          <p className="text-slate-300 text-sm">{formatCurrency(goal.currentAmount)} guardados</p>
-          <p className="text-slate-600 text-xs mt-4">Clique para continuar</p>
+          <p className="text-gray-900 font-bold text-xl mb-1">Meta concluída!</p>
+          <p className="text-mint-500 text-sm font-medium mb-1">{goal.name}</p>
+          <p className="text-gray-700 text-sm">{formatCurrency(goal.currentAmount)} guardados</p>
+          <p className="text-gray-500 text-xs mt-4">Clique para continuar</p>
         </div>
       </div>
     </div>
@@ -857,12 +858,12 @@ function VictoryCard({
         {/* Cabeçalho */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-2xl flex-shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-2xl flex-shrink-0">
               {icon}
             </div>
             <div className="min-w-0">
-              <p className="text-white font-bold text-sm leading-tight truncate">{goal.name}</p>
-              <p className="text-emerald-400 text-xs mt-0.5">
+              <p className="text-gray-900 font-bold text-sm leading-tight truncate">{goal.name}</p>
+              <p className="text-mint-500 text-xs mt-0.5">
                 🏆 Concluída em {formatShortDate(completionDate)}
               </p>
               {goal.term && (
@@ -873,7 +874,7 @@ function VictoryCard({
             </div>
           </div>
           <button onClick={() => onEdit(goal)}
-            className="w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center text-slate-500 hover:text-white transition-colors flex-shrink-0 ml-2"
+            className="w-8 h-8 rounded-lg bg-gray-50/60 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0 ml-2"
           >
             <Pencil size={13} />
           </button>
@@ -881,8 +882,8 @@ function VictoryCard({
 
         {/* Valor */}
         <div className="mb-3">
-          <p className="text-emerald-400 font-bold text-2xl">{formatCurrency(goal.currentAmount)}</p>
-          <p className="text-slate-500 text-xs mt-0.5">guardados de {formatCurrency(goal.targetAmount)}</p>
+          <p className="text-mint-500 font-bold text-2xl">{formatCurrency(goal.currentAmount)}</p>
+          <p className="text-gray-500 text-xs mt-0.5">guardados de {formatCurrency(goal.targetAmount)}</p>
         </div>
 
         {/* Barra completa */}
@@ -893,7 +894,7 @@ function VictoryCard({
         {/* Botão "Ver conquista" */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-mint-50 border border-emerald-500/20 text-mint-500 text-xs font-semibold hover:bg-mint-50 transition-colors"
         >
           <Trophy size={13} />
           {expanded ? 'Ocultar conquista' : 'Ver conquista'}
@@ -904,10 +905,10 @@ function VictoryCard({
         {expanded && (
           <div className="mt-4 pt-4 border-t border-emerald-900/40">
             {timeline.length === 0 ? (
-              <p className="text-slate-600 text-xs text-center py-2">Nenhum aporte registrado.</p>
+              <p className="text-gray-500 text-xs text-center py-2">Nenhum aporte registrado.</p>
             ) : (
               <>
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-3">Linha do tempo</p>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-3">Linha do tempo</p>
                 <div>
                   {timeline.map((c, idx) => {
                     const isLast = idx === timeline.length - 1;
@@ -918,21 +919,21 @@ function VictoryCard({
                           <div className={`w-2.5 h-2.5 rounded-full border-2 ${
                             isLast
                               ? 'border-emerald-400 bg-emerald-400'
-                              : 'border-slate-600 bg-slate-900'
+                              : 'border-slate-600 bg-white'
                           }`} />
-                          {!isLast && <div className="w-px flex-1 bg-slate-800 min-h-[20px] mt-0.5" />}
+                          {!isLast && <div className="w-px flex-1 bg-gray-50 min-h-[20px] mt-0.5" />}
                         </div>
                         {/* Conteúdo */}
                         <div className={`flex-1 flex items-start justify-between pb-3 ${isLast ? '' : ''}`}>
                           <div>
-                            <p className={`text-xs font-medium ${isLast ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            <p className={`text-xs font-medium ${isLast ? 'text-mint-500' : 'text-gray-500'}`}>
                               {formatShortDate(c.date)}{isLast ? ' ✓' : ''}
                             </p>
                             {c.note && (
-                              <p className="text-slate-500 text-xs mt-0.5">{c.note}</p>
+                              <p className="text-gray-500 text-xs mt-0.5">{c.note}</p>
                             )}
                           </div>
-                          <span className={`text-xs font-semibold flex-shrink-0 ml-2 ${isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          <span className={`text-xs font-semibold flex-shrink-0 ml-2 ${isLast ? 'text-mint-500' : 'text-gray-700'}`}>
                             +{formatCurrency(c.amount)}
                           </span>
                         </div>
@@ -942,8 +943,8 @@ function VictoryCard({
                 </div>
                 {/* Total */}
                 <div className="mt-1 pt-3 border-t border-emerald-900/40 flex justify-between items-center">
-                  <span className="text-slate-500 text-xs">{timeline.length} {timeline.length === 1 ? 'aporte' : 'aportes'}</span>
-                  <span className="text-emerald-400 text-xs font-bold">
+                  <span className="text-gray-500 text-xs">{timeline.length} {timeline.length === 1 ? 'aporte' : 'aportes'}</span>
+                  <span className="text-mint-500 text-xs font-bold">
                     {formatCurrency(timeline.reduce((s, c) => s + c.amount, 0))} total aportado
                   </span>
                 </div>
@@ -992,7 +993,7 @@ function GoalCard({
   const projectedMonths = avgContrib > 0 && remaining > 0 ? Math.ceil(remaining / avgContrib) : null;
 
   return (
-    <div className={`rounded-2xl p-5 border bg-slate-900 ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-slate-800'}`}>
+    <div className={`rounded-2xl p-5 border bg-white ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-gray-100'}`}>
 
       {/* Cabeçalho */}
       <div className="flex items-start justify-between mb-4">
@@ -1001,24 +1002,24 @@ function GoalCard({
             {icon}
           </div>
           <div className="min-w-0">
-            <p className="text-lg font-semibold text-white truncate">{goal.name}</p>
+            <p className="text-lg font-semibold text-gray-900 truncate">{goal.name}</p>
             {!isCompleted && <p className={`text-xs font-medium ${sc.cls}`}>{sc.label}</p>}
             {!isCompleted && (
               goal.deadline ? (
-                <p className="text-xs text-slate-500 mt-0.5">Até {formatDeadlineMonth(goal.deadline)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Até {formatDeadlineMonth(goal.deadline)}</p>
               ) : (
-                <p className="text-xs text-slate-600 mt-0.5">Sem prazo definido</p>
+                <p className="text-xs text-gray-500 mt-0.5">Sem prazo definido</p>
               )
             )}
             {!isCompleted && projectedMonths !== null && (
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 No ritmo atual, você chega em {formatFutureMonth(projectedMonths)}
               </p>
             )}
           </div>
         </div>
         <button onClick={() => onEdit(goal)}
-          className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-white transition-colors flex-shrink-0 ml-2"
+          className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0 ml-2"
         >
           <Pencil size={13} />
         </button>
@@ -1026,25 +1027,25 @@ function GoalCard({
 
       {/* Valor, percentual e barra */}
       <div className="flex items-end justify-between mb-2">
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-gray-700">
           {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
         </p>
-        <p className={`text-sm font-bold ${isCompleted ? 'text-green-400' : sc.cls}`}>
+        <p className={`text-sm font-bold ${isCompleted ? 'text-mint-500' : sc.cls}`}>
           {Math.round(pct)}%
         </p>
       </div>
-      <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0f0f0' }}>
         <div
-          className={`h-full rounded-full transition-all duration-300 ease-out ${isCompleted ? 'bg-green-500' : sc.bar}`}
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${pct}%`, background: isCompleted ? '#00b87a' : '#f04e5e' }}
         />
       </div>
 
       {/* Simulador */}
       {!isCompleted && (
-        <div className="mt-4 pt-3 border-t border-slate-800">
+        <div className="mt-4 pt-3 border-t border-gray-100">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">R$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
             <input
               type="number"
               inputMode="decimal"
@@ -1053,12 +1054,12 @@ function GoalCard({
               value={simInput}
               onChange={(e) => setSimInput(e.target.value)}
               placeholder="Quanto deseja aportar por mês?"
-              className="w-full bg-slate-800/60 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors"
+              className="w-full bg-gray-50/60 border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500/50 transition-colors"
             />
           </div>
           {simInput !== '' && simMonths !== null && (
             <div className="mt-2">
-              <p className="text-xs font-medium text-slate-400 mt-2">Simulação</p>
+              <p className="text-xs font-medium text-gray-500 mt-2">Simulação</p>
               <p className={`text-[13px] text-sm leading-snug break-words line-clamp-2 ${getSimulatorMessage(simMonths).cls}`}>
                 R$ {simMonthly.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mês → {simMonths} meses
               </p>
@@ -1078,12 +1079,13 @@ function GoalCard({
             }
             onContrib(goal);
           }}
-          className="mt-4 w-full py-2 rounded-xl bg-purple-600 text-white text-sm font-medium active:scale-95 transition-all"
+          className="mt-4 w-full py-2 rounded-xl text-white text-sm font-medium active:scale-95 transition-all"
+          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
         >
           {sc.btnLabel}
         </button>
       ) : (
-        <div className="mt-4 w-full py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium text-center">
+        <div className="mt-4 w-full py-2 rounded-xl bg-mint-50 border border-green-500/20 text-mint-500 text-sm font-medium text-center">
           🎉 Meta alcançada!
         </div>
       )}

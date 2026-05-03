@@ -33,7 +33,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       }`}
     >
       {isSuccess ? (
-        <CheckCircle size={16} className="flex-shrink-0 text-green-400" />
+        <CheckCircle size={16} className="flex-shrink-0 text-mint-500" />
       ) : (
         <AlertCircle size={16} className="flex-shrink-0 text-red-400" />
       )}

@@ -303,7 +303,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="skeleton h-4 w-52 rounded mb-6 mt-2" />
-        <div className="mt-4 mb-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="mt-4 mb-3 bg-white border border-gray-100 rounded-2xl p-6">
           <div className="skeleton h-3 w-28 rounded mb-4" />
           <div className="skeleton h-12 w-52 rounded mb-3" />
           <div className="skeleton h-4 w-40 rounded mb-5" />
@@ -316,13 +316,13 @@ export default function HomePage() {
         <div className="flex gap-3 mb-4">
           {[0, 1, 2].map((i) => <div key={i} className="flex-1 skeleton rounded-2xl h-20" />)}
         </div>
-        <div className="mb-3 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="mb-3 bg-white border border-gray-100 rounded-2xl p-4">
           <div className="skeleton h-4 w-32 rounded mb-3" />
           {[100, 85, 92, 70].map((w, i) => (
             <div key={i} className="skeleton h-2.5 rounded mb-2" style={{ width: `${w}%` }} />
           ))}
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="bg-white border border-gray-100 rounded-2xl p-4">
           <div className="skeleton h-4 w-36 rounded mb-3" />
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center gap-3 mb-3">
@@ -455,13 +455,13 @@ export default function HomePage() {
 
   const badges = [
     { id: 'primeiro_mil', icon: '🥉', name: 'Primeiro Mil', desc: 'Economizou R$1.000 em um mês', earned: badge1Earned, bg: 'bg-amber-700/20', border: 'border-amber-700/40', text: 'text-amber-600' },
-    { id: 'guardiao', icon: '🥈', name: 'Guardião', desc: 'Economizou R$5.000 em um mês', earned: badge2Earned, bg: 'bg-slate-300/20', border: 'border-slate-300/40', text: 'text-slate-300' },
+    { id: 'guardiao', icon: '🥈', name: 'Guardião', desc: 'Economizou R$5.000 em um mês', earned: badge2Earned, bg: 'bg-slate-300/20', border: 'border-slate-300/40', text: 'text-gray-700' },
     { id: 'tres_meses', icon: '🥇', name: '3 Meses Positivos', desc: 'Saldo positivo por 3 meses seguidos', earned: badge3Earned, bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', text: 'text-yellow-500' },
     { id: 'streak_mestre', icon: '🔥', name: 'Streak Mestre', desc: '7 dias seguidos registrando', earned: badge4Earned, bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-400' },
     { id: 'streak_15', icon: '🔥', name: 'Streak 15 dias', desc: '15 dias consecutivos com lançamentos', earned: badge5Earned, bg: 'bg-orange-600/20', border: 'border-orange-500/40', text: 'text-orange-300' },
     { id: 'streak_30', icon: '🏆', name: 'Streak 30 dias', desc: '30 dias consecutivos com lançamentos', earned: badge6Earned, bg: 'bg-yellow-500/15', border: 'border-yellow-400/30', text: 'text-yellow-400' },
-    { id: 'semana_controlada', icon: '💚', name: 'Semana Controlada', desc: '7 dias abaixo da média diária de gastos', earned: badge7Earned, bg: 'bg-green-500/15', border: 'border-green-500/30', text: 'text-green-400' },
-    { id: 'mes_perfeito', icon: '🌟', name: 'Mês Perfeito', desc: 'Saldo positivo e meta de poupança atingida', earned: badge8Earned, bg: 'bg-violet-500/15', border: 'border-violet-500/30', text: 'text-violet-400' },
+    { id: 'semana_controlada', icon: '💚', name: 'Semana Controlada', desc: '7 dias abaixo da média diária de gastos', earned: badge7Earned, bg: 'bg-mint-50', border: 'border-green-500/30', text: 'text-mint-500' },
+    { id: 'mes_perfeito', icon: '🌟', name: 'Mês Perfeito', desc: 'Saldo positivo e meta de poupança atingida', earned: badge8Earned, bg: 'bg-mint-50', border: 'border-mint-500/30', text: 'text-mint-500' },
   ] as const;
 
   // ── V2: Header ───────────────────────────────────────────────────────────────
@@ -475,8 +475,8 @@ export default function HomePage() {
   const budgetPct = heroBase > 0 ? Math.min((spent / heroBase) * 100, 100) : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
   const heroStatusLabel = heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
-  const heroStatusColor = heroStatus === 'excellent' ? 'text-emerald-400' : heroStatus === 'ok' ? 'text-yellow-400' : 'text-red-400';
-  const heroBarColor = heroStatus === 'excellent' ? 'bg-violet-500' : heroStatus === 'ok' ? 'bg-yellow-500' : 'bg-red-500';
+  const heroStatusColor = heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
+  const heroBarColor = 'bg-white/90';
 
   // ── Frases dinâmicas ─────────────────────────────────────────────────────────
   const POSITIVE_PHRASES = ['Você está no controle 💚', 'Excelente ritmo esse mês', `${currentMonthLabel} melhor que o esperado`];
@@ -544,21 +544,22 @@ export default function HomePage() {
       {/* ── HEADER PREMIUM ─────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-1">
         <div>
-          <h1 className="text-2xl font-bold text-white">{greeting}{userName ? `, ${userName}` : ''}</h1>
-          <p className="text-slate-400 text-sm capitalize">{currentMonthLabel}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{greeting}{userName ? `, ${userName}` : ''}</h1>
+          <p className="text-gray-700 font-medium text-sm capitalize">{currentMonthLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           <div ref={bellMenuRef} className="relative">
             <button
               title="Notificações"
               onClick={() => setShowBellMenu((v) => !v)}
-              className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-violet-300 transition-colors"
+              className="w-10 h-10 rounded-2xl bg-warning-50 border border-warning/20 flex items-center justify-center transition-colors"
+              style={{ color: '#ffaa33' }}
             >
               <Bell size={16} />
             </button>
             {showBellMenu && (
-              <div className="absolute right-0 top-12 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-xl px-4 py-3 z-50">
-                <p className="text-slate-400 text-sm">🔔 Notificações em breve</p>
+              <div className="absolute right-0 top-12 w-48 bg-white border border-gray-200 rounded-xl shadow-xl px-4 py-3 z-50">
+                <p className="text-gray-500 text-sm">🔔 Notificações em breve</p>
               </div>
             )}
           </div>
@@ -566,17 +567,17 @@ export default function HomePage() {
             <button
               onClick={() => setShowAvatarMenu((v) => !v)}
               title="Menu do perfil"
-              className="w-10 h-10 rounded-2xl bg-violet-600/20 border border-violet-500/40 flex items-center justify-center text-violet-300 font-bold text-sm hover:bg-violet-600/30 transition-colors"
+              className="w-10 h-10 rounded-2xl bg-mint-50 border border-mint-500/40 flex items-center justify-center text-mint-500 font-bold text-sm hover:bg-mint/30 transition-colors"
             >
               {userName ? userName.charAt(0).toUpperCase() : '?'}
             </button>
             {showAvatarMenu && (
-              <div className="absolute right-0 top-12 w-40 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-50">
-                <button onClick={() => { setShowAvatarMenu(false); router.push('/perfil'); }} className="w-full text-left px-4 py-3 text-slate-300 text-sm hover:bg-slate-800 transition-colors">
+              <div className="absolute right-0 top-12 w-40 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50">
+                <button onClick={() => { setShowAvatarMenu(false); router.push('/perfil'); }} className="w-full text-left px-4 py-3 text-gray-700 text-sm hover:bg-gray-50 transition-colors">
                   Perfil
                 </button>
-                <div className="border-t border-slate-800" />
-                <button onClick={() => { setShowAvatarMenu(false); handleLogout(); }} className="w-full text-left px-4 py-3 text-red-400 text-sm hover:bg-slate-800 transition-colors">
+                <div className="border-t border-gray-100" />
+                <button onClick={() => { setShowAvatarMenu(false); handleLogout(); }} className="w-full text-left px-4 py-3 text-red-400 text-sm hover:bg-gray-50 transition-colors">
                   Sair
                 </button>
               </div>
@@ -584,7 +585,7 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-      <p className="text-violet-300/70 text-sm italic mb-4">{dynamicPhrase}</p>
+      <p className="text-mint-700 text-sm font-medium italic mb-4">{dynamicPhrase}</p>
 
       {/* ── SELETOR DE PERÍODO ─────────────────────────────────────────────────── */}
       <div className="flex justify-end mb-3">
@@ -594,22 +595,23 @@ export default function HomePage() {
       {/* ── RESUMO CARDS (1 + 2) ────────────────────────────────────────────────── */}
       <div className="mb-3 space-y-2" style={mounted ? anim(0, 400) : hidden}>
         {/* Saldo — card largo, destaque principal */}
-        <div className={`rounded-2xl p-4 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/15' : 'bg-red-500/5 border-red-500/15'}`}>
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Saldo</p>
-          <AutoValue value={balance} className={`text-3xl font-bold leading-none ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`} />
-          <p className="text-slate-500 text-xs mt-1">receitas − gastos</p>
+        <div className={`rounded-2xl p-4 border ${balance >= 0 ? '' : 'bg-negative-50 border-negative/20'}`}
+          style={balance >= 0 ? { background: '#f0fdf8', border: '1px solid #d4f5e9' } : undefined}>
+          <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Saldo</p>
+          <AutoValue value={balance} className={`text-3xl font-bold leading-none ${balance >= 0 ? 'text-mint-500' : 'text-negative'}`} />
+          <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
         </div>
         {/* Receitas + Despesas — 2 cards lado a lado */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-green-500/5 border border-green-500/15 rounded-2xl p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Receitas</p>
-            <AutoValue value={income} className="text-xl font-bold text-green-400 leading-none" />
-            <p className="text-slate-500 text-xs mt-1">entradas do mês</p>
+          <div className="rounded-2xl p-4" style={{ background: '#f0fdf8' }}>
+            <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Receitas</p>
+            <AutoValue value={income} className="text-xl font-bold text-mint-500 leading-none" />
+            <p className="text-gray-600 text-xs mt-1 font-medium">entradas do mês</p>
           </div>
-          <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Despesas</p>
-            <AutoValue value={spent} className="text-xl font-bold text-red-400 leading-none" />
-            <p className="text-slate-500 text-xs mt-1">lançadas</p>
+          <div className="rounded-2xl p-4 border" style={{ background: '#fff0f2', borderColor: '#fdd0d5' }}>
+            <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Despesas</p>
+            <AutoValue value={spent} className="text-xl font-bold leading-none text-negative" />
+            <p className="text-gray-600 text-xs mt-1 font-medium">lançadas</p>
           </div>
         </div>
       </div>
@@ -617,34 +619,34 @@ export default function HomePage() {
       {/* ── ALERTA DE CONTAS PENDENTES ─────────────────────────────────────────── */}
       {isCurrentMonth && pendingObligations.length > 0 && (
         <div
-          className="mb-3 bg-amber-500/8 border border-amber-500/25 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:bg-amber-500/12 transition-colors"
-          style={mounted ? anim(50) : hidden}
+          className="mb-3 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-colors"
+          style={{ background: '#fff6e0', border: '1px solid rgba(255,170,51,0.4)', ...(mounted ? anim(50) : hidden) }}
           onClick={() => document.getElementById('contas-do-mes')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <span className="text-lg leading-none flex-shrink-0">⚠️</span>
           <div className="flex-1 min-w-0">
-            <p className="text-amber-300 font-semibold text-sm">
+            <p className="font-semibold text-sm" style={{ color: '#ffaa33' }}>
               {formatCurrency(pendingTotal)} em contas pendentes
             </p>
-            <p className="text-amber-400/60 text-xs">
+            <p className="text-xs" style={{ color: 'rgba(255,170,51,0.7)' }}>
               {pendingObligations.length} conta{pendingObligations.length > 1 ? 's' : ''} para confirmar pagamento
             </p>
           </div>
-          <span className="text-amber-400/50 text-xs flex-shrink-0">↓ ver</span>
+          <span className="text-xs flex-shrink-0" style={{ color: 'rgba(255,170,51,0.6)' }}>↓ ver</span>
         </div>
       )}
 
       {/* ── LIMITE DE HOJE ──────────────────────────────────────────────────────── */}
       {isCurrentMonth && (
         <div
-          className="mb-3 bg-gradient-to-br from-violet-600/15 via-violet-500/8 to-transparent border border-violet-500/25 rounded-2xl p-4"
-          style={mounted ? anim(80, 500) : hidden}
+          className="mb-3 rounded-2xl p-4"
+          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)', ...(mounted ? anim(80, 500) : hidden) }}
         >
           {todayDay === 1 && spent === 0 ? (
             <div>
-              <p className="text-violet-200 font-semibold mb-1">Mês novo!</p>
-              <p className="text-slate-400 text-sm mb-3">Configure seu orçamento para começar com controle.</p>
-              <a href="#planejamento" className="inline-block bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-colors">
+              <p className="text-white font-semibold mb-1">Mês novo!</p>
+              <p className="text-white/80 text-sm mb-3">Configure seu orçamento para começar com controle.</p>
+              <a href="#planejamento" className="inline-block bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-4 rounded-xl transition-colors">
                 Configurar orçamento
               </a>
             </div>
@@ -652,36 +654,36 @@ export default function HomePage() {
             <>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-violet-300/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Limite de hoje</p>
+                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Limite de hoje</p>
                   {canSpendToday >= 0 ? (
-                    <p className="text-2xl font-bold text-violet-200 leading-none">{formatCurrency(heroDisplayValue)}</p>
+                    <p className="text-2xl font-bold text-white leading-none">{formatCurrency(heroDisplayValue)}</p>
                   ) : (
                     <>
-                      <p className="text-sm font-semibold text-red-400/80 leading-snug">Limite do dia atingido</p>
-                      <p className="text-red-500/60 text-xs">−{formatCurrency(Math.abs(canSpendToday))}</p>
+                      <p className="text-sm font-semibold text-white/80 leading-snug">Limite do dia atingido</p>
+                      <p className="text-white/60 text-xs">−{formatCurrency(Math.abs(canSpendToday))}</p>
                     </>
                   )}
                 </div>
                 <div className="text-center shrink-0">
-                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Orçamento</p>
-                  <p className="text-xl font-bold text-slate-300 leading-none">{Math.round(budgetPct)}%</p>
+                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Orçamento</p>
+                  <p className="text-xl font-bold text-white leading-none">{Math.round(budgetPct)}%</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-slate-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">
+                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">
                     {daysRemaining === 0 ? 'Último dia' : 'Dias'}
                   </p>
-                  <p className="text-xl font-bold text-slate-300 leading-none">
+                  <p className="text-xl font-bold text-white leading-none">
                     {daysRemaining === 0 ? '—' : daysRemaining}
                   </p>
                   {daysRemaining > 0 && (
-                    <p className="text-slate-500 text-[10px]">restantes</p>
+                    <p className="text-white/60 text-[10px]">restantes</p>
                   )}
                 </div>
               </div>
-              <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mb-2">
+              <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.3)' }}>
                 <div
-                  className={`h-full rounded-full ${heroBarColor}`}
-                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out' }}
+                  className="h-full rounded-full"
+                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out', background: 'rgba(255,255,255,0.9)' }}
                 />
               </div>
               <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
@@ -694,23 +696,23 @@ export default function HomePage() {
       {isCurrentMonth && obligations.length > 0 && (
         <div
           id="contas-do-mes"
-          className="mb-3 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden"
+          className="mb-3 bg-white border border-gray-100 rounded-2xl overflow-hidden"
           style={mounted ? anim(130) : hidden}
         >
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <p className="text-slate-200 font-semibold text-sm uppercase tracking-wider text-xs">Contas do mês</p>
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <p className="text-gray-800 font-semibold text-sm uppercase tracking-wider text-xs">Contas do mês</p>
             {pendingObligations.length > 0 ? (
               <span className="bg-amber-500/15 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
                 {pendingObligations.length} pendente{pendingObligations.length > 1 ? 's' : ''}
               </span>
             ) : (
-              <span className="text-green-400 text-xs font-medium">Tudo em dia</span>
+              <span className="text-mint-500 text-xs font-medium">Tudo em dia</span>
             )}
           </div>
 
           {pendingObligations.length === 0 ? (
             <div className="px-4 py-5 text-center">
-              <span className="text-green-400 text-sm">✅ Todas as contas do mês em dia</span>
+              <span className="text-mint-500 text-sm">✅ Todas as contas do mês em dia</span>
             </div>
           ) : (
             <div className="divide-y divide-slate-800/60">
@@ -723,31 +725,31 @@ export default function HomePage() {
                 const dueLabelText = isPaid ? '' : daysLate > 0
                   ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
                   : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
-                const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-slate-500';
+                const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
                 return (
                   <div
                     key={ob.id}
                     className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''}`}
                   >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-slate-800'}`}>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
                       {cfg?.icon ?? '💸'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-slate-500' : 'text-white'}`}>
+                      <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                         {ob.description}
                       </p>
                       {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
                     </div>
-                    <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-slate-500' : 'text-white'}`}>
+                    <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                       {formatCurrency(ob.amount)}
                     </span>
                     {isPaid ? (
-                      <span className="text-green-400 text-xs font-semibold flex-shrink-0">Pago ✓</span>
+                      <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
                     ) : (
                       <button
                         onClick={() => handleMarkObligationPaid(ob.id)}
                         disabled={isPaying}
-                        className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50"
+                        className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
                         title="Marcar como pago"
                       >
                         {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -764,23 +766,25 @@ export default function HomePage() {
       {/* ── LANÇAR GASTO (desktop) ──────────────────────────────────────────────── */}
       <Link
         href="/lancamentos"
-        className="mb-4 hidden md:block text-center bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
-        style={mounted ? anim(160) : hidden}
+        className="mb-4 hidden md:block text-center text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+        style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)', ...(mounted ? anim(160) : hidden) }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#00955f')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'linear-gradient(135deg, #00b87a, #00d68f)')}
       >
         + Lançar gasto
       </Link>
 
       {/* ── RESUMO IA COMPACTO ─────────────────────────────────────────────────── */}
-      <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-3" style={mounted ? anim(180) : hidden}>
+      <div className="mb-3 bg-white border border-white/[0.06] rounded-2xl p-3" style={mounted ? anim(180) : hidden}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Star size={13} className="text-violet-400" />
-            <p className="text-slate-300 font-medium text-sm">Resumo do mês</p>
-            <span className="text-[10px] text-violet-400/50 font-semibold uppercase tracking-wider">IA</span>
+            <Star size={13} className="text-mint-500" />
+            <p className="text-gray-900 font-semibold text-sm">Resumo do mês</p>
+            <span className="text-[10px] text-mint-500 font-semibold uppercase tracking-wider">IA</span>
           </div>
           <button
             onClick={() => { setShowResumoModal(true); if (!resumoData) loadResumo(); }}
-            className="text-violet-400 hover:text-violet-300 text-xs font-medium transition-colors"
+            className="text-mint-500 hover:text-mint-500 text-xs font-medium transition-colors"
           >
             Ver análise →
           </button>
@@ -788,50 +792,50 @@ export default function HomePage() {
         <ul className="space-y-1.5">
           {compactBullets.map((bullet, i) => (
             <li key={i} className="flex items-start gap-2 text-xs">
-              <span className="text-violet-400/40 mt-0.5 flex-shrink-0">•</span>
-              <span className="text-slate-400">{bullet}</span>
+              <span className="text-mint-500 mt-0.5 flex-shrink-0">•</span>
+              <span className="text-gray-800">{bullet}</span>
             </li>
           ))}
         </ul>
       </div>
 
       {/* ── ALERTAS INTELIGENTES ───────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(240) : hidden}>
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Alertas</p>
+      <div className="mb-5 border border-warning/20 rounded-2xl p-4" style={{ ...(mounted ? anim(240) : hidden), background: '#fff6e0' }}>
+        <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#b45309' }}>Alertas</p>
         {topNewAlerts.length > 0 ? (
           <div className="space-y-2.5">
             {topNewAlerts.map((alert, i) => (
               <div key={i} className="flex items-center gap-2.5">
                 <span className="text-base leading-none">{alert.emoji}</span>
-                <span className="text-slate-300 text-sm">{alert.text}</span>
+                <span className="text-gray-700 text-sm">{alert.text}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
             <span className="text-base leading-none">✅</span>
-            <span className="text-slate-300 text-sm">Nenhum risco detectado</span>
+            <span className="text-gray-700 text-sm">Nenhum risco detectado</span>
           </div>
         )}
       </div>
 
       {/* ── GRÁFICO DE CATEGORIAS ──────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-5" style={mounted ? anim(300) : hidden}>
+      <div className="mb-5 bg-white border border-gray-100 rounded-2xl p-5" style={mounted ? anim(300) : hidden}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-slate-200 font-semibold text-sm">Gastos por Categoria</h2>
+          <h2 className="text-gray-800 font-semibold text-sm">Gastos por Categoria</h2>
           {topCat && spent > 0 && (
-            <span className="text-xs text-slate-500">{Math.round((topCat.total / spent) * 100)}% em {topCat.cat}</span>
+            <span className="text-xs text-gray-500">{Math.round((topCat.total / spent) * 100)}% em {topCat.cat}</span>
           )}
         </div>
 
         {topCat && (
-          <div className="flex items-center gap-2.5 mb-4 px-3 py-2.5 bg-violet-500/10 border border-violet-500/20 rounded-xl">
-            <span className="text-slate-400 text-[10px] font-medium uppercase tracking-wider flex-shrink-0">Maior gasto</span>
+          <div className="flex items-center gap-2.5 mb-4 px-3 py-2.5 bg-mint-50 border border-mint-500/20 rounded-xl">
+            <span className="text-gray-500 text-[10px] font-medium uppercase tracking-wider flex-shrink-0">Maior gasto</span>
             <span className="text-base leading-none">{CATEGORY_CONFIG[topCat.cat]?.icon}</span>
-            <span className="text-white font-semibold text-sm">{topCat.cat}</span>
-            <span className="ml-auto text-violet-300 font-bold text-sm whitespace-nowrap">{formatCurrency(topCat.total)}</span>
+            <span className="text-gray-900 font-semibold text-sm">{topCat.cat}</span>
+            <span className="ml-auto text-mint-500 font-bold text-sm whitespace-nowrap">{formatCurrency(topCat.total)}</span>
             {spent > 0 && (
-              <span className="text-slate-400 text-xs whitespace-nowrap">{Math.round((topCat.total / spent) * 100)}%</span>
+              <span className="text-gray-500 text-xs whitespace-nowrap">{Math.round((topCat.total / spent) * 100)}%</span>
             )}
           </div>
         )}
@@ -845,23 +849,23 @@ export default function HomePage() {
             : pct >= 25
             ? `${topCat.cat} representa ${pct}% dos gastos — maior categoria`
             : 'Gastos bem distribuídos — nenhuma categoria domina';
-          return <p className="mt-3 text-center text-xs text-slate-500/80">{msg}</p>;
+          return <p className="mt-3 text-center text-xs text-gray-500/80">{msg}</p>;
         })()}
       </div>
 
       {/* ── ÚLTIMAS MOVIMENTAÇÕES ──────────────────────────────────────────────── */}
-      <div className="mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-4" style={mounted ? anim(380) : hidden}>
+      <div className="mb-5 bg-white border border-gray-100 rounded-2xl p-4" style={mounted ? anim(380) : hidden}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-white font-semibold text-sm">Últimas movimentações</h2>
-          <Link href="/historico" className="text-violet-400 hover:text-violet-300 text-xs font-medium transition-colors">
+          <h2 className="text-gray-900 font-semibold text-sm">Últimas movimentações</h2>
+          <Link href="/historico" className="text-mint-500 hover:text-mint-500 text-xs font-medium transition-colors">
             Ver tudo →
           </Link>
         </div>
 
         {recent.length === 0 ? (
           <div className="py-6 text-center">
-            <p className="text-slate-500 text-sm">Nenhum lançamento neste período</p>
-            <Link href="/lancamentos" className="text-violet-400 text-sm mt-2 inline-block">Lançar agora →</Link>
+            <p className="text-gray-500 text-sm">Nenhum lançamento neste período</p>
+            <Link href="/lancamentos" className="text-mint-500 text-sm mt-2 inline-block">Lançar agora →</Link>
           </div>
         ) : (
           <>
@@ -877,18 +881,18 @@ export default function HomePage() {
                       {cfg.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{exp.description}</p>
-                      <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
+                      <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
+                      <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
                     </div>
-                    <span className={`font-semibold text-sm whitespace-nowrap ${isIncome ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#00b87a' : '#f04e5e' }}>
                       {isIncome ? '+' : '−'}{formatCurrency(exp.amount)}
                     </span>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-800">
-              <Link href="/historico" className="block text-center text-violet-400 hover:text-violet-300 text-xs font-medium transition-colors">
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <Link href="/historico" className="block text-center text-mint-500 hover:text-mint-500 text-xs font-medium transition-colors">
                 Ver histórico completo →
               </Link>
             </div>
@@ -900,12 +904,12 @@ export default function HomePage() {
       {isCurrentMonth && (
         <>
           {/* Missões compactas */}
-          <div className="mb-3 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(440) : hidden}>
+          <div className="mb-3 bg-white border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(440) : hidden}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-white font-semibold text-sm">Missões</p>
+              <p className="text-gray-900 font-semibold text-sm">Missões</p>
               <button
                 onClick={() => setShowMissoesModal(true)}
-                className="text-violet-400 hover:text-violet-300 text-xs font-medium transition-colors"
+                className="text-mint-500 hover:text-mint-500 text-xs font-medium transition-colors"
               >
                 Ver missões →
               </button>
@@ -915,56 +919,56 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <span className="text-xl leading-none">{streak >= 2 ? '🔥' : streak === 1 ? '✨' : '💡'}</span>
                 <div>
-                  <p className="text-white text-sm font-semibold">{streak} {streak === 1 ? 'dia' : 'dias'}</p>
-                  <p className="text-slate-500 text-xs">streak</p>
+                  <p className="text-gray-900 text-sm font-semibold">{streak} {streak === 1 ? 'dia' : 'dias'}</p>
+                  <p className="text-gray-500 text-xs">streak</p>
                 </div>
               </div>
-              <div className="w-px h-8 bg-slate-800 flex-shrink-0" />
+              <div className="w-px h-8 bg-gray-50 flex-shrink-0" />
               <div>
-                <p className="text-white text-sm font-semibold">{missoesEmAndamento}</p>
-                <p className="text-slate-500 text-xs">em andamento</p>
+                <p className="text-gray-900 text-sm font-semibold">{missoesEmAndamento}</p>
+                <p className="text-gray-500 text-xs">em andamento</p>
               </div>
-              <div className="w-px h-8 bg-slate-800 flex-shrink-0" />
+              <div className="w-px h-8 bg-gray-50 flex-shrink-0" />
               <div>
-                <p className="text-white text-sm font-semibold">{3 - missoesEmAndamento}/3</p>
-                <p className="text-slate-500 text-xs">concluídas</p>
+                <p className="text-gray-900 text-sm font-semibold">{3 - missoesEmAndamento}/3</p>
+                <p className="text-gray-500 text-xs">concluídas</p>
               </div>
             </div>
 
             {missaoPrincipal ? (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-slate-400 text-xs">{missaoPrincipal.label}</span>
-                  <span className="text-slate-400 text-xs">{Math.round(missaoPrincipal.pct * 100)}%</span>
+                  <span className="text-gray-500 text-xs">{missaoPrincipal.label}</span>
+                  <span className="text-gray-500 text-xs">{Math.round(missaoPrincipal.pct * 100)}%</span>
                 </div>
-                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-violet-500" style={{ width: mounted ? `${missaoPrincipal.pct * 100}%` : '0%', transition: 'width 400ms cubic-bezier(0.34, 1.56, 0.64, 1)' }} />
+                <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-mint-500" style={{ width: mounted ? `${missaoPrincipal.pct * 100}%` : '0%', transition: 'width 400ms cubic-bezier(0.34, 1.56, 0.64, 1)' }} />
                 </div>
                 {missaoUrgencia && (
-                  <p className="mt-2 text-xs text-slate-500">{missaoUrgencia}</p>
+                  <p className="mt-2 text-xs text-gray-500">{missaoUrgencia}</p>
                 )}
               </div>
             ) : (
               <div className="flex items-center gap-2 py-1">
-                <span className="text-green-400 text-sm">✅</span>
-                <span className="text-green-400 text-sm font-medium">Todas as missões concluídas!</span>
+                <span className="text-mint-500 text-sm">✅</span>
+                <span className="text-mint-500 text-sm font-medium">Todas as missões concluídas!</span>
               </div>
             )}
           </div>
 
           {/* Conquistas — scroll horizontal */}
-          <div className="mb-5 bg-slate-900 border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(500) : hidden}>
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Conquistas</p>
+          <div className="mb-5 bg-white border border-white/[0.06] rounded-2xl p-4" style={mounted ? anim(500) : hidden}>
+            <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-3">Conquistas</p>
             <div className="overflow-x-auto -mx-1 px-1">
               <div className="flex gap-3 pb-1" style={{ minWidth: 'max-content' }}>
                 {badges.map((badge) => (
                   <div
                     key={badge.id}
-                    className={`w-28 flex-shrink-0 rounded-xl p-3 border ${badge.earned ? `${badge.bg} ${badge.border} badge-glow` : 'bg-slate-800/50 border-slate-700/50'} ${newBadgeIds.has(badge.id) ? 'animate-pulse' : ''}`}
+                    className={`w-28 flex-shrink-0 rounded-xl p-3 border ${badge.earned ? `${badge.bg} ${badge.border} badge-glow` : 'bg-gray-50/50 border-gray-200/50'} ${newBadgeIds.has(badge.id) ? 'animate-pulse' : ''}`}
                   >
                     <span className={`text-2xl leading-none block mb-1.5 ${badge.earned ? '' : 'grayscale opacity-30'}`}>{badge.icon}</span>
-                    <p className={`font-semibold text-xs leading-tight ${badge.earned ? 'text-white' : 'text-slate-600'}`}>{badge.name}</p>
-                    <p className={`text-[10px] mt-0.5 leading-tight ${badge.earned ? badge.text : 'text-slate-600'}`}>
+                    <p className={`font-semibold text-xs leading-tight ${badge.earned ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</p>
+                    <p className={`text-[10px] mt-0.5 leading-tight ${badge.earned ? badge.text : 'text-gray-500'}`}>
                       {badge.earned ? 'Desbloqueada' : 'Bloqueada'}
                     </p>
                   </div>
@@ -992,7 +996,8 @@ export default function HomePage() {
       {/* ── CTA FIXO MOBILE ────────────────────────────────────────────────────── */}
       <Link
         href="/lancamentos"
-        className="fixed bottom-20 right-4 md:hidden flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm pl-4 pr-5 h-12 rounded-full shadow-xl shadow-violet-900/60 transition-colors z-40"
+        className="fixed bottom-20 right-4 md:hidden flex items-center gap-2 text-white font-semibold text-sm pl-4 pr-5 h-12 rounded-full shadow-xl shadow-mint-500/40 transition-colors z-40"
+        style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
       >
         <Plus size={18} />
         Lançar
@@ -1005,26 +1010,26 @@ export default function HomePage() {
           style={{ touchAction: 'none' }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowResumoModal(false); }}
         >
-          <div className="bg-[#0f1117] border border-slate-800 rounded-2xl p-6 w-full max-w-lg max-h-[70vh] overflow-y-auto overscroll-contain" style={{ touchAction: 'pan-y' }}>
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 w-full max-w-lg max-h-[70vh] overflow-y-auto overscroll-contain" style={{ touchAction: 'pan-y' }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Star size={15} className="text-violet-400" />
-                <p className="text-white font-semibold">Resumo da semana</p>
-                <span className="text-[10px] text-violet-400/60 font-semibold uppercase tracking-wider">IA</span>
+                <Star size={15} className="text-mint-500" />
+                <p className="text-gray-900 font-semibold">Resumo da semana</p>
+                <span className="text-[10px] text-mint-500 font-semibold uppercase tracking-wider">IA</span>
               </div>
-              <button onClick={() => setShowResumoModal(false)} className="text-slate-500 hover:text-slate-300 transition-colors p-1">
+              <button onClick={() => setShowResumoModal(false)} className="text-gray-500 hover:text-gray-700 transition-colors p-1">
                 <X size={18} />
               </button>
             </div>
 
             {resumoLoading && (
               <div className="space-y-2.5">
-                <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+                <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
                   <Loader2 size={12} className="animate-spin" />
                   <span>Gerando com IA…</span>
                 </div>
                 {[100, 90, 75, 85, 60].map((w, i) => (
-                  <div key={i} className="h-2.5 bg-slate-800 rounded-full animate-pulse" style={{ width: `${w}%` }} />
+                  <div key={i} className="h-2.5 bg-gray-50 rounded-full animate-pulse" style={{ width: `${w}%` }} />
                 ))}
               </div>
             )}
@@ -1032,7 +1037,7 @@ export default function HomePage() {
             {!resumoData && !resumoLoading && (
               <button
                 onClick={() => loadResumo()}
-                className="w-full flex items-center justify-center gap-2 bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 hover:text-violet-200 text-sm font-medium py-2.5 rounded-xl transition-colors border border-violet-500/20"
+                className="w-full flex items-center justify-center gap-2 bg-mint-50 hover:bg-mint/25 text-mint-500 hover:text-mint-700 text-sm font-medium py-2.5 rounded-xl transition-colors border border-mint-500/20"
               >
                 ✨ Gerar resumo da semana
               </button>
@@ -1040,14 +1045,14 @@ export default function HomePage() {
 
             {resumoData && !resumoLoading && (
               <>
-                <div className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderBotText(resumoData.resumo) }} />
+                <div className="text-gray-700 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderBotText(resumoData.resumo) }} />
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-slate-600 text-[11px]">
+                  <p className="text-gray-500 text-[11px]">
                     Gerado em {new Date(resumoData.geradoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                   </p>
                   <button
                     onClick={() => loadResumo(true)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-800"
+                    className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-50"
                     title="Atualizar"
                   >
                     <RefreshCw size={13} />
@@ -1065,24 +1070,24 @@ export default function HomePage() {
           className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setShowMissoesModal(false); }}
         >
-          <div className="bg-[#0f1117] border border-slate-800 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-white font-semibold">Missões da semana</p>
-              <button onClick={() => setShowMissoesModal(false)} className="text-slate-500 hover:text-slate-300 transition-colors p-1">
+              <p className="text-gray-900 font-semibold">Missões da semana</p>
+              <button onClick={() => setShowMissoesModal(false)} className="text-gray-500 hover:text-gray-700 transition-colors p-1">
                 <X size={18} />
               </button>
             </div>
 
             {/* Streak no modal */}
             <div className={`rounded-xl p-3 border mb-5 flex items-center gap-3 ${
-              streak >= 3 ? 'bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/30' : 'bg-slate-900 border-slate-800'
+              streak >= 3 ? 'bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/30' : 'bg-white border-gray-100'
             }`}>
               <span className="text-2xl leading-none">{streak >= 2 ? '🔥' : streak === 1 ? '✨' : '💡'}</span>
               <div>
-                {streak >= 2 ? <p className="text-white font-semibold text-sm">{streak} dias seguidos registrando</p>
-                  : streak === 1 ? <p className="text-white font-semibold text-sm">Começou hoje! Continue amanhã</p>
-                  : <p className="text-slate-400 text-sm">Registre algo hoje para começar seu streak</p>}
-                {streak >= 2 && <p className="text-slate-500 text-xs mt-0.5">Não perca o ritmo!</p>}
+                {streak >= 2 ? <p className="text-gray-900 font-semibold text-sm">{streak} dias seguidos registrando</p>
+                  : streak === 1 ? <p className="text-gray-900 font-semibold text-sm">Começou hoje! Continue amanhã</p>
+                  : <p className="text-gray-500 text-sm">Registre algo hoje para começar seu streak</p>}
+                {streak >= 2 && <p className="text-gray-500 text-xs mt-0.5">Não perca o ritmo!</p>}
               </div>
             </div>
 
@@ -1093,24 +1098,24 @@ export default function HomePage() {
                   <span className="text-base leading-none mt-0.5">🛵</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-white text-sm font-medium">3 dias sem delivery</p>
+                      <p className="text-gray-900 text-sm font-medium">3 dias sem delivery</p>
                       {m1Done
-                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
-                        : <span className="text-slate-400 text-xs flex-shrink-0">{deliveryFreeStreak}/3</span>}
+                        ? <span className="text-mint-500 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        : <span className="text-gray-500 text-xs flex-shrink-0">{deliveryFreeStreak}/3</span>}
                     </div>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                    <p className="text-gray-500 text-xs mt-0.5">
                       {m1Done ? '3+ dias sem pedir delivery!'
                         : deliveryFreeStreak === 0 ? 'Teve delivery hoje ou ontem'
                         : `${deliveryFreeStreak} dia${deliveryFreeStreak > 1 ? 's' : ''} sem delivery — continue!`}
                     </p>
                   </div>
                 </div>
-                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${m1Done ? 'bg-green-500' : 'bg-violet-500'}`} style={{ width: `${Math.round(m1Pct * 100)}%` }} />
+                <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${m1Done ? 'bg-mint' : 'bg-mint-500'}`} style={{ width: `${Math.round(m1Pct * 100)}%` }} />
                 </div>
               </div>
 
-              <div className="border-t border-slate-800" />
+              <div className="border-t border-gray-100" />
 
               {/* Missão 2 */}
               <div>
@@ -1118,26 +1123,26 @@ export default function HomePage() {
                   <span className="text-base leading-none mt-0.5">🎯</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-white text-sm font-medium">Semana abaixo da meta</p>
+                      <p className="text-gray-900 text-sm font-medium">Semana abaixo da meta</p>
                       {m2Done
-                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        ? <span className="text-mint-500 text-xs font-semibold flex-shrink-0">✅ Feito</span>
                         : m2OverBudget
                         ? <span className="text-red-400 text-xs font-semibold flex-shrink-0">Excedido</span>
-                        : <span className="text-slate-400 text-xs flex-shrink-0">—</span>}
+                        : <span className="text-gray-500 text-xs flex-shrink-0">—</span>}
                     </div>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                    <p className="text-gray-500 text-xs mt-0.5">
                       {weeklyRef === 0 ? 'Defina orçamento ou registre receita'
                         : m2Done ? `Dentro da meta — sobra ${formatCurrency(weeklyRef - weekSpent)}`
                         : `${formatCurrency(weekSpent)} gasto · meta ${formatCurrency(weeklyRef)}`}
                     </p>
                   </div>
                 </div>
-                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${m2Done ? 'bg-green-500' : m2OverBudget ? 'bg-red-500' : 'bg-slate-700'}`} style={{ width: m2Done || m2OverBudget ? '100%' : '0%' }} />
+                <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${m2Done ? 'bg-mint' : m2OverBudget ? 'bg-red-500' : 'bg-gray-100'}`} style={{ width: m2Done || m2OverBudget ? '100%' : '0%' }} />
                 </div>
               </div>
 
-              <div className="border-t border-slate-800" />
+              <div className="border-t border-gray-100" />
 
               {/* Missão 3 */}
               <div>
@@ -1145,20 +1150,20 @@ export default function HomePage() {
                   <span className="text-base leading-none mt-0.5">📅</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-white text-sm font-medium">Lançar tudo por 5 dias</p>
+                      <p className="text-gray-900 text-sm font-medium">Lançar tudo por 5 dias</p>
                       {m3Done
-                        ? <span className="text-green-400 text-xs font-semibold flex-shrink-0">✅ Feito</span>
-                        : <span className="text-slate-400 text-xs flex-shrink-0">{streak}/5</span>}
+                        ? <span className="text-mint-500 text-xs font-semibold flex-shrink-0">✅ Feito</span>
+                        : <span className="text-gray-500 text-xs flex-shrink-0">{streak}/5</span>}
                     </div>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                    <p className="text-gray-500 text-xs mt-0.5">
                       {m3Done ? '5+ dias seguidos registrando!'
                         : streak === 0 ? 'Registre algo hoje para começar'
                         : `${streak} dia${streak > 1 ? 's' : ''} seguido${streak > 1 ? 's' : ''} — faltam ${5 - streak}`}
                     </p>
                   </div>
                 </div>
-                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${m3Done ? 'bg-green-500' : 'bg-violet-500'}`} style={{ width: `${Math.round(m3Pct * 100)}%` }} />
+                <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${m3Done ? 'bg-mint' : 'bg-mint-500'}`} style={{ width: `${Math.round(m3Pct * 100)}%` }} />
                 </div>
               </div>
             </div>

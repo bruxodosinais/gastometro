@@ -75,17 +75,17 @@ function ExpenseCard({
     <div
       className={`rounded-xl border p-3.5 space-y-3 max-w-[85%] ${
         isIncome
-          ? 'bg-emerald-500/10 border-emerald-500/30'
-          : 'bg-violet-500/10 border-violet-500/30'
+          ? 'bg-mint-50 border-emerald-500/30'
+          : 'bg-mint-50 border-mint-500/30'
       }`}
     >
-      <p className={`text-xs font-semibold ${isIncome ? 'text-emerald-400' : 'text-violet-400'}`}>
+      <p className={`text-xs font-semibold ${isIncome ? 'text-mint-500' : 'text-mint-500'}`}>
         {isIncome ? '💵 Nova receita detectada' : '💳 Novo gasto detectado'}
       </p>
       <div className="space-y-1">
-        <p className="text-white text-sm font-medium">{expense.description}</p>
-        <p className="text-slate-400 text-xs flex items-center gap-1.5">
-          <span className={`text-base font-bold ${isIncome ? 'text-emerald-400' : 'text-white'}`}>
+        <p className="text-gray-900 text-sm font-medium">{expense.description}</p>
+        <p className="text-gray-500 text-xs flex items-center gap-1.5">
+          <span className={`text-base font-bold ${isIncome ? 'text-mint-500' : 'text-gray-900'}`}>
             {formatCurrency(expense.amount)}
           </span>
           <span>·</span>
@@ -97,15 +97,15 @@ function ExpenseCard({
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors ${
-            isIncome ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-violet-600 hover:bg-violet-500'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-900 transition-colors ${
+            isIncome ? 'bg-mint hover:bg-mint' : 'bg-mint hover:bg-mint-700'
           }`}
         >
           <Check size={12} /> Confirmar
         </button>
         <button
           onClick={onCancel}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-300 transition-colors"
         >
           <X size={12} /> Cancelar
         </button>
@@ -117,10 +117,10 @@ function ExpenseCard({
 function ConfirmedCard({ expense }: { expense: ExpenseData }) {
   const isIncome = expense.type === 'income';
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-400">
+    <div className="flex items-center gap-2 text-xs text-gray-500">
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center ${
-          isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
+          isIncome ? 'bg-mint-50 text-mint-500' : 'bg-mint-50 text-mint-500'
         }`}
       >
         <Check size={10} />
@@ -134,22 +134,22 @@ function ConfirmedCard({ expense }: { expense: ExpenseData }) {
 function WelcomeScreen({ onSuggest }: { onSuggest: (text: string) => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 space-y-6">
-      <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center">
-        <Bot size={28} className="text-violet-400" />
+      <div className="w-14 h-14 rounded-2xl bg-mint-50 flex items-center justify-center">
+        <Bot size={28} className="text-mint-500" />
       </div>
       <div className="text-center space-y-1.5">
-        <h2 className="text-white font-semibold text-base">Olá! Sou o GastôBot</h2>
-        <p className="text-slate-500 text-sm max-w-xs">
+        <h2 className="text-gray-900 font-semibold text-base">Olá! Sou o GastôBot</h2>
+        <p className="text-gray-500 text-sm max-w-xs">
           Posso registrar lançamentos, analisar seus gastos e responder dúvidas financeiras.
         </p>
       </div>
       <div className="w-full max-w-sm space-y-2">
-        <p className="text-xs text-slate-600 text-center">Sugestões</p>
+        <p className="text-xs text-gray-500 text-center">Sugestões</p>
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => onSuggest(s)}
-            className="w-full text-left text-sm text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 px-4 py-2.5 rounded-xl transition-colors"
+            className="w-full text-left text-sm text-gray-500 hover:text-gray-900 bg-gray-50/60 hover:bg-gray-50 border border-gray-200/50 hover:border-slate-600 px-4 py-2.5 rounded-xl transition-colors"
           >
             {s}
           </button>
@@ -287,22 +287,22 @@ export default function AssistentePage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] md:h-screen bg-slate-950">
+    <div className="flex flex-col h-[calc(100vh-80px)] md:h-screen bg-white">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-800 bg-slate-900 flex-shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center">
-          <Bot size={20} className="text-violet-400" />
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 bg-white flex-shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-mint-50 flex items-center justify-center">
+          <Bot size={20} className="text-mint-500" />
         </div>
         <div className="flex-1">
-          <h1 className="text-sm font-semibold text-white">GastôBot</h1>
-          <p className="text-[11px] text-slate-500">Assistente financeiro com IA</p>
+          <h1 className="text-sm font-semibold text-gray-900">GastôBot</h1>
+          <p className="text-[11px] text-gray-500">Assistente financeiro com IA</p>
         </div>
         {messages.length > 0 && (
           <button
             onClick={newConversation}
             title="Nova conversa"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
           >
             <RotateCcw size={13} />
             Nova
@@ -320,18 +320,18 @@ export default function AssistentePage() {
           <div key={msg.id}>
             {msg.role === 'user' ? (
               <div className="flex justify-end">
-                <div className="max-w-[80%] bg-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+                <div className="max-w-[80%] bg-mint text-gray-900 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
                   {msg.text}
                 </div>
               </div>
             ) : (
               <div className="flex gap-2.5 items-start">
-                <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot size={14} className="text-violet-400" />
+                <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot size={14} className="text-mint-500" />
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
                   <div
-                    className="inline-block max-w-[90%] bg-slate-800 text-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed"
+                    className="inline-block max-w-[90%] bg-gray-50 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: renderBotText(msg.text) }}
                   />
 
@@ -346,7 +346,7 @@ export default function AssistentePage() {
                     <ConfirmedCard expense={msg.expense} />
                   )}
                   {msg.expense && msg.expenseStatus === 'cancelled' && (
-                    <p className="text-xs text-slate-600 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
                       <X size={11} /> Lançamento cancelado
                     </p>
                   )}
@@ -358,10 +358,10 @@ export default function AssistentePage() {
 
         {loading && (
           <div className="flex gap-2.5 items-start">
-            <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-              <Bot size={14} className="text-violet-400" />
+            <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+              <Bot size={14} className="text-mint-500" />
             </div>
-            <div className="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3.5">
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3.5">
               <div className="flex gap-1.5 items-center">
                 <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:0ms]" />
                 <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:150ms]" />
@@ -375,26 +375,26 @@ export default function AssistentePage() {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-slate-800 bg-slate-900 flex-shrink-0">
+      <div className="px-4 py-3 border-t border-gray-100 bg-white flex-shrink-0">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex: Gastei R$ 50 no iFood hoje…"
-            className="flex-1 bg-slate-800 text-white placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-violet-500 border border-slate-700 focus:border-violet-500 transition-colors"
+            className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-violet-500 border border-gray-200 focus:border-mint-500 transition-colors"
             disabled={loading}
             autoComplete="off"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            className="w-10 h-10 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
           >
             {loading ? (
-              <Loader2 size={16} className="animate-spin text-white" />
+              <Loader2 size={16} className="animate-spin text-gray-900" />
             ) : (
-              <Send size={16} className="text-white" />
+              <Send size={16} className="text-gray-900" />
             )}
           </button>
         </form>

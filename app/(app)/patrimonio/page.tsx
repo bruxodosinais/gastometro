@@ -24,16 +24,16 @@ const BOLSOS: Record<BolsoKey, { label: string; icon: React.ReactNode; color: st
   caixa: {
     label: 'Caixa',
     icon: <Wallet size={20} />,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    color: 'text-mint-500',
+    bg: 'bg-mint-50',
     border: 'border-emerald-500/20',
   },
   investimentos: {
     label: 'Investimentos',
     icon: <BarChart2 size={20} />,
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
-    border: 'border-violet-500/20',
+    color: 'text-mint-500',
+    bg: 'bg-mint-50',
+    border: 'border-mint-500/20',
   },
   imoveis: {
     label: 'Imóveis',
@@ -68,9 +68,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   if (!active || !payload?.length) return null;
   const value = payload[0].value;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm shadow-xl">
-      <p className="text-slate-400 text-xs mb-1">{label}</p>
-      <p className="font-semibold text-violet-400">{formatCurrency(value)}</p>
+    <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-xl">
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
+      <p className="font-semibold text-mint-500">{formatCurrency(value)}</p>
     </div>
   );
 }
@@ -280,7 +280,7 @@ export default function PatrimonioPage() {
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
       </main>
     );
   }
@@ -293,23 +293,23 @@ export default function PatrimonioPage() {
 
         {/* Cabeçalho */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Patrimônio</h1>
-          <p className="text-slate-400 text-sm">Ativos, dívidas e evolução</p>
+          <h1 className="text-2xl font-bold text-gray-900">Patrimônio</h1>
+          <p className="text-gray-500 text-sm">Ativos, dívidas e evolução</p>
         </div>
 
         {/* Card principal — patrimônio líquido */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6">
-          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Patrimônio Líquido</p>
-          <p className={`text-4xl font-bold mb-4 ${netPositive ? 'text-white' : 'text-red-400'}`}>
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-6">
+          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Patrimônio Líquido</p>
+          <p className={`text-4xl font-bold mb-4 ${netPositive ? 'text-gray-900' : 'text-red-400'}`}>
             {formatCurrency(netWorth)}
           </p>
           <div className="flex gap-4">
-            <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Total ativos</p>
-              <p className="text-emerald-400 font-bold text-lg">{formatCurrency(totalAssets)}</p>
+            <div className="flex-1 bg-mint-50 border border-emerald-500/20 rounded-xl px-4 py-3">
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Total ativos</p>
+              <p className="text-mint-500 font-bold text-lg">{formatCurrency(totalAssets)}</p>
             </div>
             <div className="flex-1 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Total dívidas</p>
+              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Total dívidas</p>
               <p className="text-red-400 font-bold text-lg">{formatCurrency(totalLiabilities)}</p>
             </div>
           </div>
@@ -322,16 +322,16 @@ export default function PatrimonioPage() {
             const total = bolsoTotals[key];
             const pct = totalAssets > 0 ? (total / totalAssets) * 100 : 0;
             return (
-              <div key={key} className={`bg-slate-900 border ${cfg.border} rounded-2xl p-4`}>
+              <div key={key} className={`bg-white border ${cfg.border} rounded-2xl p-4`}>
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${cfg.bg} ${cfg.color}`}>
                   {cfg.icon}
                 </div>
-                <p className="text-slate-400 text-xs font-medium mb-0.5">{BOLSO_EMOJIS[key]} {cfg.label}</p>
-                <p className={`font-bold text-base ${total > 0 ? cfg.color : 'text-slate-600'}`}>
+                <p className="text-gray-500 text-xs font-medium mb-0.5">{BOLSO_EMOJIS[key]} {cfg.label}</p>
+                <p className={`font-bold text-base ${total > 0 ? cfg.color : 'text-gray-500'}`}>
                   {formatCurrency(total)}
                 </p>
                 {totalAssets > 0 && (
-                  <p className="text-slate-600 text-[10px] mt-0.5">{pct.toFixed(0)}% do total</p>
+                  <p className="text-gray-500 text-[10px] mt-0.5">{pct.toFixed(0)}% do total</p>
                 )}
               </div>
             );
@@ -342,12 +342,12 @@ export default function PatrimonioPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
           {/* Ativos */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold text-sm">Ativos</h2>
+              <h2 className="text-gray-900 font-semibold text-sm">Ativos</h2>
               <button
                 onClick={openAddAsset}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/15 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mint-50 border border-emerald-500/20 text-mint-500 text-xs font-semibold hover:bg-mint-50 transition-colors"
               >
                 <Plus size={13} /> Adicionar
               </button>
@@ -355,8 +355,8 @@ export default function PatrimonioPage() {
 
             {assets.length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-slate-600 text-sm">Nenhum ativo cadastrado</p>
-                <button onClick={openAddAsset} className="mt-3 text-xs text-violet-400 hover:text-violet-300">
+                <p className="text-gray-500 text-sm">Nenhum ativo cadastrado</p>
+                <button onClick={openAddAsset} className="mt-3 text-xs text-mint-500 hover:text-mint-500">
                   + Adicionar primeiro ativo
                 </button>
               </div>
@@ -365,26 +365,26 @@ export default function PatrimonioPage() {
                 {assets.map((a) => {
                   const cfg = BOLSOS[a.type];
                   return (
-                    <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 transition-colors group">
+                    <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gray-50/60 hover:bg-gray-50 transition-colors group">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-base">{BOLSO_EMOJIS[a.type]}</span>
                         <div className="min-w-0">
-                          <p className="text-white text-sm font-medium truncate">{a.name}</p>
+                          <p className="text-gray-900 text-sm font-medium truncate">{a.name}</p>
                           <p className={`text-[10px] font-medium ${cfg.color}`}>{cfg.label}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <p className="text-emerald-400 font-semibold text-sm">{formatCurrency(a.value)}</p>
+                        <p className="text-mint-500 font-semibold text-sm">{formatCurrency(a.value)}</p>
                         <button
                           onClick={() => openEditAsset(a)}
-                          className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                          className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Pencil size={12} />
                         </button>
                         <button
                           onClick={() => handleDeleteAsset(a.id)}
                           disabled={deletingId === a.id}
-                          className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           {deletingId === a.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                         </button>
@@ -397,9 +397,9 @@ export default function PatrimonioPage() {
           </div>
 
           {/* Dívidas */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold text-sm">Dívidas</h2>
+              <h2 className="text-gray-900 font-semibold text-sm">Dívidas</h2>
               <button
                 onClick={openAddLiability}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/15 transition-colors"
@@ -410,17 +410,17 @@ export default function PatrimonioPage() {
 
             {liabilities.length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-slate-600 text-sm">Nenhuma dívida cadastrada</p>
+                <p className="text-gray-500 text-sm">Nenhuma dívida cadastrada</p>
                 <p className="text-slate-700 text-xs mt-1">Ótimo sinal! 🎉</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {liabilities.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 transition-colors group">
+                  <div key={l.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gray-50/60 hover:bg-gray-50 transition-colors group">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{l.name}</p>
+                        <p className="text-gray-900 text-sm font-medium truncate">{l.name}</p>
                         <p className="text-[10px] font-medium text-red-400/70">{l.type}</p>
                       </div>
                     </div>
@@ -428,14 +428,14 @@ export default function PatrimonioPage() {
                       <p className="text-red-400 font-semibold text-sm">{formatCurrency(l.value)}</p>
                       <button
                         onClick={() => openEditLiability(l)}
-                        className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                        className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <Pencil size={12} />
                       </button>
                       <button
                         onClick={() => handleDeleteLiability(l.id)}
                         disabled={deletingId === l.id}
-                        className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         {deletingId === l.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                       </button>
@@ -450,26 +450,26 @@ export default function PatrimonioPage() {
         {/* Cards de aportes e evolução */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Aporte deste mês */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-            <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1">Saldo deste mês</p>
-            <p className={`text-2xl font-bold mb-2 ${currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Saldo deste mês</p>
+            <p className={`text-2xl font-bold mb-2 ${currentBalance >= 0 ? 'text-mint-500' : 'text-red-400'}`}>
               {formatCurrency(currentBalance)}
             </p>
             <div className="flex items-center gap-1.5">
               {balanceDiff >= 0 ? (
-                <TrendingUp size={13} className="text-emerald-400" />
+                <TrendingUp size={13} className="text-mint-500" />
               ) : (
                 <TrendingDown size={13} className="text-red-400" />
               )}
-              <p className={`text-xs font-medium ${balanceDiff >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <p className={`text-xs font-medium ${balanceDiff >= 0 ? 'text-mint-500' : 'text-red-400'}`}>
                 {balanceDiff >= 0 ? '+' : ''}{formatCurrency(balanceDiff)} vs mês anterior
               </p>
             </div>
           </div>
 
           {/* Evolução — gráfico */}
-          <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5">
-            <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-4">Saldo líquido mensal (12 meses)</p>
+          <div className="md:col-span-2 bg-white border border-gray-100 rounded-2xl p-5">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-4">Saldo líquido mensal (12 meses)</p>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyChart} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -511,16 +511,16 @@ export default function PatrimonioPage() {
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
-              <p className="text-white font-semibold text-sm">
+              <p className="text-gray-900 font-semibold text-sm">
                 {modalMode === 'asset'
                   ? editingAsset ? 'Editar ativo' : 'Novo ativo'
                   : editingLiability ? 'Editar dívida' : 'Nova dívida'}
               </p>
               <button
                 onClick={closeModal}
-                className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
               >
                 <X size={15} />
               </button>
@@ -529,7 +529,7 @@ export default function PatrimonioPage() {
             <div className="space-y-4">
               {/* Nome */}
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Nome
                 </label>
                 <input
@@ -538,13 +538,13 @@ export default function PatrimonioPage() {
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder={modalMode === 'asset' ? 'Ex: Nubank, FGTS, Apartamento…' : 'Ex: Financiamento carro, Cartão…'}
                   autoFocus
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
 
               {/* Tipo */}
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Tipo / Bolso
                 </label>
                 {modalMode === 'asset' ? (
@@ -560,7 +560,7 @@ export default function PatrimonioPage() {
                           className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                             active
                               ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                              : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600'
                           }`}
                         >
                           <span>{BOLSO_EMOJIS[key]}</span>
@@ -581,7 +581,7 @@ export default function PatrimonioPage() {
                           className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
                             active
                               ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                              : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600'
                           }`}
                         >
                           {t}
@@ -594,11 +594,11 @@ export default function PatrimonioPage() {
 
               {/* Valor */}
               <div>
-                <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Valor (R$)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -607,7 +607,7 @@ export default function PatrimonioPage() {
                     value={form.value}
                     onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
                     placeholder="0,00"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                   />
                 </div>
               </div>
@@ -623,7 +623,7 @@ export default function PatrimonioPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim() || !form.value}
-                className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="flex-1 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Salvar</>}
               </button>
@@ -631,14 +631,14 @@ export default function PatrimonioPage() {
                 <button
                   onClick={() => editingAsset ? handleDeleteAsset(editingAsset.id) : editingLiability && handleDeleteLiability(editingLiability.id)}
                   disabled={!!deletingId}
-                  className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-red-500/10 hover:border-red-500/30 border border-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+                  className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-red-500/10 hover:border-red-500/30 border border-gray-200 text-gray-500 hover:text-red-400 transition-colors"
                 >
                   {deletingId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 </button>
               )}
               <button
                 onClick={closeModal}
-                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
               >
                 <X size={16} />
               </button>

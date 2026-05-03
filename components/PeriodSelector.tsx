@@ -39,34 +39,34 @@ export default function PeriodSelector({ compact = false }: { compact?: boolean 
     <>
       {/* Barra de navegação */}
       {compact ? (
-        <div className="inline-flex items-center bg-slate-900 border border-slate-800 rounded-xl px-1 py-1 gap-0.5">
+        <div className="inline-flex items-center bg-white border border-gray-100 rounded-xl px-1 py-1 gap-0.5">
           <button
             onClick={() => setPeriod(shiftMonth(period, -1))}
-            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
             aria-label="Mês anterior"
           >
             <ChevronLeft size={15} />
           </button>
           <button
             onClick={openPicker}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <span className="text-white font-semibold text-xs whitespace-nowrap">{labelCap}</span>
-            <ChevronDown size={11} className="text-slate-400" />
+            <span className="text-gray-900 font-semibold text-xs whitespace-nowrap">{labelCap}</span>
+            <ChevronDown size={11} className="text-gray-500" />
           </button>
           <button
             onClick={() => setPeriod(shiftMonth(period, 1))}
-            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
             aria-label="Próximo mês"
           >
             <ChevronRight size={15} />
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-2 py-2 mb-5">
+        <div className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-2 py-2 mb-5">
           <button
             onClick={() => setPeriod(shiftMonth(period, -1))}
-            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
             aria-label="Mês anterior"
           >
             <ChevronLeft size={20} />
@@ -74,15 +74,15 @@ export default function PeriodSelector({ compact = false }: { compact?: boolean 
 
           <button
             onClick={openPicker}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
           >
-            <span className="text-white font-semibold text-sm">{labelCap}</span>
-            <ChevronDown size={14} className="text-slate-400" />
+            <span className="text-gray-900 font-semibold text-sm">{labelCap}</span>
+            <ChevronDown size={14} className="text-gray-500" />
           </button>
 
           <button
             onClick={() => setPeriod(shiftMonth(period, 1))}
-            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
             aria-label="Próximo mês"
           >
             <ChevronRight size={20} />
@@ -102,22 +102,22 @@ export default function PeriodSelector({ compact = false }: { compact?: boolean 
           {/* Card centralizado */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <div
-              className="w-full max-w-xs bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl pointer-events-auto"
+              className="w-full max-w-xs bg-white border border-gray-200 rounded-2xl p-5 shadow-2xl pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Navegação de ano */}
               <div className="flex items-center justify-between mb-5">
                 <button
                   onClick={() => setPickerYear((y) => y - 1)}
-                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
                   aria-label="Ano anterior"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <span className="text-white font-bold text-xl">{pickerYear}</span>
+                <span className="text-gray-900 font-bold text-xl">{pickerYear}</span>
                 <button
                   onClick={() => setPickerYear((y) => y + 1)}
-                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
                   aria-label="Próximo ano"
                 >
                   <ChevronRight size={18} />
@@ -137,10 +137,10 @@ export default function PeriodSelector({ compact = false }: { compact?: boolean 
                       onClick={() => pick(month)}
                       className={`py-3 rounded-xl text-sm font-medium transition-all ${
                         isSelected
-                          ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40'
+                          ? 'bg-mint text-gray-900 shadow-lg shadow-violet-900/40'
                           : isNow
-                          ? 'bg-slate-800 text-violet-400 ring-1 ring-violet-500/40'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          ? 'bg-gray-50 text-mint-500 ring-1 ring-violet-500/40'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     >
                       {name}

@@ -59,30 +59,30 @@ export default function PerfilPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => router.back()}
-          className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft size={16} />
         </button>
-        <h1 className="text-xl font-bold text-white">Perfil</h1>
+        <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5">
         {/* Avatar */}
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/40 flex items-center justify-center text-violet-300 font-bold text-xl flex-shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-mint-50 border border-mint-500/40 flex items-center justify-center text-mint-500 font-bold text-xl flex-shrink-0">
             {(displayName || email).charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="text-white font-semibold">{displayName || email.split('@')[0]}</p>
-            <p className="text-slate-500 text-sm">{email}</p>
+            <p className="text-gray-900 font-semibold">{displayName || email.split('@')[0]}</p>
+            <p className="text-gray-500 text-sm">{email}</p>
           </div>
         </div>
 
-        <div className="border-t border-slate-800" />
+        <div className="border-t border-gray-100" />
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               Como quer ser chamado?
             </label>
             <input
@@ -92,22 +92,22 @@ export default function PerfilPage() {
               placeholder="Seu nome ou apelido"
               maxLength={40}
               autoComplete="nickname"
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
             />
-            <p className="text-slate-600 text-xs mt-1.5">
+            <p className="text-gray-500 text-xs mt-1.5">
               Esse nome aparece na saudação da tela inicial.
             </p>
           </div>
 
           <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
               E-mail
             </label>
             <input
               type="email"
               value={email}
               disabled
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-500 cursor-not-allowed"
+              className="w-full bg-gray-50/50 border border-gray-200/50 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
             />
           </div>
 
@@ -120,7 +120,7 @@ export default function PerfilPage() {
           <button
             type="submit"
             disabled={saving || saved}
-            className="w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-70"
+            className="w-full py-3 rounded-xl font-semibold text-gray-900 transition-all flex items-center justify-center gap-2 bg-mint hover:bg-mint-700 disabled:opacity-70"
           >
             {saving ? (
               <><Loader2 size={16} className="animate-spin" /> Salvando…</>

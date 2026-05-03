@@ -102,13 +102,13 @@ export default function PlanningSection({
     <section className="mb-6">
       {/* Cabeçalho da seção */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-slate-200 font-semibold text-sm">
-          Planejamento · <span className="capitalize font-normal text-slate-400">{getMonthLabel(period)}</span>
+        <h2 className="text-gray-800 font-semibold text-sm">
+          Planejamento · <span className="capitalize font-normal text-gray-500">{getMonthLabel(period)}</span>
         </h2>
         {hasPlan && !editMode && (
           <button
             onClick={openEdit}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-slate-800"
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-50"
           >
             <Pencil size={12} /> Editar plano
           </button>
@@ -117,17 +117,17 @@ export default function PlanningSection({
 
       {/* Formulário de edição */}
       {editMode && (
-        <div className="bg-slate-900 border border-violet-500/30 rounded-2xl p-5 mb-3">
-          <p className="text-slate-300 text-sm font-semibold mb-4">
+        <div className="bg-white border border-mint-500/30 rounded-2xl p-5 mb-3">
+          <p className="text-gray-700 text-sm font-semibold mb-4">
             Configurar plano · {getMonthLabel(period)}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                 Receita prevista (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                   R$
                 </span>
                 <input
@@ -139,16 +139,16 @@ export default function PlanningSection({
                   onChange={(e) => setEditIncome(e.target.value)}
                   placeholder="0,00"
                   autoFocus
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
                 Meta de poupança (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                   R$
                 </span>
                 <input
@@ -159,7 +159,7 @@ export default function PlanningSection({
                   value={editSavings}
                   onChange={(e) => setEditSavings(e.target.value)}
                   placeholder="0,00"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white text-base font-semibold placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
             </div>
@@ -168,7 +168,8 @@ export default function PlanningSection({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-70 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="flex-1 py-3 rounded-xl disabled:opacity-70 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
             >
               {saving ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -180,7 +181,7 @@ export default function PlanningSection({
             </button>
             <button
               onClick={() => setEditMode(false)}
-              className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors border border-gray-200"
               aria-label="Cancelar"
             >
               <X size={16} />
@@ -191,16 +192,17 @@ export default function PlanningSection({
 
       {/* Estado: sem plano configurado */}
       {!hasPlan && !editMode && (
-        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-6 text-center">
-          <p className="text-slate-400 text-sm mb-1">
+        <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-6 text-center">
+          <p className="text-gray-500 text-sm mb-1">
             Nenhum plano para {getMonthLabel(period)}
           </p>
-          <p className="text-slate-600 text-xs mb-4">
+          <p className="text-gray-500 text-xs mb-4">
             Defina sua receita prevista e meta de poupança para acompanhar o mês
           </p>
           <button
             onClick={openEdit}
-            className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-95 text-white text-sm font-semibold transition-all"
+            className="px-5 py-2.5 rounded-xl active:scale-95 text-white text-sm font-semibold transition-all"
+            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
           >
             Configurar agora
           </button>
@@ -215,30 +217,30 @@ export default function PlanningSection({
           <div
             className={`rounded-2xl p-4 border ${
               incomeStatus === 'above'
-                ? 'bg-green-500/5 border-green-500/20'
+                ? 'bg-mint/5 border-green-500/20'
                 : incomeStatus === 'below'
                 ? 'bg-yellow-500/5 border-yellow-500/20'
-                : 'bg-slate-900 border-slate-800'
+                : 'bg-white border-gray-100'
             }`}
           >
-            <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-2">
+            <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider mb-2">
               Receita prevista vs realizada
             </p>
             <div className="flex items-start gap-5">
               <div>
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Previsto</p>
-                <p className="text-base font-bold text-slate-300">{formatCurrency(expectedIncome)}</p>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Previsto</p>
+                <p className="text-base font-bold text-gray-700">{formatCurrency(expectedIncome)}</p>
               </div>
-              <div className="w-px bg-slate-800 self-stretch" />
+              <div className="w-px bg-gray-50 self-stretch" />
               <div>
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Realizado</p>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Realizado</p>
                 <p
                   className={`text-base font-bold ${
                     incomeStatus === 'above'
-                      ? 'text-green-400'
+                      ? 'text-mint-500'
                       : incomeStatus === 'below'
                       ? 'text-yellow-400'
-                      : 'text-white'
+                      : 'text-gray-900'
                   }`}
                 >
                   {formatCurrency(income)}
@@ -248,10 +250,10 @@ export default function PlanningSection({
             <p
               className={`text-xs font-medium mt-2 ${
                 incomeStatus === 'above'
-                  ? 'text-green-400/80'
+                  ? 'text-mint-500/80'
                   : incomeStatus === 'below'
                   ? 'text-yellow-400/80'
-                  : 'text-slate-400/80'
+                  : 'text-gray-500/80'
               }`}
             >
               {incomeStatus === 'above'
@@ -266,34 +268,34 @@ export default function PlanningSection({
           <div
             className={`rounded-2xl p-4 border ${
               savingsPct !== null && savingsPct >= 100
-                ? 'bg-green-500/5 border-green-500/20'
-                : 'bg-slate-900 border-slate-800'
+                ? 'bg-mint/5 border-green-500/20'
+                : 'bg-white border-gray-100'
             }`}
           >
-            <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-2">
+            <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider mb-2">
               Meta de poupança
             </p>
             <p
               className={`text-xl font-bold ${
                 currentSavings >= savingsGoal && currentSavings > 0
-                  ? 'text-green-400'
+                  ? 'text-mint-500'
                   : currentSavings < 0
                   ? 'text-red-400'
-                  : 'text-white'
+                  : 'text-gray-900'
               }`}
             >
               {formatCurrency(Math.max(0, currentSavings))}
             </p>
             {savingsGoal > 0 ? (
               <>
-                <p className="text-slate-500 text-xs mt-0.5 mb-2">
+                <p className="text-gray-500 text-xs mt-0.5 mb-2">
                   de {formatCurrency(savingsGoal)} · {Math.round(Math.max(0, savingsPct ?? 0))}%
                 </p>
-                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       (savingsPct ?? 0) >= 100
-                        ? 'bg-green-500'
+                        ? 'bg-mint'
                         : (savingsPct ?? 0) >= 50
                         ? 'bg-blue-500'
                         : 'bg-yellow-500'
@@ -303,7 +305,7 @@ export default function PlanningSection({
                 </div>
               </>
             ) : (
-              <p className="text-slate-600 text-xs mt-1">sem meta de poupança definida</p>
+              <p className="text-gray-500 text-xs mt-1">sem meta de poupança definida</p>
             )}
           </div>
 
@@ -312,41 +314,41 @@ export default function PlanningSection({
             className={`md:col-span-2 rounded-2xl p-4 border ${
               freeRemaining < 0
                 ? 'bg-red-500/5 border-red-500/20'
-                : 'bg-slate-900 border-slate-800'
+                : 'bg-white border-gray-100'
             }`}
           >
-            <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-2">
+            <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider mb-2">
               Valor livre para gastar
             </p>
             <div className="flex items-start gap-6 flex-wrap">
               <div>
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Planejado</p>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Planejado</p>
                 <p
                   className={`text-2xl font-bold ${
-                    freeAmount < 0 ? 'text-red-400' : 'text-white'
+                    freeAmount < 0 ? 'text-red-400' : 'text-gray-900'
                   }`}
                 >
                   {freeAmount < 0 ? '−' : ''}{formatCurrency(Math.abs(freeAmount))}
                 </p>
-                <p className="text-slate-600 text-xs mt-1">
+                <p className="text-gray-500 text-xs mt-1">
                   {formatCurrency(expectedIncome)} − {formatCurrency(fixedCosts)} fixos − {formatCurrency(savingsGoal)} poupança
                 </p>
               </div>
               {expectedIncome > 0 && (
                 <>
-                  <div className="hidden md:block w-px bg-slate-800 self-stretch" />
+                  <div className="hidden md:block w-px bg-gray-50 self-stretch" />
                   <div>
-                    <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">
+                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">
                       Restante agora
                     </p>
                     <p
                       className={`text-xl font-bold ${
-                        freeRemaining < 0 ? 'text-red-400' : 'text-green-400'
+                        freeRemaining < 0 ? 'text-red-400' : 'text-mint-500'
                       }`}
                     >
                       {freeRemaining < 0 ? '−' : ''}{formatCurrency(Math.abs(freeRemaining))}
                     </p>
-                    <p className="text-slate-600 text-xs mt-1">
+                    <p className="text-gray-500 text-xs mt-1">
                       após {formatCurrency(spent)} gastos no período
                     </p>
                   </div>
@@ -357,14 +359,14 @@ export default function PlanningSection({
 
           {/* Card 4 — Insights automáticos */}
           {insights.length > 0 && (
-            <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider mb-3">
+            <div className="md:col-span-2 bg-white border border-gray-100 rounded-2xl p-4">
+              <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider mb-3">
                 Insights automáticos
               </p>
               <ul className="space-y-2">
                 {insights.map((insight, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-violet-400 mt-0.5 flex-shrink-0">→</span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-mint-500 mt-0.5 flex-shrink-0">→</span>
                     {insight}
                   </li>
                 ))}

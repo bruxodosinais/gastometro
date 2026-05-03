@@ -59,8 +59,8 @@ function CategoryTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm shadow-xl">
-      <p className="text-slate-400 text-xs mb-1">{label}</p>
+    <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-xl">
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="font-medium">
           {p.name}: {formatCurrency(p.value)}
@@ -206,19 +206,19 @@ export default function CategoriasPage() {
     : null;
 
   const insightBgClass = !currentInsight
-    ? 'bg-slate-800/50 border border-slate-700'
+    ? 'bg-gray-50/50 border border-gray-200'
     : currentInsight.variant === 'above'
     ? 'bg-red-500/20 border border-red-500/30'
     : currentInsight.variant === 'below'
-    ? 'bg-green-500/20 border border-green-500/30'
+    ? 'bg-mint-50 border border-green-500/30'
     : 'bg-yellow-500/20 border border-yellow-500/30';
 
   const insightTextClass = !currentInsight
-    ? 'text-slate-400'
+    ? 'text-gray-500'
     : currentInsight.variant === 'above'
     ? 'text-red-400'
     : currentInsight.variant === 'below'
-    ? 'text-green-400'
+    ? 'text-mint-500'
     : 'text-yellow-400';
 
   // Categoria do insight: sincroniza destaque do card com o insight exibido
@@ -238,15 +238,15 @@ export default function CategoriasPage() {
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
       </main>
     );
   }
 
   return (
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
-      <h1 className="text-2xl font-bold text-white mb-1">Categorias</h1>
-      <p className="text-slate-400 text-sm capitalize mb-5">{getMonthLabel(period)}</p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Categorias</h1>
+      <p className="text-gray-500 text-sm capitalize mb-5">{getMonthLabel(period)}</p>
 
       <PeriodSelector />
 
@@ -267,8 +267,8 @@ export default function CategoriasPage() {
 
       {/* Ranking de categorias do mês */}
       {rankedSummaries.length > 0 && (
-        <div className="opacity-[0.85] bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-5">
-          <h2 className="text-white font-semibold text-sm mb-3">Ranking do mês</h2>
+        <div className="opacity-[0.85] bg-white border border-gray-100 rounded-2xl p-4 mb-5">
+          <h2 className="text-gray-900 font-semibold text-sm mb-3">Ranking do mês</h2>
           <div className="space-y-2.5">
             {rankedSummaries.map((s, i) => {
               const cfg = CATEGORY_CONFIG[s.category];
@@ -276,25 +276,25 @@ export default function CategoriasPage() {
               const pct = totalGasto > 0 ? (s.total / totalGasto) * 100 : 0;
               return (
                 <div key={s.category} className="flex items-center gap-3">
-                  <span className="text-slate-500 text-xs w-4 text-right font-medium shrink-0">
+                  <span className="text-gray-500 text-xs w-4 text-right font-medium shrink-0">
                     {i + 1}
                   </span>
                   <span className="text-base w-6 text-center shrink-0">{cfg.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-slate-300 text-xs font-medium truncate">
+                      <span className="text-gray-700 text-xs font-medium truncate">
                         {s.category}
                       </span>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span className={`text-xs font-semibold ${cfg.textClass}`}>
                           {formatCurrency(s.total)}
                         </span>
-                        <span className="text-slate-500 text-xs w-7 text-right">
+                        <span className="text-gray-500 text-xs w-7 text-right">
                           {Math.round(pct)}%
                         </span>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 brightness-90 ${cfg.barClass}`}
                         style={{ width: `${barWidth}%` }}
@@ -305,21 +305,21 @@ export default function CategoriasPage() {
               );
             })}
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between text-xs">
-            <span className="text-slate-500">Total gasto no mês</span>
-            <span className="text-slate-200 font-semibold">{formatCurrency(totalGasto)}</span>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs">
+            <span className="text-gray-500">Total gasto no mês</span>
+            <span className="text-gray-800 font-semibold">{formatCurrency(totalGasto)}</span>
           </div>
         </div>
       )}
 
       {/* Legenda barras */}
-      <div className="flex items-center gap-4 mb-4 text-xs text-slate-500">
+      <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-violet-500" />
+          <div className="w-3 h-3 rounded-sm bg-mint-500" />
           <span>Mês atual</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-slate-600" />
+          <div className="w-3 h-3 rounded-sm bg-gray-300" />
           <span>Média anterior</span>
         </div>
       </div>
@@ -336,7 +336,7 @@ export default function CategoriasPage() {
           const isEditing = editingCategory === summary.category;
           const isDominant = summary.category === insightCategory;
 
-          let budgetBarColor = 'bg-green-500';
+          let budgetBarColor = 'bg-mint';
           if (budgetPct != null) {
             if (budgetPct > 100) budgetBarColor = 'bg-red-500';
             else if (budgetPct >= 80) budgetBarColor = 'bg-yellow-500';
@@ -355,12 +355,12 @@ export default function CategoriasPage() {
                 : null
               : null;
 
-          const cardBaseClass = `bg-slate-900 rounded-2xl p-4 transition-all duration-200 ease-out`;
+          const cardBaseClass = `bg-white rounded-2xl p-4 transition-all duration-200 ease-out`;
           const cardBorderClass = isDominant
             ? 'border border-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.35)] shadow-lg transform scale-[1.05]'
             : summary.isAlert
             ? 'border border-red-500/30'
-            : 'border border-slate-800';
+            : 'border border-gray-100';
 
           return (
             <div
@@ -376,7 +376,7 @@ export default function CategoriasPage() {
                     {cfg.icon}
                   </span>
                   <div>
-                    <p className="text-white text-sm font-medium">{summary.category}</p>
+                    <p className="text-gray-900 text-sm font-medium">{summary.category}</p>
                     {summary.isAlert && (
                       <p className="text-red-400 text-xs font-medium">⚠ Acima do normal</p>
                     )}
@@ -403,8 +403,8 @@ export default function CategoriasPage() {
                         trendUp
                           ? 'text-red-400'
                           : trendDown
-                          ? 'text-green-400'
-                          : 'text-slate-500'
+                          ? 'text-mint-500'
+                          : 'text-gray-500'
                       }`}
                     >
                       {trendUp ? (
@@ -420,7 +420,7 @@ export default function CategoriasPage() {
 
                   <button
                     onClick={() => (isEditing ? cancelEdit() : openEdit(summary.category))}
-                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
                     title="Definir limite mensal"
                   >
                     {isEditing ? <X size={13} /> : <Pencil size={13} />}
@@ -428,7 +428,7 @@ export default function CategoriasPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between text-xs text-slate-400 mb-2">
+              <div className="flex justify-between text-xs text-gray-500 mb-2">
                 <span>
                   Atual:{' '}
                   <span className={`font-semibold ${cfg.textClass}`}>
@@ -438,7 +438,7 @@ export default function CategoriasPage() {
                 {summary.average > 0 && (
                   <span>
                     Média:{' '}
-                    <span className="text-slate-300 font-medium">
+                    <span className="text-gray-700 font-medium">
                       {formatCurrency(summary.average)}
                     </span>
                   </span>
@@ -447,16 +447,16 @@ export default function CategoriasPage() {
 
               {hasData && (
                 <div className="space-y-1.5 mb-3">
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${cfg.barClass}`}
                       style={{ width: `${currentWidth}%` }}
                     />
                   </div>
                   {summary.average > 0 && (
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-slate-600 transition-all"
+                        className="h-full rounded-full bg-gray-300 transition-all"
                         style={{ width: `${avgWidth}%` }}
                       />
                     </div>
@@ -468,13 +468,13 @@ export default function CategoriasPage() {
 
               {/* Edição de limite */}
               {isEditing && (
-                <div className="pt-3 border-t border-slate-800">
-                  <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-2">
                     Limite mensal (R$)
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                         R$
                       </span>
                       <input
@@ -486,21 +486,21 @@ export default function CategoriasPage() {
                         onChange={(e) => setEditAmount(e.target.value)}
                         placeholder="0,00"
                         autoFocus
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500 transition-colors"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
                       />
                     </div>
                     <button
                       onClick={() => saveEdit(summary.category)}
                       disabled={savingBudget}
-                      className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-60 flex items-center justify-center transition-colors"
+                      className="w-10 h-10 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-60 flex items-center justify-center transition-colors"
                     >
-                      <Check size={16} className="text-white" />
+                      <Check size={16} className="text-gray-900" />
                     </button>
                     {budget != null && (
                       <button
                         onClick={() => removeEdit(summary.category)}
                         disabled={savingBudget}
-                        className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-red-500/20 hover:text-red-400 disabled:opacity-60 flex items-center justify-center text-slate-400 transition-colors"
+                        className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-red-500/20 hover:text-red-400 disabled:opacity-60 flex items-center justify-center text-gray-500 transition-colors"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -511,18 +511,18 @@ export default function CategoriasPage() {
 
               {/* Barra de orçamento */}
               {!isEditing && budget != null && (
-                <div className="pt-3 border-t border-slate-800">
+                <div className="pt-3 border-t border-gray-100">
                   <div className="flex items-end justify-between mb-2">
                     <div>
-                      <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">
+                      <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">
                         Planejado
                       </p>
-                      <p className="text-slate-300 font-semibold text-sm">
+                      <p className="text-gray-700 font-semibold text-sm">
                         {formatCurrency(budget)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">
+                      <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">
                         Gasto atual
                       </p>
                       <p
@@ -531,7 +531,7 @@ export default function CategoriasPage() {
                             ? 'text-red-400'
                             : budgetPct! >= 80
                             ? 'text-yellow-400'
-                            : 'text-green-400'
+                            : 'text-mint-500'
                         }`}
                       >
                         {formatCurrency(summary.total)}{' '}
@@ -541,7 +541,7 @@ export default function CategoriasPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${budgetBarColor}`}
                       style={{ width: `${Math.min(budgetPct!, 100)}%` }}
@@ -561,7 +561,7 @@ export default function CategoriasPage() {
               )}
 
               {!hasData && !isEditing && budget == null && (
-                <p className="text-slate-600 text-xs">Sem lançamentos nesta categoria</p>
+                <p className="text-gray-500 text-xs">Sem lançamentos nesta categoria</p>
               )}
 
               {/* Micro ações */}
@@ -570,7 +570,7 @@ export default function CategoriasPage() {
                   {trendUp ? (
                     <>
                       <span
-                        className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                        className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer transition-colors duration-150 ease-out"
                         onClick={() =>
                           router.push(`/historico?categoria=${encodeURIComponent(summary.category)}`)
                         }
@@ -578,7 +578,7 @@ export default function CategoriasPage() {
                         Ver gastos
                       </span>
                       <span
-                        className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                        className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer transition-colors duration-150 ease-out"
                         onClick={() => console.log('ajustar-meta', summary.category)}
                       >
                         Reduzir meta
@@ -586,7 +586,7 @@ export default function CategoriasPage() {
                     </>
                   ) : (
                     <span
-                      className="text-xs text-slate-400 hover:text-white cursor-pointer transition-colors duration-150 ease-out"
+                      className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer transition-colors duration-150 ease-out"
                       onClick={() =>
                         router.push(`/historico?categoria=${encodeURIComponent(summary.category)}`)
                       }
@@ -603,11 +603,11 @@ export default function CategoriasPage() {
 
       {/* Evolução por categoria — últimos 6 meses */}
       {hasChartData && (
-        <div className="mt-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <h2 className="text-white font-semibold text-sm mb-0.5">Evolução por categoria</h2>
-          <p className="text-slate-500 text-xs mb-1">Top 3 categorias — últimos 6 meses</p>
+        <div className="mt-4 bg-white border border-gray-100 rounded-2xl p-4">
+          <h2 className="text-gray-900 font-semibold text-sm mb-0.5">Evolução por categoria</h2>
+          <p className="text-gray-500 text-xs mb-1">Top 3 categorias — últimos 6 meses</p>
           {chartTrendText && (
-            <p className="text-xs text-slate-400 mb-2">{chartTrendText}</p>
+            <p className="text-xs text-gray-500 mb-2">{chartTrendText}</p>
           )}
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%" minHeight={0}>
@@ -647,7 +647,7 @@ export default function CategoriasPage() {
                   className="w-2.5 h-2.5 rounded-sm shrink-0"
                   style={{ backgroundColor: CATEGORY_CONFIG[cat].color }}
                 />
-                <span className="text-slate-400 text-xs">{cat}</span>
+                <span className="text-gray-500 text-xs">{cat}</span>
               </div>
             ))}
           </div>

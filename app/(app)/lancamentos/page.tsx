@@ -53,7 +53,7 @@ function ExpenseList({
   onDelete: (e: Expense) => void;
 }) {
   if (expenses.length === 0) {
-    return <p className="text-slate-500 text-sm text-center py-6">Nenhum lançamento este mês ainda</p>;
+    return <p className="text-gray-500 text-sm text-center py-6">Nenhum lançamento este mês ainda</p>;
   }
   return (
     <div className="space-y-2">
@@ -67,27 +67,27 @@ function ExpenseList({
         return (
           <div
             key={exp.id}
-            className={`border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors duration-500 ${
-              isFlashing ? 'bg-slate-700/60' : 'bg-slate-900'
+            className={`border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors duration-500 ${
+              isFlashing ? 'bg-gray-100/60' : 'bg-white'
             } ${isNewest ? 'animate-in fade-in slide-in-from-bottom-3 duration-[180ms] ease-out' : ''}`}
           >
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
               {cfg.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{exp.description}</p>
-              <p className="text-slate-500 text-xs">{exp.category} · {day}/{month}</p>
+              <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
+              <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
             </div>
-            <span className={`font-semibold text-sm whitespace-nowrap ${isIncome ? 'text-green-400' : 'text-white'}`}>
+            <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#00b87a' : '#f04e5e' }}>
               {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
             </span>
-            <button onClick={() => onEdit(exp)} className="text-slate-600 hover:text-violet-400 transition-colors flex-shrink-0 ml-1" aria-label="Editar">
+            <button onClick={() => onEdit(exp)} className="text-gray-500 hover:text-mint-500 transition-colors flex-shrink-0 ml-1" aria-label="Editar">
               <Pencil size={15} />
             </button>
-            <button onClick={() => onDuplicate(exp)} className="text-slate-600 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
+            <button onClick={() => onDuplicate(exp)} className="text-gray-500 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
               <Copy size={15} />
             </button>
-            <button onClick={() => onDelete(exp)} className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
+            <button onClick={() => onDelete(exp)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
               <Trash2 size={15} />
             </button>
           </div>
@@ -263,11 +263,12 @@ export default function LancamentosPage() {
     : (hasAmount ? `Lançar ${formatCurrency(numAmount)}` : 'Lançar gasto');
 
   const ctaBase = 'w-full py-3 rounded-2xl font-semibold text-white text-base transition-all flex items-center justify-center gap-2';
-  const ctaActive = entryType === 'income'
-    ? 'bg-green-600 hover:bg-green-500'
-    : 'bg-violet-600 hover:bg-violet-500';
-  const ctaDisabled = 'bg-slate-700 opacity-50 cursor-default';
+  const ctaActive = '';
+  const ctaDisabled = 'bg-gray-200 opacity-50 cursor-default';
   const ctaColor = isValid ? ctaActive : ctaDisabled;
+  const ctaStyle: React.CSSProperties = isValid
+    ? { background: 'linear-gradient(135deg, #00b87a, #00d68f)' }
+    : {};
 
   // Pressing animation style
   const pressingStyle: React.CSSProperties = {
@@ -282,12 +283,12 @@ export default function LancamentosPage() {
     : 'drop-shadow(0 0 12px rgba(74, 222, 128, 0.3))';
 
   const valueColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400' : 'text-green-400'
-    : 'text-white';
+    ? entryType === 'expense' ? 'text-red-400' : 'text-mint-500'
+    : 'text-gray-900';
 
   const prefixColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400/50' : 'text-green-400/50'
-    : 'text-slate-500';
+    ? entryType === 'expense' ? 'text-red-400/50' : 'text-mint-500/50'
+    : 'text-gray-500';
 
   return (
     <>
@@ -341,7 +342,7 @@ export default function LancamentosPage() {
                 className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   entryType === 'expense'
                     ? 'bg-red-500/15 border border-red-500/40 text-red-400'
-                    : 'border border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600'
+                    : 'border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-slate-600'
                 }`}
               >
                 Gasto
@@ -351,8 +352,8 @@ export default function LancamentosPage() {
                 onClick={() => handleTypeChange('income')}
                 className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   entryType === 'income'
-                    ? 'bg-green-500/20 border border-green-500/60 text-green-400'
-                    : 'border border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600'
+                    ? 'bg-mint-50 border border-green-500/60 text-mint-500'
+                    : 'border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-slate-600'
                 }`}
               >
                 Receita
@@ -371,8 +372,8 @@ export default function LancamentosPage() {
                     onClick={() => setCategory(cat)}
                     className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
                       active
-                        ? 'bg-violet-500/15 border-violet-500/50 text-violet-300'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-400'
+                        ? 'bg-mint-50 border-mint-500/50 text-mint-500'
+                        : 'bg-white/50 border-gray-100 text-gray-500 hover:border-slate-600 hover:text-gray-500'
                     }`}
                   >
                     <span className="text-xl leading-none">{cfg.icon}</span>
@@ -389,7 +390,7 @@ export default function LancamentosPage() {
                 <button
                   type="button"
                   onClick={() => setShowDescription(true)}
-                  className="text-slate-500 text-sm hover:text-slate-300 transition-colors"
+                  className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
                 >
                   + Adicionar descrição (opcional)
                 </button>
@@ -401,21 +402,21 @@ export default function LancamentosPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
-                  className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-white/60 border border-gray-100 rounded-xl px-4 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               )}
 
               {/* Date */}
               <div className="flex items-center gap-1.5">
-                <CalendarDays size={14} className="text-slate-600 flex-shrink-0" />
+                <CalendarDays size={14} className="text-gray-500 flex-shrink-0" />
                 {!showDatePicker ? (
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(true)}
-                    className="flex items-center gap-1 text-slate-500 text-sm hover:text-slate-300 transition-colors"
+                    className="flex items-center gap-1 text-gray-500 text-sm hover:text-gray-700 transition-colors"
                   >
                     {formatDateLabel(date)}
-                    <Pencil size={11} className="text-slate-600" />
+                    <Pencil size={11} className="text-gray-500" />
                   </button>
                 ) : (
                   <input
@@ -424,7 +425,7 @@ export default function LancamentosPage() {
                     autoFocus
                     onChange={(e) => { setDate(e.target.value); setShowDatePicker(false); }}
                     onBlur={() => setShowDatePicker(false)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-violet-500"
+                    className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-gray-900 text-sm focus:outline-none focus:border-mint-500"
                   />
                 )}
               </div>
@@ -433,7 +434,7 @@ export default function LancamentosPage() {
               <button
                 type="button"
                 onClick={() => setShowMoreOptions((v) => !v)}
-                className="flex items-center gap-1.5 text-slate-500 text-sm hover:text-slate-300 transition-colors"
+                className="flex items-center gap-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
               >
                 <Settings2 size={14} />
                 Mais opções
@@ -441,13 +442,13 @@ export default function LancamentosPage() {
               </button>
 
               {showMoreOptions && (
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-4">
+                <div className="bg-white/60 border border-gray-100 rounded-xl p-4 space-y-4">
                   <div>
-                    <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-2">Tipo de lançamento</label>
-                    <div className="flex p-0.5 bg-slate-800 rounded-xl">
+                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-2">Tipo de lançamento</label>
+                    <div className="flex p-0.5 bg-gray-50 rounded-xl">
                       {(['single', 'installments', 'recurring'] as const).map((mode) => (
                         <button key={mode} type="button" onClick={() => setLaunchMode(mode)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${launchMode === mode ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+                          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${launchMode === mode ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
                           {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
                         </button>
                       ))}
@@ -456,13 +457,13 @@ export default function LancamentosPage() {
 
                   {launchMode === 'installments' && (
                     <div>
-                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Número de parcelas</label>
+                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Número de parcelas</label>
                       <input
                         type="number" inputMode="numeric" min={2} max={48} value={installments}
                         onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-violet-500 transition-colors"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-mint-500 transition-colors"
                       />
-                      <p className="text-slate-600 text-xs mt-1">
+                      <p className="text-gray-500 text-xs mt-1">
                         {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
                       </p>
                     </div>
@@ -470,13 +471,13 @@ export default function LancamentosPage() {
 
                   {launchMode === 'recurring' && (
                     <div>
-                      <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">Dia do mês para lançar automaticamente</label>
+                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Dia do mês para lançar automaticamente</label>
                       <input
                         type="number" inputMode="numeric" min={1} max={31} value={recurringDay}
                         onChange={(e) => setRecurringDay(e.target.value)} placeholder="Ex: 5"
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                       />
-                      <p className="text-slate-600 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
+                      <p className="text-gray-500 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
                     </div>
                   )}
                 </div>
@@ -499,7 +500,7 @@ export default function LancamentosPage() {
               onPointerUp={() => setPressing(false)}
               onPointerLeave={() => setPressing(false)}
               className={`hidden md:flex ${ctaBase} ${ctaColor}`}
-              style={pressingStyle}
+              style={{ ...pressingStyle, ...ctaStyle }}
             >
               {saving ? <Loader2 size={20} className="animate-spin" /> : ctaLabel}
             </button>
@@ -510,7 +511,7 @@ export default function LancamentosPage() {
             className="hidden md:block"
             style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
           >
-            <h2 className="text-slate-200 font-semibold text-sm mb-2">Este mês</h2>
+            <h2 className="text-gray-800 font-semibold text-sm mb-2">Este mês</h2>
             <ExpenseList
               expenses={currentExpenses}
               newestId={newestId}
@@ -527,7 +528,7 @@ export default function LancamentosPage() {
           className="md:hidden mt-6"
           style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
         >
-          <h2 className="text-slate-200 font-semibold text-sm mb-2">Este mês</h2>
+          <h2 className="text-gray-800 font-semibold text-sm mb-2">Este mês</h2>
           <ExpenseList
             expenses={currentExpenses}
             newestId={newestId}
@@ -549,7 +550,7 @@ export default function LancamentosPage() {
           onPointerUp={() => setPressing(false)}
           onPointerLeave={() => setPressing(false)}
           className={`${ctaBase} ${ctaColor}`}
-          style={pressingStyle}
+          style={{ ...pressingStyle, ...ctaStyle }}
         >
           {saving ? <Loader2 size={20} className="animate-spin" /> : ctaLabel}
         </button>
@@ -559,7 +560,7 @@ export default function LancamentosPage() {
       {topToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pointer-events-none">
           <div
-            className="bg-slate-800 border border-green-500/40 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg text-center"
+            className="bg-gray-50 border border-green-500/40 text-gray-900 text-sm font-medium px-4 py-3 rounded-xl shadow-lg text-center"
             style={{
               opacity: toastVisible ? 1 : 0,
               transform: toastVisible ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.98)',
