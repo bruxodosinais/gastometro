@@ -7,6 +7,16 @@ export type ExpenseCategory =
   | 'Assinaturas'
   | 'Saúde'
   | 'Lazer'
+  | 'Moradia'
+  | 'Educação'
+  | 'Investimentos'
+  | 'Pet'
+  | 'Vestuário'
+  | 'Beleza'
+  | 'Farmácia'
+  | 'Combustível'
+  | 'Internet'
+  | 'Telefone'
   | 'Outros';
 
 export type IncomeCategory = 'Salário' | 'Freela' | 'Renda passiva' | 'Outros';
@@ -20,6 +30,16 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Assinaturas',
   'Saúde',
   'Lazer',
+  'Moradia',
+  'Educação',
+  'Investimentos',
+  'Pet',
+  'Vestuário',
+  'Beleza',
+  'Farmácia',
+  'Combustível',
+  'Internet',
+  'Telefone',
   'Outros',
 ];
 
@@ -55,6 +75,7 @@ export interface RecurringExpense {
   category: Category;
   type: EntryType;
   dayOfMonth: number;
+  dueDay?: number;
   active: boolean;
   createdAt: string;
 }
@@ -126,4 +147,17 @@ export interface Liability {
   value: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MonthlyObligation {
+  id: string;
+  recurringExpenseId: string;
+  month: string; // YYYY-MM
+  amount: number;
+  description: string;
+  category: Category;
+  dueDay: number;
+  status: 'pending' | 'paid';
+  paidAt?: string;
+  createdAt: string;
 }

@@ -3,8 +3,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
-import { getExpenses, getBudgets, getRecurringExpenses, getMonthlyPlan } from '@/lib/storage';
+import { Bell, Check, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
+import {
+  getExpenses,
+  getBudgets,
+  getRecurringExpenses,
+  getMonthlyPlan,
+  getMonthlyObligations,
+  checkAndGenerateObligations,
+  markObligationAsPaid,
+} from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
@@ -16,7 +24,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Expense, EXPENSE_CATEGORIES, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, Expense, EXPENSE_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
 
@@ -82,7 +90,9 @@ export default function HomePage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+  const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
+  const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
@@ -101,12 +111,29 @@ export default function HomePage() {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    Promise.all([getExpenses(), getBudgets(), getRecurringExpenses()]).then(([exp, bud, rec]) => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    Promise.all([
+      getExpenses(),
+      getBudgets(),
+      getRecurringExpenses(),
+      checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
+    ]).then(([exp, bud, rec, obs]) => {
       setExpenses(exp);
       setBudgets(bud);
       setRecurringExpenses(rec);
+      setObligations(obs);
       setReady(true);
     });
+
+    // Recarrega obrigações quando o usuário volta para esta aba
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        const month = new Date().toISOString().slice(0, 7);
+        getMonthlyObligations(month).then(setObligations);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
     createClient().auth.getUser().then(({ data }) => {
       const u = data.user;
       if (!u) return;
@@ -211,6 +238,25 @@ export default function HomePage() {
     return () => { document.body.style.overflow = ''; };
   }, [showResumoModal]);
 
+  async function handleMarkObligationPaid(obligationId: string) {
+    const ob = obligations.find((o) => o.id === obligationId);
+    if (!ob || payingIds.has(obligationId)) return;
+    setPayingIds((prev) => new Set([...prev, obligationId]));
+    setObligations((prev) =>
+      prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
+    );
+    try {
+      const { expense } = await markObligationAsPaid(obligationId, ob);
+      setExpenses((prev) => [expense, ...prev]);
+    } catch {
+      setObligations((prev) =>
+        prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
+      );
+    } finally {
+      setPayingIds((prev) => { const next = new Set(prev); next.delete(obligationId); return next; });
+    }
+  }
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -299,6 +345,10 @@ export default function HomePage() {
   const spent = calculateTotalByType(periodEntries, 'expense');
   const balance = income - spent;
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
+
+  // ── Obrigações do mês ────────────────────────────────────────────────────────
+  const pendingObligations = obligations.filter((o) => o.status === 'pending');
+  const pendingTotal = pendingObligations.reduce((s, o) => s + o.amount, 0);
 
   const budgetAlerts = budgets
     .map((b) => {
@@ -564,6 +614,26 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* ── ALERTA DE CONTAS PENDENTES ─────────────────────────────────────────── */}
+      {isCurrentMonth && pendingObligations.length > 0 && (
+        <div
+          className="mb-3 bg-amber-500/8 border border-amber-500/25 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:bg-amber-500/12 transition-colors"
+          style={mounted ? anim(50) : hidden}
+          onClick={() => document.getElementById('contas-do-mes')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span className="text-lg leading-none flex-shrink-0">⚠️</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-300 font-semibold text-sm">
+              {formatCurrency(pendingTotal)} em contas pendentes
+            </p>
+            <p className="text-amber-400/60 text-xs">
+              {pendingObligations.length} conta{pendingObligations.length > 1 ? 's' : ''} para confirmar pagamento
+            </p>
+          </div>
+          <span className="text-amber-400/50 text-xs flex-shrink-0">↓ ver</span>
+        </div>
+      )}
+
       {/* ── LIMITE DE HOJE ──────────────────────────────────────────────────────── */}
       {isCurrentMonth && (
         <div
@@ -616,6 +686,77 @@ export default function HomePage() {
               </div>
               <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ── CONTAS DO MÊS ──────────────────────────────────────────────────────── */}
+      {isCurrentMonth && obligations.length > 0 && (
+        <div
+          id="contas-do-mes"
+          className="mb-3 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden"
+          style={mounted ? anim(130) : hidden}
+        >
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+            <p className="text-slate-200 font-semibold text-sm uppercase tracking-wider text-xs">Contas do mês</p>
+            {pendingObligations.length > 0 ? (
+              <span className="bg-amber-500/15 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
+                {pendingObligations.length} pendente{pendingObligations.length > 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="text-green-400 text-xs font-medium">Tudo em dia</span>
+            )}
+          </div>
+
+          {pendingObligations.length === 0 ? (
+            <div className="px-4 py-5 text-center">
+              <span className="text-green-400 text-sm">✅ Todas as contas do mês em dia</span>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/60">
+              {obligations.map((ob) => {
+                const cfg = CATEGORY_CONFIG[ob.category as Category];
+                const isPaid = ob.status === 'paid';
+                const isPaying = payingIds.has(ob.id);
+                const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
+                const dueToday = !isPaid && todayDay === ob.dueDay;
+                const dueLabelText = isPaid ? '' : daysLate > 0
+                  ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
+                  : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
+                const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-slate-500';
+                return (
+                  <div
+                    key={ob.id}
+                    className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''}`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-slate-800'}`}>
+                      {cfg?.icon ?? '💸'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-slate-500' : 'text-white'}`}>
+                        {ob.description}
+                      </p>
+                      {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                    </div>
+                    <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-slate-500' : 'text-white'}`}>
+                      {formatCurrency(ob.amount)}
+                    </span>
+                    {isPaid ? (
+                      <span className="text-green-400 text-xs font-semibold flex-shrink-0">Pago ✓</span>
+                    ) : (
+                      <button
+                        onClick={() => handleMarkObligationPaid(ob.id)}
+                        disabled={isPaying}
+                        className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50"
+                        title="Marcar como pago"
+                      >
+                        {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

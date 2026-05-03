@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Loader2, Pause, Play, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Pause, Play, Trash2 } from 'lucide-react';
 import {
+  addObligationForNewRecurring,
   addRecurringExpense,
   deleteRecurringExpense,
-  getLaunchedRecurringIds,
+  getMonthlyObligations,
   getRecurringExpenses,
+  markObligationAsPaid,
   toggleRecurringExpense,
 } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
@@ -16,12 +18,14 @@ import {
   EntryType,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
+  MonthlyObligation,
   RecurringExpense,
 } from '@/lib/types';
 
 export default function RecorrentesPage() {
   const [recurrings, setRecurrings] = useState<RecurringExpense[]>([]);
-  const [launchedIds, setLaunchedIds] = useState<Set<string>>(new Set());
+  const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
+  const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
 
   // form
@@ -30,14 +34,16 @@ export default function RecorrentesPage() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('Alimentação');
   const [dayOfMonth, setDayOfMonth] = useState('');
+  const [dueDay, setDueDay] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getRecurringExpenses(), getLaunchedRecurringIds()]).then(
-      ([recs, ids]) => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    Promise.all([getRecurringExpenses(), getMonthlyObligations(currentMonth)]).then(
+      ([recs, obs]) => {
         setRecurrings(recs);
-        setLaunchedIds(ids);
+        setObligations(obs);
         setReady(true);
       }
     );
@@ -52,7 +58,9 @@ export default function RecorrentesPage() {
     e.preventDefault();
     const num = parseFloat(amount.replace(',', '.'));
     const day = parseInt(dayOfMonth, 10);
+    const due = dueDay ? parseInt(dueDay, 10) : day;
     if (!num || num <= 0 || !description.trim() || !day || day < 1 || day > 31) return;
+    if (dueDay && (due < 1 || due > 31)) return;
 
     setSaving(true);
     setFormError(null);
@@ -63,12 +71,21 @@ export default function RecorrentesPage() {
         category,
         type: entryType,
         dayOfMonth: day,
+        dueDay: due,
         active: true,
       });
       setRecurrings((prev) => [saved, ...prev]);
+
+      // Cria obrigação para o mês atual imediatamente
+      if (saved.type === 'expense') {
+        const ob = await addObligationForNewRecurring(saved);
+        if (ob) setObligations((prev) => [...prev, ob].sort((a, b) => a.dueDay - b.dueDay));
+      }
+
       setAmount('');
       setDescription('');
       setDayOfMonth('');
+      setDueDay('');
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar.');
     } finally {
@@ -78,9 +95,7 @@ export default function RecorrentesPage() {
 
   async function handleToggle(rec: RecurringExpense) {
     const next = !rec.active;
-    setRecurrings((prev) =>
-      prev.map((r) => (r.id === rec.id ? { ...r, active: next } : r))
-    );
+    setRecurrings((prev) => prev.map((r) => (r.id === rec.id ? { ...r, active: next } : r)));
     await toggleRecurringExpense(rec.id, next);
   }
 
@@ -89,8 +104,32 @@ export default function RecorrentesPage() {
     await deleteRecurringExpense(id);
   }
 
+  async function handleMarkObligationPaid(obligationId: string) {
+    const ob = obligations.find((o) => o.id === obligationId);
+    if (!ob || payingIds.has(obligationId)) return;
+    setPayingIds((prev) => new Set([...prev, obligationId]));
+    setObligations((prev) =>
+      prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
+    );
+    try {
+      await markObligationAsPaid(obligationId, ob);
+    } catch {
+      setObligations((prev) =>
+        prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
+      );
+    } finally {
+      setPayingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(obligationId);
+        return next;
+      });
+    }
+  }
+
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+  const currentMonthName = new Date().toLocaleString('pt-BR', { month: 'long' });
+  const todayDay = new Date().getDate();
 
   if (!ready) {
     return (
@@ -183,25 +222,41 @@ export default function RecorrentesPage() {
             />
           </div>
 
-          {/* Dia do mês */}
-          <div>
-            <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              Dia do mês para lançar
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={31}
-              value={dayOfMonth}
-              onChange={(e) => setDayOfMonth(e.target.value)}
-              placeholder="Ex: 5"
-              required
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
-            />
-            <p className="text-slate-600 text-xs mt-1">
-              Meses sem esse dia usam o último dia disponível
-            </p>
+          {/* Dia do mês + Dia de vencimento — side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                Dia de lançamento
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={dayOfMonth}
+                onChange={(e) => setDayOfMonth(e.target.value)}
+                placeholder="Ex: 1"
+                required
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <p className="text-slate-600 text-xs mt-1">Quando entra no histórico</p>
+            </div>
+            <div>
+              <label className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                Dia de vencimento
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+                placeholder={dayOfMonth || 'Ex: 5'}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <p className="text-slate-600 text-xs mt-1">Limite p/ pagar sem atraso</p>
+            </div>
           </div>
 
           {/* Categoria */}
@@ -270,7 +325,14 @@ export default function RecorrentesPage() {
               {recurrings.map((rec) => {
                 const cfg = CATEGORY_CONFIG[rec.category];
                 const isIncome = rec.type === 'income';
-                const launched = launchedIds.has(rec.id);
+                const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
+                const isPaid = obligation?.status === 'paid';
+                const isPaying = obligation ? payingIds.has(obligation.id) : false;
+                const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
+                const daysLate = obligation && !isPaid && todayDay > effectiveDueDay
+                  ? todayDay - effectiveDueDay : 0;
+                const dueToday = obligation && !isPaid && todayDay === effectiveDueDay;
+
                 return (
                   <div
                     key={rec.id}
@@ -278,38 +340,54 @@ export default function RecorrentesPage() {
                       rec.active ? 'border-slate-800' : 'border-slate-800/50 opacity-50'
                     }`}
                   >
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}
-                    >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
                       {cfg.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{rec.description}</p>
-                      <p className="text-slate-500 text-xs">
-                        {rec.category} · Dia {rec.dayOfMonth}
-                      </p>
+                      <p className="text-slate-500 text-xs">{rec.category} · Dia {rec.dayOfMonth}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span
-                        className={`font-semibold text-sm ${
-                          isIncome ? 'text-green-400' : 'text-white'
-                        }`}
-                      >
-                        {isIncome ? '+' : ''}
-                        {formatCurrency(rec.amount)}
+                      <span className={`font-semibold text-sm ${isIncome ? 'text-green-400' : 'text-white'}`}>
+                        {isIncome ? '+' : ''}{formatCurrency(rec.amount)}
                       </span>
-                      {launched && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">
-                          lançado
+                      {rec.type === 'expense' && rec.active && obligation && (
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border ${
+                          isPaid
+                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                            : daysLate > 0
+                            ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                            : dueToday
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : 'bg-slate-700/50 text-slate-400 border-slate-700'
+                        }`}>
+                          {isPaid
+                            ? `✅ Pago em ${currentMonthName}`
+                            : daysLate > 0
+                            ? `🔴 Atrasado ${daysLate}d`
+                            : dueToday
+                            ? `⚠️ Vence hoje`
+                            : `⏳ Vence dia ${effectiveDueDay}`}
                         </span>
                       )}
                     </div>
+
+                    {/* Botão marcar como pago */}
+                    {rec.type === 'expense' && rec.active && obligation && !isPaid && (
+                      <button
+                        onClick={() => handleMarkObligationPaid(obligation.id)}
+                        disabled={isPaying}
+                        className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50"
+                        title="Marcar como pago"
+                      >
+                        {isPaying ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleToggle(rec)}
                       className={`transition-colors flex-shrink-0 ${
-                        rec.active
-                          ? 'text-slate-600 hover:text-yellow-400'
-                          : 'text-slate-600 hover:text-green-400'
+                        rec.active ? 'text-slate-600 hover:text-yellow-400' : 'text-slate-600 hover:text-green-400'
                       }`}
                       aria-label={rec.active ? 'Pausar' : 'Ativar'}
                     >

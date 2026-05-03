@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { checkAndLaunchRecurring } from '@/lib/storage';
+import { checkAndGenerateObligations } from '@/lib/storage';
 
 export default function RecurringCheck() {
   useEffect(() => {
-    checkAndLaunchRecurring();
+    checkAndGenerateObligations();
   }, []);
   return null;
 }

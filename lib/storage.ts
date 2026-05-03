@@ -1,5 +1,5 @@
 import { createClient } from './supabase/client';
-import { Asset, AssetType, Budget, Category, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyPlan, RecurringExpense } from './types';
+import { Asset, AssetType, Budget, Category, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyObligation, MonthlyPlan, RecurringExpense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
   return {
@@ -131,6 +131,7 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
     category: row.category as Category,
     type: (row.type as string) as EntryType,
     dayOfMonth: row.day_of_month as number,
+    dueDay: (row.due_day as number | null) ?? undefined,
     active: row.active as boolean,
     createdAt: row.created_at as string,
   };
@@ -164,6 +165,7 @@ export async function addRecurringExpense(
       category: data.category,
       type: data.type,
       day_of_month: data.dayOfMonth,
+      due_day: data.dueDay ?? data.dayOfMonth,
       active: data.active,
     })
     .select()
@@ -584,6 +586,171 @@ export async function deleteLiability(id: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   await supabase.from('liabilities').delete().eq('id', id).eq('user_id', user.id);
+}
+
+// ─── Obrigações Mensais ───────────────────────────────────────────────────────
+
+function toMonthlyObligation(row: Record<string, unknown>): MonthlyObligation {
+  return {
+    id: row.id as string,
+    recurringExpenseId: row.recurring_expense_id as string,
+    month: row.month as string,
+    amount: row.amount as number,
+    description: row.description as string,
+    category: row.category as Category,
+    dueDay: row.due_day as number,
+    status: row.status as 'pending' | 'paid',
+    paidAt: (row.paid_at as string | null) ?? undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getMonthlyObligations(month: string): Promise<MonthlyObligation[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('monthly_obligations')
+    .select('*')
+    .eq('month', month)
+    .order('due_day', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map(toMonthlyObligation);
+}
+
+// Gera as obrigações do mês caso ainda não existam. Protegido por sessionStorage
+// para não re-executar desnecessariamente dentro da mesma sessão.
+export async function checkAndGenerateObligations(): Promise<void> {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const sessionKey = `obligations_generated_${currentMonth}`;
+
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) return;
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { count, error: countError } = await supabase
+    .from('monthly_obligations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('month', currentMonth);
+
+  // Se a tabela não existir ou houver erro, não marcar sessionStorage
+  if (countError) return;
+
+  if ((count ?? 0) > 0) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  const { data: recurring } = await supabase
+    .from('recurring_expenses')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('active', true)
+    .eq('type', 'expense');
+
+  if (!recurring?.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  const obligations = recurring.map((rec) => ({
+    user_id: user.id,
+    recurring_expense_id: rec.id,
+    month: currentMonth,
+    amount: rec.amount,
+    description: rec.description,
+    category: rec.category,
+    due_day: (rec.due_day as number | null) ?? rec.day_of_month,
+    status: 'pending',
+  }));
+
+  const { error: insertError } = await supabase.from('monthly_obligations').insert(obligations);
+  if (!insertError && typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(sessionKey, '1');
+  }
+}
+
+export async function markObligationAsPaid(
+  obligationId: string,
+  obligation: MonthlyObligation
+): Promise<{ obligation: MonthlyObligation; expense: Expense }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const [year, month] = obligation.month.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(obligation.dueDay, lastDay);
+  const date = `${obligation.month}-${String(day).padStart(2, '0')}`;
+
+  const { data: obligationRow, error: obErr } = await supabase
+    .from('monthly_obligations')
+    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .eq('id', obligationId)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (obErr) throw obErr;
+
+  const { data: expenseRow, error: expErr } = await supabase
+    .from('expenses')
+    .insert({
+      user_id: user.id,
+      type: 'expense',
+      amount: obligation.amount,
+      description: obligation.description,
+      category: obligation.category,
+      date,
+      recurring_expense_id: obligation.recurringExpenseId,
+    })
+    .select()
+    .single();
+
+  if (expErr) throw expErr;
+
+  return {
+    obligation: toMonthlyObligation(obligationRow),
+    expense: toExpense(expenseRow),
+  };
+}
+
+// Cria obrigação imediata para um recorrente recém-cadastrado no mês atual.
+// Usado após addRecurringExpense para evitar depender do checkAndGenerateObligations.
+export async function addObligationForNewRecurring(
+  rec: RecurringExpense
+): Promise<MonthlyObligation | null> {
+  if (rec.type !== 'expense' || !rec.active) return null;
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const { data, error } = await supabase
+    .from('monthly_obligations')
+    .insert({
+      user_id: user.id,
+      recurring_expense_id: rec.id,
+      month: currentMonth,
+      amount: rec.amount,
+      description: rec.description,
+      category: rec.category,
+      due_day: rec.dueDay ?? rec.dayOfMonth,
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) return null;
+  return toMonthlyObligation(data);
 }
 
 export async function addGoalContribution(
