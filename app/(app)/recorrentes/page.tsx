@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Check, Loader2, Pause, Play, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, Loader2, MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
+import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import {
   addObligationForNewRecurring,
   addRecurringExpense,
@@ -37,6 +38,17 @@ export default function RecorrentesPage() {
   const [dueDay, setDueDay] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [inputScale, setInputScale] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenuId]);
 
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -52,6 +64,7 @@ export default function RecorrentesPage() {
   function handleTypeChange(type: EntryType) {
     setEntryType(type);
     setCategory(type === 'expense' ? 'Alimentação' : 'Salário');
+    setShowCategoryPicker(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -128,8 +141,21 @@ export default function RecorrentesPage() {
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-  const currentMonthName = new Date().toLocaleString('pt-BR', { month: 'long' });
+
+  const hasAmount = amount !== '' && amount !== '0';
+  const glowColor = entryType === 'expense'
+    ? 'drop-shadow(0 0 12px rgba(248, 113, 113, 0.3))'
+    : 'drop-shadow(0 0 12px rgba(74, 222, 128, 0.3))';
+  const valueColor = hasAmount
+    ? entryType === 'expense' ? 'text-red-400' : 'text-mint-500'
+    : 'text-gray-900';
+  const prefixColor = hasAmount
+    ? entryType === 'expense' ? 'text-red-400/50' : 'text-mint-500/50'
+    : 'text-gray-500';
   const todayDay = new Date().getDate();
+  const totalMonthlyAmount = recurrings
+    .filter((r) => r.active && r.type === 'expense')
+    .reduce((sum, r) => sum + r.amount, 0);
 
   if (!ready) {
     return (
@@ -180,31 +206,44 @@ export default function RecorrentesPage() {
           </div>
 
           {/* Valor */}
-          <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              Valor (R$)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">
-                R$
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0,00"
-                required
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-lg font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-              />
-            </div>
+          <div
+            className="flex items-center justify-center gap-2 py-2"
+            style={{
+              filter: inputFocused ? glowColor : 'none',
+              transition: 'filter 200ms ease',
+            }}
+          >
+            <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
+              R$
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
+                setInputScale(true);
+                setTimeout(() => setInputScale(false), 100);
+              }}
+              onFocus={(e) => {
+                setInputFocused(true);
+                if (e.target.value === '0') setAmount('');
+              }}
+              onBlur={() => setInputFocused(false)}
+              placeholder="0"
+              required
+              className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-48 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
+              style={{
+                transform: inputScale ? 'scale(1.02)' : 'scale(1)',
+                transition: 'transform 100ms ease-out, color 200ms ease',
+                caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+              }}
+            />
           </div>
 
           {/* Descrição */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <label className="text-gray-500 text-xs font-medium block mb-1.5">
               Descrição
             </label>
             <input
@@ -225,7 +264,7 @@ export default function RecorrentesPage() {
           {/* Dia do mês + Dia de vencimento — side by side */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+              <label className="text-gray-500 text-xs font-medium block mb-1.5">
                 Dia de lançamento
               </label>
               <input
@@ -235,14 +274,14 @@ export default function RecorrentesPage() {
                 max={31}
                 value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(e.target.value)}
-                placeholder="Ex: 1"
+                placeholder="Ex: 1 (dia do mês)"
                 required
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
               />
-              <p className="text-gray-500 text-xs mt-1">Quando entra no histórico</p>
+              <p className="text-gray-500 text-xs mt-1">Quando aparece no histórico</p>
             </div>
             <div>
-              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+              <label className="text-gray-500 text-xs font-medium block mb-1.5">
                 Dia de vencimento
               </label>
               <input
@@ -252,39 +291,27 @@ export default function RecorrentesPage() {
                 max={31}
                 value={dueDay}
                 onChange={(e) => setDueDay(e.target.value)}
-                placeholder={dayOfMonth || 'Ex: 5'}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                placeholder="Ex: 10"
+                className="w-full bg-gray-50 border border-violet-400/40 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
               />
-              <p className="text-gray-500 text-xs mt-1">Limite p/ pagar sem atraso</p>
+              <p className="text-gray-500 text-xs mt-1">Limite para pagar sem atraso</p>
             </div>
           </div>
 
           {/* Categoria */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-2">
+            <label className="text-gray-500 text-xs font-medium block mb-1.5">
               Categoria
             </label>
-            <div className={`grid gap-2 ${entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2'}`}>
-              {categories.map((cat) => {
-                const cfg = CATEGORY_CONFIG[cat];
-                const active = category === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategory(cat)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
-                      active
-                        ? `${cfg.bgClass} ${cfg.borderClass} ${cfg.textClass}`
-                        : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-lg">{cfg.icon}</span>
-                    <span className="text-[10px] leading-tight text-center">{cat}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowCategoryPicker(true)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-gray-300"
+            >
+              <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
+              <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
+              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+            </button>
           </div>
 
           {formError && (
@@ -297,11 +324,7 @@ export default function RecorrentesPage() {
           <button
             type="submit"
             disabled={saving}
-            className={`w-full py-3.5 rounded-xl font-semibold text-gray-900 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 ${
-              entryType === 'income'
-                ? 'bg-mint hover:bg-mint'
-                : 'bg-mint hover:bg-mint-700'
-            }`}
+            className="w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 bg-[#7C3AED] hover:bg-[#6d28d9]"
           >
             {saving ? <Loader2 size={18} className="animate-spin" /> : 'Cadastrar recorrente'}
           </button>
@@ -309,12 +332,23 @@ export default function RecorrentesPage() {
 
         {/* Lista de recorrentes */}
         <div>
-          <h2 className="text-gray-800 font-semibold text-sm mb-2">
-            Cadastrados
-            {recurrings.length > 0 && (
-              <span className="ml-2 text-gray-500 font-normal">· {currentMonth}</span>
-            )}
-          </h2>
+          <div className="flex items-center gap-3 pt-6 md:pt-0 mb-4">
+            <div className="flex-1 h-px bg-gray-100" />
+            <h2 className="text-gray-800 font-semibold text-sm whitespace-nowrap">
+              Cadastrados
+              {recurrings.length > 0 && (
+                <span className="ml-1 text-gray-500 font-normal">· {currentMonth}</span>
+              )}
+            </h2>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          {recurrings.length > 0 && (
+            <p className="text-gray-400 text-xs mb-3">
+              {recurrings.filter((r) => r.active).length} recorrentes
+              {totalMonthlyAmount > 0 && ` · ${formatCurrency(totalMonthlyAmount)} total`}
+            </p>
+          )}
 
           {recurrings.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">
@@ -331,75 +365,127 @@ export default function RecorrentesPage() {
                 const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
                 const daysLate = obligation && !isPaid && todayDay > effectiveDueDay
                   ? todayDay - effectiveDueDay : 0;
-                const dueToday = obligation && !isPaid && todayDay === effectiveDueDay;
+                const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
+
+                // left border color per state
+                const leftBorderColor = !hasObligation
+                  ? 'transparent'
+                  : isPaid
+                  ? '#10B981'
+                  : daysLate > 0
+                  ? '#EF4444'
+                  : '#F59E0B';
+
+                // card background tint per state
+                const cardBgClass = !hasObligation
+                  ? 'bg-white'
+                  : isPaid
+                  ? 'bg-emerald-500/5'
+                  : daysLate > 0
+                  ? 'bg-red-500/[0.06]'
+                  : 'bg-white';
+
+                // badge
+                const badgeClass = isPaid
+                  ? 'bg-emerald-500 text-white'
+                  : daysLate > 0
+                  ? 'bg-red-500 text-white'
+                  : 'bg-amber-500/20 text-amber-700';
+                const badgeText = isPaid
+                  ? 'Pago'
+                  : daysLate > 0
+                  ? `Atrasado ${daysLate}d`
+                  : todayDay === effectiveDueDay
+                  ? 'Vence hoje'
+                  : `Vence dia ${effectiveDueDay}`;
+
+                const contentOpacity = isPaid ? 'opacity-60' : '';
+                const isMenuOpen = openMenuId === rec.id;
 
                 return (
                   <div
                     key={rec.id}
-                    className={`bg-white border rounded-xl px-4 py-3 flex items-center gap-3 transition-opacity ${
-                      rec.active ? 'border-gray-100' : 'border-gray-100 opacity-50'
-                    }`}
+                    className={`border border-gray-100 rounded-xl transition-all ${cardBgClass} ${!rec.active ? 'opacity-50' : ''}`}
+                    style={{
+                      padding: '12px 14px',
+                      borderLeftWidth: '3px',
+                      borderLeftColor: leftBorderColor,
+                    }}
                   >
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
-                      {cfg.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-900 text-sm font-medium truncate">{rec.description}</p>
-                      <p className="text-gray-500 text-xs">{rec.category} · Dia {rec.dayOfMonth}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className={`font-semibold text-sm ${isIncome ? 'text-mint-500' : 'text-gray-900'}`}>
-                        {isIncome ? '+' : ''}{formatCurrency(rec.amount)}
-                      </span>
-                      {rec.type === 'expense' && rec.active && obligation && (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border ${
-                          isPaid
-                            ? 'bg-mint-50 text-mint-500 border-green-500/20'
-                            : daysLate > 0
-                            ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                            : dueToday
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-gray-100/50 text-gray-500 border-gray-200'
-                        }`}>
-                          {isPaid
-                            ? `✅ Pago em ${currentMonthName}`
-                            : daysLate > 0
-                            ? `🔴 Atrasado ${daysLate}d`
-                            : dueToday
-                            ? `⚠️ Vence hoje`
-                            : `⏳ Vence dia ${effectiveDueDay}`}
-                        </span>
-                      )}
-                    </div>
+                    <div className="flex items-start gap-2.5">
+                      {/* Category icon */}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5 ${cfg.bgClass} ${contentOpacity}`}>
+                        {cfg.icon}
+                      </div>
 
-                    {/* Botão marcar como pago */}
-                    {rec.type === 'expense' && rec.active && obligation && !isPaid && (
-                      <button
-                        onClick={() => handleMarkObligationPaid(obligation.id)}
-                        disabled={isPaying}
-                        className="w-7 h-7 rounded-lg bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
-                        title="Marcar como pago"
-                      >
-                        {isPaying ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                      </button>
-                    )}
+                      {/* Content — both rows */}
+                      <div className="flex-1 min-w-0">
+                        {/* Row 1: name + value + menu */}
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <p className={`flex-1 min-w-0 text-sm font-medium text-gray-900 truncate ${contentOpacity}`}>
+                            {rec.description}
+                          </p>
+                          <span className={`font-bold text-sm flex-shrink-0 ${isIncome ? 'text-mint-500' : 'text-gray-900'} ${contentOpacity}`}>
+                            {isIncome ? '+' : ''}{formatCurrency(rec.amount)}
+                          </span>
 
-                    <button
-                      onClick={() => handleToggle(rec)}
-                      className={`transition-colors flex-shrink-0 ${
-                        rec.active ? 'text-gray-500 hover:text-yellow-400' : 'text-gray-500 hover:text-mint-500'
-                      }`}
-                      aria-label={rec.active ? 'Pausar' : 'Ativar'}
-                    >
-                      {rec.active ? <Pause size={15} /> : <Play size={15} />}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(rec.id)}
-                      className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
-                      aria-label="Excluir"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                          {/* Three-dot menu */}
+                          <div className="relative flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(isMenuOpen ? null : rec.id);
+                              }}
+                              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                              aria-label="Mais opções"
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                            {isMenuOpen && (
+                              <div className="absolute right-0 top-7 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[120px]">
+                                <button
+                                  onClick={() => { handleToggle(rec); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  {rec.active ? <Pause size={12} /> : <Play size={12} />}
+                                  {rec.active ? 'Pausar' : 'Ativar'}
+                                </button>
+                                <button
+                                  onClick={() => { handleDelete(rec.id); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 size={12} />
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 2: meta + badge + mark-paid */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-gray-400 text-xs flex-1 min-w-0 truncate">
+                            {rec.category} · Dia {rec.dayOfMonth}
+                          </span>
+                          {hasObligation && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0 ${badgeClass}`}>
+                              {badgeText}
+                            </span>
+                          )}
+                          {hasObligation && !isPaid && (
+                            <button
+                              onClick={() => handleMarkObligationPaid(obligation!.id)}
+                              disabled={isPaying}
+                              className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              {isPaying
+                                ? <Loader2 size={10} className="animate-spin" />
+                                : 'Marcar pago'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -407,6 +493,15 @@ export default function RecorrentesPage() {
           )}
         </div>
       </div>
+
+      <CategoryPickerSheet
+        open={showCategoryPicker}
+        categories={categories}
+        selected={category}
+        onSelect={setCategory}
+        onClose={() => setShowCategoryPicker(false)}
+        columns={entryType === 'expense' ? 4 : 2}
+      />
     </main>
   );
 }

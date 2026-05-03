@@ -11,6 +11,7 @@ import {
 } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -125,6 +126,8 @@ export default function LancamentosPage() {
   const [newestId, setNewestId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
 
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
   // Modals
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
@@ -156,6 +159,7 @@ export default function LancamentosPage() {
   function handleTypeChange(type: EntryType) {
     setEntryType(type);
     setCategory(type === 'expense' ? 'Alimentação' : 'Salário');
+    setShowCategoryPicker(false);
   }
 
   const numAmount = parseFloat(amount.replace(',', '.'));
@@ -360,27 +364,18 @@ export default function LancamentosPage() {
               </button>
             </div>
 
-            {/* 3. CATEGORIES */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {categories.map((cat) => {
-                const cfg = CATEGORY_CONFIG[cat];
-                const active = category === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategory(cat)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
-                      active
-                        ? 'bg-mint-50 border-mint-500/50 text-mint-500'
-                        : 'bg-white/50 border-gray-100 text-gray-500 hover:border-slate-600 hover:text-gray-500'
-                    }`}
-                  >
-                    <span className="text-xl leading-none">{cfg.icon}</span>
-                    <span className="text-[10px] leading-tight text-center">{cat}</span>
-                  </button>
-                );
-              })}
+            {/* 3. CATEGORY */}
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs font-medium block mb-1.5">Categoria</label>
+              <button
+                type="button"
+                onClick={() => setShowCategoryPicker(true)}
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-gray-300"
+              >
+                <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
+                <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
+                <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+              </button>
             </div>
 
             {/* 4. SECONDARY FIELDS */}
@@ -606,6 +601,15 @@ export default function LancamentosPage() {
         />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      <CategoryPickerSheet
+        open={showCategoryPicker}
+        categories={categories}
+        selected={category}
+        onSelect={setCategory}
+        onClose={() => setShowCategoryPicker(false)}
+        columns={4}
+      />
     </>
   );
 }
