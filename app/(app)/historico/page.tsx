@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Pencil, Search, Trash2, X } from 'lucide-react';
+import { BarChart2, CheckCircle, Copy, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
 import { deleteExpense, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -231,12 +231,50 @@ export default function HistoricoPage() {
     })
     .slice(0, 3);
 
-  // ── Insight hero (frequência > desvio, nunca count === 1) ────────────────────
+  // ── Insight hero contextual ──────────────────────────────────────────────────
   const insightGroup = topGastosByCount[0] ?? null;
 
-  const insightText = insightGroup
-    ? `${formatBrand(insightGroup.displayName)} apareceu ${insightGroup.count} vezes nos seus gastos`
-    : 'Nenhum padrão relevante encontrado';
+  const diasDeUso = new Set(expenses.map((e) => e.date)).size;
+  const totalLancamentos = expenses.length;
+  const mesesComDados = new Set(expenses.map((e) => e.date.slice(0, 7))).size;
+  const primeiroMes = mesesComDados <= 1;
+
+  type InsightPhase = {
+    icon: 'lamp' | 'chart' | 'trend' | 'check';
+    title: string;
+    subtitle: string;
+    action?: () => void;
+  };
+
+  let contextualInsight: InsightPhase;
+
+  if (diasDeUso <= 7 || totalLancamentos <= 5) {
+    const hasIncome = expenses.some((e) => e.type === 'income');
+    contextualInsight = hasIncome
+      ? { icon: 'lamp', title: 'Boa largada! Continue registrando seus gastos', subtitle: 'Com mais lançamentos, padrões vão aparecer aqui.' }
+      : { icon: 'lamp', title: 'Você está começando sua jornada', subtitle: 'Lance receitas e gastos para ver seus insights.' };
+  } else if (diasDeUso < 30 || primeiroMes) {
+    const byCategory: Record<string, number> = {};
+    for (const e of baseEntries.filter((e) => e.type === 'expense')) {
+      byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
+    }
+    const topCat = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+    if (topCat && spent > 0) {
+      const pct = Math.round((topCat[1] / spent) * 100);
+      contextualInsight = { icon: 'chart', title: `${topCat[0]} representa ${pct}% dos gastos`, subtitle: 'Acompanhe o ritmo ao longo do mês.' };
+    } else {
+      contextualInsight = { icon: 'trend', title: 'Dados chegando...', subtitle: 'Continue lançando para ver insights do mês.' };
+    }
+  } else if (insightGroup) {
+    contextualInsight = {
+      icon: 'trend',
+      title: `${formatBrand(insightGroup.displayName)} apareceu ${insightGroup.count} vezes`,
+      subtitle: 'Ver padrões →',
+      action: () => setSearch(insightGroup.displayName),
+    };
+  } else {
+    contextualInsight = { icon: 'check', title: 'Nenhum gasto repetitivo preocupante', subtitle: 'Você está mantendo boa consistência!' };
+  }
 
   return (
     <>
@@ -370,16 +408,23 @@ export default function HistoricoPage() {
       </div>
 
       {/* Insight hero */}
-      <div className="rounded-2xl bg-gray-50/80 border border-gray-200/70 px-5 py-4 mb-4 min-h-[88px] overflow-hidden">
-        <p className="text-lg font-semibold text-gray-900 line-clamp-2 overflow-hidden text-ellipsis">{insightText}</p>
-        {insightGroup && (
-          <p
-            className="mt-2 text-sm text-gray-500 hover:text-gray-900 cursor-pointer transition-colors duration-150 ease-out"
-            onClick={() => setSearch(insightGroup.displayName)}
-          >
-            Ver padrões
-          </p>
-        )}
+      <div className="rounded-2xl bg-amber-50/60 border border-amber-200/50 px-4 py-3.5 mb-4 flex items-start gap-3">
+        <div className="mt-0.5 flex-shrink-0">
+          {contextualInsight.icon === 'lamp'  && <Lightbulb  size={18} className="text-amber-500" />}
+          {contextualInsight.icon === 'chart' && <BarChart2  size={18} className="text-amber-500" />}
+          {contextualInsight.icon === 'trend' && <TrendingUp size={18} className="text-amber-500" />}
+          {contextualInsight.icon === 'check' && <CheckCircle size={18} className="text-emerald-500" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 line-clamp-1">{contextualInsight.title}</p>
+          {contextualInsight.action ? (
+            <p className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer mt-0.5 transition-colors" onClick={contextualInsight.action}>
+              {contextualInsight.subtitle}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500 mt-0.5">{contextualInsight.subtitle}</p>
+          )}
+        </div>
       </div>
 
       {/* Top gastos */}

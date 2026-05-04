@@ -484,7 +484,10 @@ export default function HomePage() {
   const daysForLimit = isCurrentMonth ? totalDaysInMonth - todayDay + 1 : 0;
   const valorLivreParaGastar = balance - savingsGoal;
   const canSpendToday = isCurrentMonth ? (valorLivreParaGastar > 0 ? valorLivreParaGastar / Math.max(daysForLimit, 1) : 0) : null;
-  const budgetPct = heroBase > 0 ? Math.min((spent / heroBase) * 100, 100) : 0;
+  const valorLivreParaGastarPlanejado = heroBase - fixedCosts - savingsGoal;
+  const budgetPctBase = valorLivreParaGastarPlanejado > 0 ? valorLivreParaGastarPlanejado : heroBase;
+  const budgetPctFallback = valorLivreParaGastarPlanejado <= 0;
+  const budgetPct = budgetPctBase > 0 ? Math.min((spent / budgetPctBase) * 100, 100) : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
   const heroStatusLabel = valorLivreParaGastar < 0 ? 'Orçamento estourado' : heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
   const heroStatusColor = valorLivreParaGastar < 0 ? 'text-white/70' : heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
@@ -679,6 +682,9 @@ export default function HomePage() {
                 <div className="text-center shrink-0">
                   <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Orçamento</p>
                   <p className="text-xl font-bold text-white leading-none">{Math.round(budgetPct)}%</p>
+                  {budgetPctFallback && (
+                    <p className="text-white/50 text-[9px] leading-tight mt-0.5">Configure seu plano<br/>para ver o real</p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">
@@ -722,13 +728,13 @@ export default function HomePage() {
             )}
           </div>
 
-          {pendingObligations.length === 0 ? (
-            <div className="px-4 py-5 text-center">
-              <span className="text-mint-500 text-sm">✅ Todas as contas do mês em dia</span>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-800/60">
-              {obligations.map((ob) => {
+          <div className="divide-y divide-slate-800/60">
+              {[...obligations]
+                .sort((a, b) => {
+                  if (a.status === b.status) return a.dueDay - b.dueDay;
+                  return a.status === 'pending' ? -1 : 1;
+                })
+                .map((ob) => {
                 const cfg = CATEGORY_CONFIG[ob.category as Category];
                 const isPaid = ob.status === 'paid';
                 const isPaying = payingIds.has(ob.id);
@@ -771,7 +777,6 @@ export default function HomePage() {
                 );
               })}
             </div>
-          )}
         </div>
       )}
 
