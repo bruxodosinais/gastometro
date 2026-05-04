@@ -64,7 +64,7 @@ function anim(delay: number, duration = 350): React.CSSProperties {
 const hidden: React.CSSProperties = { opacity: 0, transform: 'translateY(12px)' };
 
 // Exibe valor completo; só aplica formato compacto se o texto transbordar o card.
-function AutoValue({ value, className = '' }: { value: number; className?: string }) {
+function AutoValue({ value, className = '', style }: { value: number; className?: string; style?: React.CSSProperties }) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [compact, setCompact] = useState(false);
 
@@ -79,7 +79,7 @@ function AutoValue({ value, className = '' }: { value: number; className?: strin
   });
 
   return (
-    <p ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`}>
+    <p ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`} style={style}>
       {compact ? formatCompact(value) : formatCurrency(value)}
     </p>
   );
@@ -610,19 +610,19 @@ export default function HomePage() {
         <div className={`rounded-2xl p-4 border ${balance >= 0 ? '' : 'bg-negative-50 border-negative/20'}`}
           style={balance >= 0 ? { background: '#f0fdf8', border: '1px solid #d4f5e9' } : undefined}>
           <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Saldo</p>
-          <AutoValue value={balance} className={`text-3xl font-bold leading-none ${balance >= 0 ? 'text-mint-500' : 'text-negative'}`} />
+          <AutoValue value={balance} className="text-3xl font-bold leading-none" style={{ color: balance >= 0 ? '#00b87a' : '#f04e5e' }} />
           <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
         </div>
         {/* Receitas + Despesas — 2 cards lado a lado */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl p-4" style={{ background: '#f0fdf8' }}>
             <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Receitas</p>
-            <AutoValue value={income} className="text-xl font-bold text-mint-500 leading-none" />
+            <AutoValue value={income} className="text-xl font-bold leading-none" style={{ color: '#00b87a' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">entradas do mês</p>
           </div>
           <div className="rounded-2xl p-4 border" style={{ background: '#fff0f2', borderColor: '#fdd0d5' }}>
             <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Despesas</p>
-            <AutoValue value={spent} className="text-xl font-bold leading-none text-negative" />
+            <AutoValue value={spent} className="text-xl font-bold leading-none" style={{ color: '#f04e5e' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">lançadas</p>
           </div>
         </div>
