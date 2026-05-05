@@ -46,6 +46,7 @@ export default function RecorrentesPage() {
   const [inputScale, setInputScale] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'pendentes' | 'pagas'>('all');
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -55,6 +56,9 @@ export default function RecorrentesPage() {
   }, [openMenuId]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'pendentes') setActiveTab('pendentes');
+
     const currentMonth = new Date().toISOString().slice(0, 7);
     Promise.all([getRecurringExpenses(), getMonthlyObligations(currentMonth)]).then(
       ([recs, obs]) => {
@@ -188,6 +192,15 @@ export default function RecorrentesPage() {
   const totalMonthlyAmount = recurrings
     .filter((r) => r.active && r.type === 'expense')
     .reduce((sum, r) => sum + r.amount, 0);
+
+  const filteredRecurrings = recurrings.filter((rec) => {
+    if (activeTab === 'all') return true;
+    const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
+    const isPaid = obligation?.status === 'paid';
+    const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
+    if (activeTab === 'pendentes') return hasObligation && !isPaid;
+    return hasObligation && isPaid;
+  });
 
   if (!ready) {
     return (
@@ -393,13 +406,39 @@ export default function RecorrentesPage() {
             </p>
           )}
 
+          {recurrings.length > 0 && (
+            <div className="flex items-center gap-4 mb-3">
+              {(['all', 'pendentes', 'pagas'] as const).map((tab) => {
+                const labels = { all: 'Ver tudo', pendentes: 'Pendentes', pagas: 'Pagas' };
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className="pb-1 text-sm font-medium transition-colors"
+                    style={{
+                      color: isActive ? '#10b981' : '#9ca3af',
+                      borderBottom: isActive ? '2px solid #10b981' : '2px solid transparent',
+                    }}
+                  >
+                    {labels[tab]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {recurrings.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">
               Nenhum recorrente cadastrado ainda
             </p>
+          ) : filteredRecurrings.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">
+              Nenhum item nesta categoria
+            </p>
           ) : (
             <div className="space-y-2">
-              {recurrings.map((rec) => {
+              {filteredRecurrings.map((rec) => {
                 const cfg = CATEGORY_CONFIG[rec.category];
                 const isIncome = rec.type === 'income';
                 const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
