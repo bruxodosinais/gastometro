@@ -266,7 +266,7 @@ export default function LancamentosPage() {
     ? (hasAmount ? `Registrar ${formatCurrency(numAmount)}` : 'Registrar receita')
     : (hasAmount ? `Lançar ${formatCurrency(numAmount)}` : 'Lançar gasto');
 
-  const ctaBase = 'w-full py-3 rounded-2xl font-semibold text-white text-base transition-all flex items-center justify-center gap-2';
+  const ctaBase = 'w-full h-[52px] rounded-xl font-semibold text-white text-base transition-all flex items-center justify-center gap-2';
   const ctaActive = '';
   const ctaDisabled = 'bg-gray-200 opacity-50 cursor-default';
   const ctaColor = isValid ? ctaActive : ctaDisabled;
@@ -301,9 +301,11 @@ export default function LancamentosPage() {
 
           {/* ── FORM COLUMN ──────────────────────────────────────────────── */}
           <div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 md:mb-0 space-y-4">
+
             {/* 1. VALUE */}
             <div
-              className="flex items-center justify-center gap-2 mb-6"
+              className="flex items-center justify-center gap-2 py-2"
               style={{
                 filter: inputFocused ? glowColor : 'none',
                 transition: 'filter 200ms ease',
@@ -347,7 +349,7 @@ export default function LancamentosPage() {
             </div>
 
             {/* 2. TOGGLE */}
-            <div className="flex mb-6 p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
+            <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
               <button
                 type="button"
                 onClick={() => handleTypeChange('expense')}
@@ -375,12 +377,12 @@ export default function LancamentosPage() {
             </div>
 
             {/* 3. CATEGORY */}
-            <div className="mb-4">
+            <div>
               <label className="text-gray-500 text-xs font-medium block mb-1.5">Categoria</label>
               <button
                 type="button"
                 onClick={() => setShowCategoryPicker(true)}
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-gray-300"
+                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
               >
                 <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
                 <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
@@ -389,7 +391,7 @@ export default function LancamentosPage() {
             </div>
 
             {/* 4. SECONDARY FIELDS */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3">
               {/* Description */}
               {!showDescription ? (
                 <button
@@ -490,7 +492,7 @@ export default function LancamentosPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
                 <AlertCircle size={16} className="flex-shrink-0" />
                 {error}
               </div>
@@ -501,14 +503,13 @@ export default function LancamentosPage() {
               type="button"
               onClick={handleSubmit}
               disabled={!isValid || saving}
-              onPointerDown={() => { if (isValid) setPressing(true); }}
-              onPointerUp={() => setPressing(false)}
-              onPointerLeave={() => setPressing(false)}
-              className={`hidden md:flex ${ctaBase} ${ctaColor}`}
-              style={{ ...pressingStyle, ...ctaStyle }}
+              className="hidden md:flex w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
             >
-              {saving ? <Loader2 size={20} className="animate-spin" /> : ctaLabel}
+              {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
             </button>
+
+            </div>{/* end card */}
           </div>
 
           {/* ── LIST COLUMN (desktop) ─────────────────────────────────────── */}
@@ -551,13 +552,10 @@ export default function LancamentosPage() {
           type="button"
           onClick={handleSubmit}
           disabled={!isValid || saving}
-          onPointerDown={() => { if (isValid) setPressing(true); }}
-          onPointerUp={() => setPressing(false)}
-          onPointerLeave={() => setPressing(false)}
-          className={`${ctaBase} ${ctaColor}`}
-          style={{ ...pressingStyle, ...ctaStyle }}
+          className="w-full h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
         >
-          {saving ? <Loader2 size={20} className="animate-spin" /> : ctaLabel}
+          {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
         </button>
       </div>
 
