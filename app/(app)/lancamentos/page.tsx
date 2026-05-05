@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CalendarDays, ChevronDown, Copy, Loader2, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronDown, Copy, Loader2, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
 import {
   addExpense,
   addExpenseInstallments,
@@ -22,20 +22,45 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatDateLabel(dateStr: string): string {
-  const today = todayStr();
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const MONTHS_LONG = [
+  'janeiro','fevereiro','março','abril','maio','junho',
+  'julho','agosto','setembro','outubro','novembro','dezembro',
+];
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function formatDateDisplay(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
-  const months = [
-    'janeiro','fevereiro','março','abril','maio','junho',
-    'julho','agosto','setembro','outubro','novembro','dezembro',
-  ];
-  const dayLabel = `${d.getDate()} de ${months[d.getMonth()]}`;
-  if (dateStr === today) return `Hoje, ${dayLabel}`;
-  const yest = new Date();
-  yest.setDate(yest.getDate() - 1);
-  const yStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
-  if (dateStr === yStr) return `Ontem, ${dayLabel}`;
-  return dayLabel;
+  const day = d.getDate();
+  if (dateStr === todayStr()) return `Hoje, ${day} de ${MONTHS_LONG[d.getMonth()]}`;
+  if (dateStr === yesterdayStr()) return `Ontem, ${day} de ${MONTHS_LONG[d.getMonth()]}`;
+  return `${String(day).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function formatGroupLabel(dateStr: string): string {
+  const day = dateStr.slice(8, 10);
+  const month = dateStr.slice(5, 7);
+  const ddmm = `${day}/${month}`;
+  if (dateStr === todayStr()) return `Hoje · ${ddmm}`;
+  if (dateStr === yesterdayStr()) return `Ontem · ${ddmm}`;
+  const d = new Date(dateStr + 'T12:00:00');
+  return `${ddmm} · ${WEEKDAYS[d.getDay()]}`;
+}
+
+function groupByDate(expenses: Expense[]) {
+  const map = new Map<string, Expense[]>();
+  for (const exp of expenses) {
+    if (!map.has(exp.date)) map.set(exp.date, []);
+    map.get(exp.date)!.push(exp);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, items]) => ({ date, label: formatGroupLabel(date), items }));
 }
 
 function ExpenseList({
@@ -53,47 +78,91 @@ function ExpenseList({
   onDuplicate: (e: Expense) => void;
   onDelete: (e: Expense) => void;
 }) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close() { setOpenMenuId(null); }
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenuId]);
+
   if (expenses.length === 0) {
     return <p className="text-gray-500 text-sm text-center py-6">Nenhum lançamento este mês ainda</p>;
   }
+
+  const groups = groupByDate(expenses);
+
   return (
-    <div className="space-y-2">
-      {expenses.map((exp) => {
-        const cfg = CATEGORY_CONFIG[exp.category];
-        const day = exp.date.slice(8, 10);
-        const month = exp.date.slice(5, 7);
-        const isIncome = exp.type === 'income';
-        const isNewest = exp.id === newestId;
-        const isFlashing = exp.id === flashId;
-        return (
-          <div
-            key={exp.id}
-            className={`border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors duration-500 ${
-              isFlashing ? 'bg-gray-100/60' : 'bg-white'
-            } ${isNewest ? 'animate-in fade-in slide-in-from-bottom-3 duration-[180ms] ease-out' : ''}`}
-          >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
-              {cfg.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
-              <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
-            </div>
-            <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#00b87a' : '#f04e5e' }}>
-              {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
-            </span>
-            <button onClick={() => onEdit(exp)} className="text-gray-500 hover:text-mint-500 transition-colors flex-shrink-0 ml-1" aria-label="Editar">
-              <Pencil size={15} />
-            </button>
-            <button onClick={() => onDuplicate(exp)} className="text-gray-500 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
-              <Copy size={15} />
-            </button>
-            <button onClick={() => onDelete(exp)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
-              <Trash2 size={15} />
-            </button>
+    <div className="space-y-4">
+      {groups.map(({ date, label, items }) => (
+        <div key={date}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold text-gray-400">{label}</span>
+            <div className="flex-1 h-px bg-gray-100" />
           </div>
-        );
-      })}
+          <div className="space-y-2">
+            {items.map((exp) => {
+              const cfg = CATEGORY_CONFIG[exp.category];
+              const isIncome = exp.type === 'income';
+              const isNewest = exp.id === newestId;
+              const isFlashing = exp.id === flashId;
+              const isMenuOpen = openMenuId === exp.id;
+              return (
+                <div
+                  key={exp.id}
+                  className={`border border-[#F3F4F6] rounded-xl px-4 py-3 flex items-center gap-3 transition-colors duration-500 ${
+                    isFlashing ? 'bg-gray-100/60' : 'bg-white'
+                  } ${isNewest ? 'animate-in fade-in slide-in-from-bottom-3 duration-[180ms] ease-out' : ''}`}
+                  style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
+                    {cfg.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
+                    <p className="text-gray-500 text-xs">{exp.category}</p>
+                  </div>
+                  <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>
+                    {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
+                  </span>
+                  <div className="relative flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : exp.id); }}
+                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                      aria-label="Mais opções"
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {isMenuOpen && (
+                      <div className="absolute right-0 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[130px]">
+                        <button
+                          onClick={() => { onEdit(exp); setOpenMenuId(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Pencil size={12} /> Editar
+                        </button>
+                        <button
+                          onClick={() => { onDuplicate(exp); setOpenMenuId(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Copy size={12} /> Duplicar
+                        </button>
+                        <button
+                          onClick={() => { onDelete(exp); setOpenMenuId(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={12} /> Excluir
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -104,37 +173,31 @@ export default function LancamentosPage() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('Alimentação');
   const [date, setDate] = useState(todayStr);
+  const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Secondary fields — collapsed by default
-  const [showDescription, setShowDescription] = useState(false);
-  const [description, setDescription] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [launchMode, setLaunchMode] = useState<'single' | 'installments' | 'recurring'>('single');
   const [installments, setInstallments] = useState(2);
   const [recurringDay, setRecurringDay] = useState('');
 
-  // Polish states
   const [inputScale, setInputScale] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const [pressing, setPressing] = useState(false);
   const [valueOpacity, setValueOpacity] = useState(1);
   const [topToast, setTopToast] = useState<string | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
   const [newestId, setNewestId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
-
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
-  // Modals
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
 
   const amountRef = useRef<HTMLInputElement>(null);
-  const descRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
@@ -143,8 +206,8 @@ export default function LancamentosPage() {
   }, []);
 
   useEffect(() => {
-    if (showDescription) descRef.current?.focus();
-  }, [showDescription]);
+    if (showDatePicker) dateInputRef.current?.focus();
+  }, [showDatePicker]);
 
   function showTopToastMsg(msg: string) {
     setTopToast(msg);
@@ -209,7 +272,6 @@ export default function LancamentosPage() {
         newId = saved.id;
       }
 
-      // Animate newest item
       if (newId) {
         setNewestId(newId);
         setFlashId(newId);
@@ -217,13 +279,11 @@ export default function LancamentosPage() {
         setTimeout(() => setNewestId(null), 400);
       }
 
-      // 100ms delay before fade-out reset
       setTimeout(() => {
         setValueOpacity(0);
         setTimeout(() => {
           setAmount('');
           setDescription('');
-          setShowDescription(false);
           setDate(todayStr());
           setRecurringDay('');
           setValueOpacity(1);
@@ -231,11 +291,10 @@ export default function LancamentosPage() {
         }, 150);
       }, 100);
 
-      const formatted = formatCurrency(savedAmount);
       showTopToastMsg(
         savedType === 'income'
-          ? `Receita de ${formatted} registrada`
-          : `Gasto de ${formatted} registrado`
+          ? `Receita de ${formatCurrency(savedAmount)} registrada`
+          : `Gasto de ${formatCurrency(savedAmount)} registrado`
       );
       getExpenses().then(setExpenses);
     } catch (err) {
@@ -262,25 +321,10 @@ export default function LancamentosPage() {
   const ctaLabel = saving ? null
     : launchMode === 'installments' ? `Parcelar em ${installments}x`
     : launchMode === 'recurring' ? 'Lançar e tornar recorrente'
-    : entryType === 'income'
-    ? (hasAmount ? `Registrar ${formatCurrency(numAmount)}` : 'Registrar receita')
-    : (hasAmount ? `Lançar ${formatCurrency(numAmount)}` : 'Lançar gasto');
+    : entryType === 'income' ? 'Lançar receita'
+    : 'Lançar gasto';
 
-  const ctaBase = 'w-full h-[52px] rounded-xl font-semibold text-white text-base transition-all flex items-center justify-center gap-2';
-  const ctaActive = '';
-  const ctaDisabled = 'bg-gray-200 opacity-50 cursor-default';
-  const ctaColor = isValid ? ctaActive : ctaDisabled;
-  const ctaStyle: React.CSSProperties = isValid
-    ? { background: 'linear-gradient(135deg, #00b87a, #00d68f)' }
-    : {};
-
-  // Pressing animation style
-  const pressingStyle: React.CSSProperties = {
-    transform: pressing ? 'scale(0.96)' : 'scale(1)',
-    transition: pressing
-      ? 'transform 50ms ease-in'
-      : 'transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-  };
+  const ctaBg = entryType === 'income' ? '#10B981' : '#EF4444';
 
   const glowColor = entryType === 'expense'
     ? 'drop-shadow(0 0 12px rgba(248, 113, 113, 0.3))'
@@ -296,228 +340,231 @@ export default function LancamentosPage() {
 
   return (
     <>
+      <div className="fixed inset-0 bg-[#F9FAFB] -z-10 pointer-events-none" />
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-36 md:pb-8">
         <div className="md:grid md:grid-cols-[420px_1fr] md:gap-8 md:items-start">
 
-          {/* ── FORM COLUMN ──────────────────────────────────────────────── */}
+          {/* FORM COLUMN */}
           <div>
             <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 md:mb-0 space-y-4">
 
-            {/* 1. VALUE */}
-            <div
-              className="flex items-center justify-center gap-2 py-2"
-              style={{
-                filter: inputFocused ? glowColor : 'none',
-                transition: 'filter 200ms ease',
-              }}
-            >
-              <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
-                R$
-              </span>
-              <div className="relative w-48">
-                <input
-                  ref={amountRef}
-                  type="text"
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                    setInputScale(true);
-                    setTimeout(() => setInputScale(false), 100);
-                  }}
-                  onFocus={(e) => {
-                    setInputFocused(true);
-                    if (e.target.value === '0') setAmount('');
-                  }}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder="0"
-                  className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
-                  style={{
-                    transform: inputScale ? 'scale(1.02)' : 'scale(1)',
-                    opacity: valueOpacity,
-                    transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
-                    caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
-                    cursor: inputFocused ? 'text' : 'pointer',
-                  }}
-                />
-                <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
-                <div
-                  className="absolute bottom-0 left-0 h-[2px]"
-                  style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
-                />
-              </div>
-            </div>
-
-            {/* 2. TOGGLE */}
-            <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
-              <button
-                type="button"
-                onClick={() => handleTypeChange('expense')}
-                className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                  entryType === 'expense'
-                    ? 'text-white'
-                    : 'bg-transparent text-[#6B7280]'
-                }`}
-                style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
-              >
-                Gasto
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTypeChange('income')}
-                className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                  entryType === 'income'
-                    ? 'text-white'
-                    : 'bg-transparent text-[#6B7280]'
-                }`}
-                style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
-              >
-                Receita
-              </button>
-            </div>
-
-            {/* 3. CATEGORY */}
-            <div>
-              <label className="text-gray-500 text-xs font-medium block mb-1.5">Categoria</label>
-              <button
-                type="button"
-                onClick={() => setShowCategoryPicker(true)}
-                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
-              >
-                <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
-                <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
-                <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-              </button>
-            </div>
-
-            {/* 4. SECONDARY FIELDS */}
-            <div className="space-y-3">
-              {/* Description */}
-              {!showDescription ? (
+              {/* 1. TOGGLE */}
+              <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
                 <button
                   type="button"
-                  onClick={() => setShowDescription(true)}
-                  className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                  onClick={() => handleTypeChange('expense')}
+                  className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
+                    entryType === 'expense' ? 'text-white' : 'bg-transparent text-[#6B7280]'
+                  }`}
+                  style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
                 >
-                  + Adicionar descrição (opcional)
+                  Gasto
                 </button>
-              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleTypeChange('income')}
+                  className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
+                    entryType === 'income' ? 'text-white' : 'bg-transparent text-[#6B7280]'
+                  }`}
+                  style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
+                >
+                  Receita
+                </button>
+              </div>
+
+              {/* 2. VALUE DISPLAY */}
+              <div
+                className="flex items-center justify-center gap-2 py-2"
+                style={{ filter: inputFocused ? glowColor : 'none', transition: 'filter 200ms ease' }}
+              >
+                <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
+                  R$
+                </span>
+                <div className="relative w-48">
+                  <input
+                    ref={amountRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
+                      setInputScale(true);
+                      setTimeout(() => setInputScale(false), 100);
+                    }}
+                    onFocus={(e) => {
+                      setInputFocused(true);
+                      if (e.target.value === '0') setAmount('');
+                    }}
+                    onBlur={() => setInputFocused(false)}
+                    placeholder="0"
+                    className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
+                    style={{
+                      transform: inputScale ? 'scale(1.02)' : 'scale(1)',
+                      opacity: valueOpacity,
+                      transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
+                      caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+                      cursor: inputFocused ? 'text' : 'pointer',
+                    }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
+                  <div
+                    className="absolute bottom-0 left-0 h-[2px]"
+                    style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+                  />
+                </div>
+              </div>
+
+              {/* 3. CATEGORY */}
+              <div>
+                <label className="text-gray-500 text-xs font-medium block mb-1.5">Categoria</label>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryPicker(true)}
+                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
+                >
+                  <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
+                  <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
+                  <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                </button>
+              </div>
+
+              {/* 4. DESCRIPTION */}
+              <div>
+                <label className="text-gray-500 text-xs font-medium block mb-1.5">Descrição</label>
                 <input
-                  ref={descRef}
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
-                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
                 />
-              )}
+              </div>
 
-              {/* Date */}
-              <div className="flex items-center gap-1.5">
-                <CalendarDays size={14} className="text-gray-500 flex-shrink-0" />
-                {!showDatePicker ? (
+              {/* 5. DATE */}
+              <div>
+                <label className="text-gray-500 text-xs font-medium block mb-1.5">Data</label>
+                {showDatePicker ? (
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={date}
+                    onChange={(e) => { setDate(e.target.value); setShowDatePicker(false); }}
+                    onBlur={() => setShowDatePicker(false)}
+                    className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED] transition-colors"
+                  />
+                ) : (
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(true)}
-                    className="flex items-center gap-1 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                    className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
                   >
-                    {formatDateLabel(date)}
-                    <Pencil size={11} className="text-gray-500" />
+                    <CalendarDays size={16} className="text-gray-400 flex-shrink-0" />
+                    <span className="flex-1 text-sm text-gray-900">{formatDateDisplay(date)}</span>
                   </button>
-                ) : (
-                  <input
-                    type="date"
-                    value={date}
-                    autoFocus
-                    onChange={(e) => { setDate(e.target.value); setShowDatePicker(false); }}
-                    onBlur={() => setShowDatePicker(false)}
-                    className="bg-white border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED]"
-                  />
                 )}
               </div>
 
-              {/* More options */}
-              <button
-                type="button"
-                onClick={() => setShowMoreOptions((v) => !v)}
-                className="flex items-center gap-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
-              >
-                <Settings2 size={14} />
-                Mais opções
-                <ChevronDown size={14} className={`transition-transform duration-200 ${showMoreOptions ? 'rotate-180' : ''}`} />
-              </button>
+              {/* 6. MAIS OPÇÕES */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowMoreOptions((v) => !v)}
+                  className="flex items-center gap-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                >
+                  <Settings2 size={14} />
+                  Mais opções
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${showMoreOptions ? 'rotate-180' : ''}`} />
+                </button>
 
-              {showMoreOptions && (
-                <div className="bg-white/60 border border-gray-100 rounded-xl p-4 space-y-4">
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-2">Tipo de lançamento</label>
-                    <div className="flex p-0.5 bg-gray-50 rounded-xl">
-                      {(['single', 'installments', 'recurring'] as const).map((mode) => (
-                        <button key={mode} type="button" onClick={() => setLaunchMode(mode)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${launchMode === mode ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
-                          {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
-                        </button>
-                      ))}
+                {showMoreOptions && (
+                  <div className="mt-3 space-y-4">
+                    <div>
+                      <label className="text-gray-500 text-xs font-medium block mb-2">Tipo de lançamento</label>
+                      <div className="flex gap-2">
+                        {(['single', 'recurring', 'installments'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setLaunchMode(mode)}
+                            className="flex-1 py-2 px-3 rounded-[8px] text-xs font-semibold transition-all duration-200"
+                            style={
+                              launchMode === mode
+                                ? { backgroundColor: '#7C3AED', color: '#FFFFFF' }
+                                : { backgroundColor: '#F3F4F6', color: '#6B7280' }
+                            }
+                          >
+                            {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {launchMode === 'installments' && (
+                      <div>
+                        <label className="text-gray-500 text-xs font-medium block mb-1.5">Número de parcelas</label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={2}
+                          max={48}
+                          value={installments}
+                          onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
+                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED] transition-colors"
+                        />
+                        <p className="text-gray-500 text-xs mt-1">
+                          {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
+                        </p>
+                      </div>
+                    )}
+
+                    {launchMode === 'recurring' && (
+                      <div>
+                        <label className="text-gray-500 text-xs font-medium block mb-1.5">Dia do mês para lançar automaticamente</label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={31}
+                          value={recurringDay}
+                          onChange={(e) => setRecurringDay(e.target.value)}
+                          placeholder="Ex: 5"
+                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                        />
+                        <p className="text-gray-500 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
+                      </div>
+                    )}
                   </div>
+                )}
+              </div>
 
-                  {launchMode === 'installments' && (
-                    <div>
-                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Número de parcelas</label>
-                      <input
-                        type="number" inputMode="numeric" min={2} max={48} value={installments}
-                        onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
-                        className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:border-[#7C3AED] transition-colors"
-                      />
-                      <p className="text-gray-500 text-xs mt-1">
-                        {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
-                      </p>
-                    </div>
-                  )}
-
-                  {launchMode === 'recurring' && (
-                    <div>
-                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Dia do mês para lançar automaticamente</label>
-                      <input
-                        type="number" inputMode="numeric" min={1} max={31} value={recurringDay}
-                        onChange={(e) => setRecurringDay(e.target.value)} placeholder="Ex: 5"
-                        className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
-                      />
-                      <p className="text-gray-500 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
-                    </div>
-                  )}
+              {error && (
+                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+                  <AlertCircle size={16} className="flex-shrink-0" />
+                  {error}
                 </div>
               )}
+
+              {/* CTA — desktop */}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!isValid || saving}
+                className="hidden md:flex w-full h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                style={{ backgroundColor: isValid ? ctaBg : '#D1D5DB' }}
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
+              </button>
+
             </div>
-
-            {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
-                <AlertCircle size={16} className="flex-shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* CTA — desktop only (inside column) */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isValid || saving}
-              className="hidden md:flex w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
-            >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
-            </button>
-
-            </div>{/* end card */}
           </div>
 
-          {/* ── LIST COLUMN (desktop) ─────────────────────────────────────── */}
+          {/* LIST COLUMN — desktop */}
           <div
             className="hidden md:block"
             style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
           >
-            <h2 className="text-gray-800 font-semibold text-sm mb-2">Este mês</h2>
+            <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
             <ExpenseList
               expenses={currentExpenses}
               newestId={newestId}
@@ -529,12 +576,12 @@ export default function LancamentosPage() {
           </div>
         </div>
 
-        {/* LIST — mobile (below form) */}
+        {/* LIST — mobile */}
         <div
           className="md:hidden mt-6"
           style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
         >
-          <h2 className="text-gray-800 font-semibold text-sm mb-2">Este mês</h2>
+          <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
           <ExpenseList
             expenses={currentExpenses}
             newestId={newestId}
@@ -553,13 +600,12 @@ export default function LancamentosPage() {
           onClick={handleSubmit}
           disabled={!isValid || saving}
           className="w-full h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+          style={{ backgroundColor: isValid ? ctaBg : '#D1D5DB' }}
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
         </button>
       </div>
 
-      {/* Top toast — confirmation after save */}
       {topToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pointer-events-none">
           <div
