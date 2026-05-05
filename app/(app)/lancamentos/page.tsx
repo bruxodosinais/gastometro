@@ -545,12 +545,12 @@ export default function LancamentosPage() {
                 </div>
               )}
 
-              {/* CTA — desktop */}
+              {/* CTA */}
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isValid || saving}
-                className="hidden md:flex w-full h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                className="flex w-full h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                 style={{ backgroundColor: isValid ? ctaBg : '#D1D5DB' }}
               >
                 {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
@@ -593,20 +593,7 @@ export default function LancamentosPage() {
         </div>
       </main>
 
-      {/* CTA — mobile fixed above nav */}
-      <div className="fixed bottom-[72px] left-0 right-0 px-4 z-40 md:hidden">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!isValid || saving}
-          className="w-full h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-          style={{ backgroundColor: isValid ? ctaBg : '#D1D5DB' }}
-        >
-          {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
-        </button>
-      </div>
-
-      {topToast && (
+{topToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pointer-events-none">
           <div
             className="bg-gray-50 border border-green-500/40 text-gray-900 text-sm font-medium px-4 py-3 rounded-xl shadow-lg text-center"

@@ -31,17 +31,15 @@ export default function CategoryPickerSheet({
   if (!open) return null;
 
   return (
-    <>
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
       <div
-        className="fixed inset-0 bg-black/40 z-50"
-        onClick={onClose}
-      />
-
-      {/* Bottom sheet (mobile) / centered modal (desktop) */}
-      <div className="fixed z-50 bg-white left-0 right-0 bottom-0 rounded-t-[16px] md:left-1/2 md:right-auto md:bottom-auto md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[480px] md:max-w-[90vw] md:rounded-xl max-h-[82vh] overflow-y-auto">
-        <div className="p-5 pb-8 md:pb-5">
-          {/* Header */}
+        className="bg-white rounded-2xl w-[90%] max-w-[480px] max-h-[82vh] overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-gray-900 font-semibold text-base">Escolher categoria</h3>
             <button
@@ -54,7 +52,6 @@ export default function CategoryPickerSheet({
             </button>
           </div>
 
-          {/* Category grid */}
           <div className={`grid gap-2 ${columns === 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
             {categories.map((cat) => {
               const cfg = CATEGORY_CONFIG[cat];
@@ -78,6 +75,6 @@ export default function CategoryPickerSheet({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
