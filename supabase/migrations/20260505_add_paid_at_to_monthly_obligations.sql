@@ -1,0 +1,2 @@
+ALTER TABLE monthly_obligations
+ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;

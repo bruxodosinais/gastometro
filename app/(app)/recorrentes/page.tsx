@@ -129,15 +129,16 @@ export default function RecorrentesPage() {
     const ob = obligations.find((o) => o.id === obligationId);
     if (!ob || payingIds.has(obligationId)) return;
     setPayingIds((prev) => new Set([...prev, obligationId]));
+    const optimisticPaidAt = new Date().toISOString();
     setObligations((prev) =>
-      prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
+      prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const, paidAt: optimisticPaidAt } : o))
     );
     try {
       const { expense } = await markObligationAsPaid(obligationId, ob);
       setPaidExpenseIds((prev) => new Map(prev).set(obligationId, expense.id));
     } catch {
       setObligations((prev) =>
-        prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
+        prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const, paidAt: undefined } : o))
       );
     } finally {
       setPayingIds((prev) => {
@@ -473,8 +474,15 @@ export default function RecorrentesPage() {
                   : daysLate > 0
                   ? 'bg-red-500 text-white'
                   : 'bg-amber-500/20 text-amber-700';
+                const paidAtLabel = (() => {
+                  if (!obligation?.paidAt) return 'Pago';
+                  const d = new Date(obligation.paidAt);
+                  const dd = String(d.getDate()).padStart(2, '0');
+                  const mm = String(d.getMonth() + 1).padStart(2, '0');
+                  return `Pago · ${dd}/${mm}`;
+                })();
                 const badgeText = isPaid
-                  ? 'Pago'
+                  ? paidAtLabel
                   : daysLate > 0
                   ? `Atrasado ${daysLate}d`
                   : todayDay === effectiveDueDay
