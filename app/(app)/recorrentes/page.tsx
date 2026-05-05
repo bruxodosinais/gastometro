@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AlertCircle, ChevronDown, Loader2, MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import {
   addObligationForNewRecurring,
@@ -13,7 +13,7 @@ import {
   unmarkObligationAsPaid,
   toggleRecurringExpense,
 } from '@/lib/storage';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
   Category,
@@ -24,12 +24,23 @@ import {
   RecurringExpense,
 } from '@/lib/types';
 
+const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function shiftMonth(monthKey: string, delta: number): string {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function RecorrentesPage() {
+  const todayMonthKey = new Date().toISOString().slice(0, 7);
+
   const [recurrings, setRecurrings] = useState<RecurringExpense[]>([]);
   const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(todayMonthKey);
+  const [loadingMonth, setLoadingMonth] = useState(false);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [undoingIds, setUndoingIds] = useState<Set<string>>(new Set());
-  // obligationId → expenseId criado ao marcar pago (só persiste na sessão)
   const [paidExpenseIds, setPaidExpenseIds] = useState<Map<string, string>>(new Map());
   const [ready, setReady] = useState(false);
 
@@ -48,6 +59,15 @@ export default function RecorrentesPage() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pendentes' | 'pagas'>('all');
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(() => parseInt(todayMonthKey.split('-')[0]));
+
+  const isFirstLoad = useRef(true);
+
+  const isCurrentMonth = selectedMonth === todayMonthKey;
+  const isPastMonth = selectedMonth < todayMonthKey;
+  const isFutureMonth = selectedMonth > todayMonthKey;
+
   useEffect(() => {
     if (!openMenuId) return;
     function close() { setOpenMenuId(null); }
@@ -59,15 +79,24 @@ export default function RecorrentesPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'pendentes') setActiveTab('pendentes');
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    Promise.all([getRecurringExpenses(), getMonthlyObligations(currentMonth)]).then(
+    Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey)]).then(
       ([recs, obs]) => {
         setRecurrings(recs);
         setObligations(obs);
         setReady(true);
+        isFirstLoad.current = false;
       }
     );
   }, []);
+
+  useEffect(() => {
+    if (isFirstLoad.current) return;
+    setLoadingMonth(true);
+    getMonthlyObligations(selectedMonth).then((obs) => {
+      setObligations(obs);
+      setLoadingMonth(false);
+    });
+  }, [selectedMonth]);
 
   function handleTypeChange(type: EntryType) {
     setEntryType(type);
@@ -97,7 +126,6 @@ export default function RecorrentesPage() {
       });
       setRecurrings((prev) => [saved, ...prev]);
 
-      // Cria obrigação para o mês atual imediatamente
       if (saved.type === 'expense') {
         const ob = await addObligationForNewRecurring(saved);
         if (ob) setObligations((prev) => [...prev, ob].sort((a, b) => a.dueDay - b.dueDay));
@@ -177,7 +205,9 @@ export default function RecorrentesPage() {
   }
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-  const currentMonth = new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const selectedMonthLabel = getMonthLabel(selectedMonth);
+  const selectedMonthLabelCap = selectedMonthLabel.charAt(0).toUpperCase() + selectedMonthLabel.slice(1);
 
   const hasAmount = amount !== '' && amount !== '0';
   const glowColor = entryType === 'expense'
@@ -198,6 +228,15 @@ export default function RecorrentesPage() {
     if (activeTab === 'all') return true;
     const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
     const isPaid = obligation?.status === 'paid';
+    if (isPastMonth) {
+      if (activeTab === 'pendentes') return rec.type === 'expense' && rec.active && !isPaid;
+      return rec.type === 'expense' && rec.active && isPaid;
+    }
+    if (isFutureMonth) {
+      if (activeTab === 'pendentes') return rec.type === 'expense' && rec.active;
+      return false;
+    }
+    // current month
     const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
     if (activeTab === 'pendentes') return hasObligation && !isPaid;
     return hasObligation && isPaid;
@@ -394,11 +433,104 @@ export default function RecorrentesPage() {
             <h2 className="text-gray-800 font-semibold text-sm whitespace-nowrap">
               Cadastrados
               {recurrings.length > 0 && (
-                <span className="ml-1 text-gray-500 font-normal">· {currentMonth}</span>
+                <span className="ml-1 text-gray-500 font-normal">· {selectedMonthLabel}</span>
               )}
             </h2>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
+
+          {/* Seletor de mês */}
+          <div className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-1 py-1 mb-4">
+            <button
+              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))}
+              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+              aria-label="Mês anterior"
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <button
+              onClick={() => { setPickerYear(parseInt(selectedMonth.split('-')[0])); setPickerOpen(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-gray-900 font-semibold text-sm">{selectedMonthLabelCap}</span>
+              <ChevronDown size={13} className="text-gray-400" />
+              {loadingMonth && <Loader2 size={12} className="animate-spin text-gray-400" />}
+            </button>
+            <button
+              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))}
+              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+              aria-label="Próximo mês"
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
+
+          {/* Popup picker de mês/ano */}
+          {pickerOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                onClick={() => setPickerOpen(false)}
+              />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <div
+                  className="w-full max-w-xs bg-white border border-gray-200 rounded-2xl p-5 shadow-2xl pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Navegação de ano */}
+                  <div className="flex items-center justify-between mb-5">
+                    <button
+                      onClick={() => setPickerYear((y) => y - 1)}
+                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
+                      aria-label="Ano anterior"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-gray-900 font-bold text-xl">{pickerYear}</span>
+                    <button
+                      onClick={() => setPickerYear((y) => y + 1)}
+                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
+                      aria-label="Próximo ano"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+
+                  {/* Grade de meses */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {MONTHS.map((name, idx) => {
+                      const month = idx + 1;
+                      const key = `${pickerYear}-${String(month).padStart(2, '0')}`;
+                      const isSelected = key === selectedMonth;
+                      const isNow = key === todayMonthKey;
+                      return (
+                        <button
+                          key={month}
+                          onClick={() => { setSelectedMonth(key); setPickerOpen(false); }}
+                          className={`py-3 rounded-xl text-sm font-medium transition-all ${
+                            isSelected
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                              : isNow
+                              ? 'bg-gray-50 text-emerald-600 ring-1 ring-emerald-400/40'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Aviso ao navegar para outro mês */}
+          {!isCurrentMonth && (
+            <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+              Visualizando {selectedMonthLabel} — volte ao mês atual para gerenciar pagamentos
+            </div>
+          )}
 
           {recurrings.length > 0 && (
             <p className="text-gray-400 text-xs mb-3">
@@ -446,51 +578,84 @@ export default function RecorrentesPage() {
                 const isPaid = obligation?.status === 'paid';
                 const isPaying = obligation ? payingIds.has(obligation.id) : false;
                 const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
-                const daysLate = obligation && !isPaid && todayDay > effectiveDueDay
-                  ? todayDay - effectiveDueDay : 0;
-                const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
 
-                // left border color per state
-                const leftBorderColor = !hasObligation
-                  ? 'transparent'
-                  : isPaid
-                  ? '#10B981'
-                  : daysLate > 0
-                  ? '#EF4444'
-                  : '#F59E0B';
+                // ── Badge & card state per month type ──────────────────────
+                let badgeText = '';
+                let badgeClass = '';
+                let leftBorderColor = 'transparent';
+                let cardBgClass = 'bg-white';
+                let showMarkPaid = false;
+                let showUndo = false;
 
-                // card background tint per state
-                const cardBgClass = !hasObligation
-                  ? 'bg-white'
-                  : isPaid
-                  ? 'bg-[#F0FDF4]'
-                  : daysLate > 0
-                  ? 'bg-[#FEF2F2]'
-                  : 'bg-[#FFFBEB]';
+                if (isCurrentMonth) {
+                  const daysLate = obligation && !isPaid && todayDay > effectiveDueDay
+                    ? todayDay - effectiveDueDay : 0;
+                  const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
 
-                // badge
-                const badgeClass = isPaid
-                  ? 'bg-emerald-500 text-white'
-                  : daysLate > 0
-                  ? 'bg-red-500 text-white'
-                  : 'bg-amber-500/20 text-amber-700';
-                const paidAtLabel = (() => {
-                  if (!obligation?.paidAt) return 'Pago';
-                  const d = new Date(obligation.paidAt);
-                  const dd = String(d.getDate()).padStart(2, '0');
-                  const mm = String(d.getMonth() + 1).padStart(2, '0');
-                  return `Pago · ${dd}/${mm}`;
-                })();
-                const badgeText = isPaid
-                  ? paidAtLabel
-                  : daysLate > 0
-                  ? `Atrasado ${daysLate}d`
-                  : todayDay === effectiveDueDay
-                  ? 'Vence hoje'
-                  : `Vence dia ${effectiveDueDay}`;
+                  leftBorderColor = !hasObligation
+                    ? 'transparent'
+                    : isPaid ? '#10B981'
+                    : daysLate > 0 ? '#EF4444'
+                    : '#F59E0B';
 
-                const contentOpacity = isPaid ? 'opacity-60' : '';
+                  cardBgClass = !hasObligation
+                    ? 'bg-white'
+                    : isPaid ? 'bg-[#F0FDF4]'
+                    : daysLate > 0 ? 'bg-[#FEF2F2]'
+                    : 'bg-[#FFFBEB]';
+
+                  if (hasObligation) {
+                    const paidAtLabel = (() => {
+                      if (!obligation?.paidAt) return 'Pago';
+                      const d = new Date(obligation.paidAt);
+                      const dd = String(d.getDate()).padStart(2, '0');
+                      const mm = String(d.getMonth() + 1).padStart(2, '0');
+                      return `Pago · ${dd}/${mm}`;
+                    })();
+                    badgeText = isPaid
+                      ? paidAtLabel
+                      : daysLate > 0 ? `Atrasado ${daysLate}d`
+                      : todayDay === effectiveDueDay ? 'Vence hoje'
+                      : `Vence dia ${effectiveDueDay}`;
+                    badgeClass = isPaid
+                      ? 'bg-emerald-500 text-white'
+                      : daysLate > 0 ? 'bg-red-500 text-white'
+                      : 'bg-amber-500/20 text-amber-700';
+                    showMarkPaid = !isPaid;
+                    showUndo = isPaid && paidExpenseIds.has(obligation!.id);
+                  }
+                } else if (isPastMonth) {
+                  if (rec.type === 'expense' && rec.active) {
+                    if (isPaid) {
+                      const paidAtLabel = (() => {
+                        if (!obligation?.paidAt) return 'Pago';
+                        const d = new Date(obligation.paidAt);
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        return `Pago · ${dd}/${mm}`;
+                      })();
+                      badgeText = paidAtLabel;
+                      badgeClass = 'bg-emerald-500 text-white';
+                      leftBorderColor = '#10B981';
+                      cardBgClass = 'bg-[#F0FDF4]';
+                    } else {
+                      badgeText = 'Não pago';
+                      badgeClass = 'bg-red-100 text-red-500';
+                      leftBorderColor = '#FCA5A5';
+                      cardBgClass = 'bg-[#FEF2F2]';
+                    }
+                  }
+                } else {
+                  // future month
+                  if (rec.type === 'expense' && rec.active) {
+                    badgeText = 'Previsto';
+                    badgeClass = 'bg-gray-100 text-gray-500';
+                  }
+                }
+
+                const contentOpacity = isCurrentMonth && isPaid ? 'opacity-60' : '';
                 const isMenuOpen = openMenuId === rec.id;
+                const showBadge = badgeText !== '';
 
                 return (
                   <div
@@ -558,14 +723,14 @@ export default function RecorrentesPage() {
                           <span className="text-gray-400 text-xs flex-1 min-w-0 truncate">
                             {rec.category} · Dia {rec.dayOfMonth}
                           </span>
-                          {hasObligation && (
+                          {showBadge && (
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0 ${badgeClass}`}>
                               {badgeText}
                             </span>
                           )}
-                          {hasObligation && !isPaid && (
+                          {showMarkPaid && obligation && (
                             <button
-                              onClick={() => handleMarkObligationPaid(obligation!.id)}
+                              onClick={() => handleMarkObligationPaid(obligation.id)}
                               disabled={isPaying}
                               className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
                             >
@@ -574,13 +739,13 @@ export default function RecorrentesPage() {
                                 : 'Marcar pago'}
                             </button>
                           )}
-                          {hasObligation && isPaid && paidExpenseIds.has(obligation!.id) && (
+                          {showUndo && obligation && (
                             <button
-                              onClick={() => handleUnmarkObligationPaid(obligation!.id)}
-                              disabled={undoingIds.has(obligation!.id)}
+                              onClick={() => handleUnmarkObligationPaid(obligation.id)}
+                              disabled={undoingIds.has(obligation.id)}
                               className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium transition-colors disabled:opacity-50"
                             >
-                              {undoingIds.has(obligation!.id)
+                              {undoingIds.has(obligation.id)
                                 ? <Loader2 size={10} className="animate-spin" />
                                 : 'Desfazer'}
                             </button>
