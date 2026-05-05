@@ -63,6 +63,40 @@ function groupByDate(expenses: Expense[]) {
     .map(([date, items]) => ({ date, label: formatGroupLabel(date), items }));
 }
 
+function FilterTabs({
+  active,
+  onChange,
+}: {
+  active: 'all' | 'expense' | 'income';
+  onChange: (tab: 'all' | 'expense' | 'income') => void;
+}) {
+  const tabs = [
+    { key: 'all' as const, label: 'Ver tudo' },
+    { key: 'expense' as const, label: 'Gastos' },
+    { key: 'income' as const, label: 'Receitas' },
+  ];
+  return (
+    <div className="flex items-center gap-4 mb-3">
+      {tabs.map((tab) => {
+        const isActive = active === tab.key;
+        return (
+          <button
+            key={tab.key}
+            onClick={() => onChange(tab.key)}
+            className="pb-1 text-sm font-medium transition-colors"
+            style={{
+              color: isActive ? '#10b981' : '#9ca3af',
+              borderBottom: isActive ? '2px solid #10b981' : '2px solid transparent',
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ExpenseList({
   expenses,
   newestId,
@@ -314,8 +348,11 @@ export default function LancamentosPage() {
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = getMonthKey(new Date());
+  const [filterTab, setFilterTab] = useState<'all' | 'expense' | 'income'>('all');
+
   const currentExpenses = [...expenses]
     .filter((e) => e.date.slice(0, 7) === currentMonth)
+    .filter((e) => filterTab === 'all' || e.type === filterTab)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const ctaLabel = saving ? null
@@ -565,6 +602,7 @@ export default function LancamentosPage() {
             style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
           >
             <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
+            <FilterTabs active={filterTab} onChange={setFilterTab} />
             <ExpenseList
               expenses={currentExpenses}
               newestId={newestId}
@@ -582,6 +620,7 @@ export default function LancamentosPage() {
           style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
         >
           <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
+          <FilterTabs active={filterTab} onChange={setFilterTab} />
           <ExpenseList
             expenses={currentExpenses}
             newestId={newestId}

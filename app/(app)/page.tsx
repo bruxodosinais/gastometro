@@ -106,6 +106,8 @@ export default function HomePage() {
   const [showBellMenu, setShowBellMenu] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const bellMenuRef = useRef<HTMLDivElement>(null);
+  const contasMesRef = useRef<HTMLDivElement>(null);
+  const [highlighting, setHighlighting] = useState(false);
   const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false, b5: false, b6: false, b7: false, b8: false });
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [heroDisplayValue, setHeroDisplayValue] = useState(0);
@@ -636,7 +638,11 @@ export default function HomePage() {
         <div
           className="mb-3 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-colors"
           style={{ background: '#fff6e0', border: '1px solid rgba(255,170,51,0.4)', ...(mounted ? anim(50) : hidden) }}
-          onClick={() => document.getElementById('contas-do-mes')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={() => {
+            contasMesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setHighlighting(true);
+            setTimeout(() => setHighlighting(false), 2000);
+          }}
         >
           <span className="text-lg leading-none flex-shrink-0">⚠️</span>
           <div className="flex-1 min-w-0">
@@ -713,7 +719,7 @@ export default function HomePage() {
       {/* ── CONTAS DO MÊS ──────────────────────────────────────────────────────── */}
       {isCurrentMonth && obligations.length > 0 && (
         <div
-          id="contas-do-mes"
+          ref={contasMesRef}
           className="mb-3 bg-white border border-gray-100 rounded-2xl overflow-hidden"
           style={mounted ? anim(130) : hidden}
         >
@@ -728,55 +734,70 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="divide-y divide-slate-800/60">
-              {[...obligations]
-                .sort((a, b) => {
-                  if (a.status === b.status) return a.dueDay - b.dueDay;
-                  return a.status === 'pending' ? -1 : 1;
-                })
-                .map((ob) => {
-                const cfg = CATEGORY_CONFIG[ob.category as Category];
-                const isPaid = ob.status === 'paid';
-                const isPaying = payingIds.has(ob.id);
-                const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
-                const dueToday = !isPaid && todayDay === ob.dueDay;
-                const dueLabelText = isPaid ? '' : daysLate > 0
-                  ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
-                  : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
-                const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
-                return (
-                  <div
-                    key={ob.id}
-                    className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''}`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
-                      {cfg?.icon ?? '💸'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                        {ob.description}
-                      </p>
-                      {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
-                    </div>
-                    <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                      {formatCurrency(ob.amount)}
-                    </span>
-                    {isPaid ? (
-                      <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
-                    ) : (
-                      <button
-                        onClick={() => handleMarkObligationPaid(ob.id)}
-                        disabled={isPaying}
-                        className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
-                        title="Marcar como pago"
-                      >
-                        {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                      </button>
-                    )}
+          {(() => {
+              const sorted = [
+                ...obligations.filter((o) => o.status === 'pending').sort((a, b) => a.dueDay - b.dueDay),
+                ...obligations.filter((o) => o.status === 'paid').sort((a, b) => a.dueDay - b.dueDay),
+              ];
+              const visible = sorted.slice(0, 3);
+              return (
+                <>
+                  <div className="divide-y divide-slate-800/60">
+                    {visible.map((ob) => {
+                      const cfg = CATEGORY_CONFIG[ob.category as Category];
+                      const isPaid = ob.status === 'paid';
+                      const isPaying = payingIds.has(ob.id);
+                      const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
+                      const dueToday = !isPaid && todayDay === ob.dueDay;
+                      const dueLabelText = isPaid ? '' : daysLate > 0
+                        ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
+                        : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
+                      const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
+                      return (
+                        <div
+                          key={ob.id}
+                          className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''} ${!isPaid && highlighting ? 'highlight-pulse' : ''}`}
+                        >
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
+                            {cfg?.icon ?? '💸'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                              {ob.description}
+                            </p>
+                            {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                          </div>
+                          <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                            {formatCurrency(ob.amount)}
+                          </span>
+                          {isPaid ? (
+                            <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
+                          ) : (
+                            <button
+                              onClick={() => handleMarkObligationPaid(ob.id)}
+                              disabled={isPaying}
+                              className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
+                              title="Marcar como pago"
+                            >
+                              {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                  {obligations.length > 3 && (
+                    <Link
+                      href="/recorrentes"
+                      className="block px-4 py-2.5 text-mint-500 font-medium"
+                      style={{ fontSize: '14px' }}
+                    >
+                      Ver todas as {obligations.length} contas →
+                    </Link>
+                  )}
+                </>
+              );
+            })()}
         </div>
       )}
 
