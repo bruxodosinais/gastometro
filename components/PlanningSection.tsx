@@ -15,6 +15,8 @@ interface Props {
   periodExpenses: Expense[];
   monthlyPlan: MonthlyPlan | null;
   contributions: GoalContribution[];
+  recurringIncome: number;
+  incomeDay?: number | null;
   onPlanUpdate: (plan: MonthlyPlan) => void;
 }
 
@@ -27,6 +29,8 @@ export default function PlanningSection({
   periodExpenses,
   monthlyPlan,
   contributions,
+  recurringIncome,
+  incomeDay,
   onPlanUpdate,
 }: Props) {
   const [editMode, setEditMode] = useState(false);
@@ -34,9 +38,12 @@ export default function PlanningSection({
   const [editSavings, setEditSavings] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const expectedIncome = monthlyPlan?.expectedIncome ?? 0;
+  const manualExpected = monthlyPlan?.expectedIncome ?? 0;
+  // Se o usuário não configurou receita prevista manualmente, usa a soma
+  // dos recorrentes de receita ativos como previsão automática.
+  const expectedIncome = manualExpected > 0 ? manualExpected : recurringIncome;
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
-  const hasPlan = monthlyPlan !== null;
+  const hasPlan = monthlyPlan !== null || recurringIncome > 0 || savingsGoal > 0;
 
   // Métricas derivadas
   const balance = income - spent;
@@ -48,7 +55,7 @@ export default function PlanningSection({
     : manualContribution;
   const savingsPct = savingsGoal > 0 ? (savedAmount / savingsGoal) * 100 : null;
   const freeAmount = expectedIncome - fixedCosts - savingsGoal;
-  const freeRemaining = expectedIncome - savingsGoal - spent;
+  const freeRemaining = freeAmount - spent;
 
   type IncomeStatus = 'above' | 'ok' | 'below';
   const incomeStatus: IncomeStatus | null =
@@ -69,7 +76,12 @@ export default function PlanningSection({
       insights.push(`Você já atingiu ${Math.round(Math.max(0, savingsPct))}% da meta de economia`);
     }
   }
-  if (expectedIncome > 0 && income < expectedIncome * 0.9) {
+  const todayDayNum = new Date().getDate();
+  const isCurrentPeriod = period === new Date().toISOString().slice(0, 7);
+  const suppressIncomeAlert = isCurrentPeriod && (
+    incomeDay != null ? todayDayNum < incomeDay : todayDayNum <= 10
+  );
+  if (!suppressIncomeAlert && expectedIncome > 0 && income < expectedIncome * 0.9) {
     insights.push(`Receita ${formatCurrency(expectedIncome - income)} abaixo do previsto`);
   }
   if (freeRemaining > 0 && expectedIncome > 0) {
@@ -259,13 +271,15 @@ export default function PlanningSection({
               className={`text-xs font-medium mt-2 ${
                 incomeStatus === 'above'
                   ? 'text-mint-500/80'
-                  : incomeStatus === 'below'
+                  : incomeStatus === 'below' && !suppressIncomeAlert
                   ? 'text-yellow-400/80'
                   : 'text-gray-500/80'
               }`}
             >
               {incomeStatus === 'above'
                 ? `Acima do previsto (+${formatCurrency(income - expectedIncome)})`
+                : incomeStatus === 'below' && suppressIncomeAlert
+                ? `Aguardando recebimento${incomeDay != null ? ` · dia ${incomeDay}` : ''}`
                 : incomeStatus === 'below'
                 ? `Abaixo do previsto (−${formatCurrency(expectedIncome - income)})`
                 : 'Dentro do esperado'}

@@ -12,6 +12,7 @@ import {
   getMonthlyObligations,
   checkAndGenerateObligations,
   markObligationAsPaid,
+  addExpense,
   getAllGoalContributions,
 } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
@@ -95,6 +96,7 @@ export default function HomePage() {
   const [contributions, setContributions] = useState<GoalContribution[]>([]);
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
+  const [receivingIds, setReceivingIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
@@ -206,18 +208,20 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!ready || !mounted) return;
-    const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
-    const inc = calculateTotalByType(periodEntries, 'income');
-    const sp = calculateTotalByType(periodEntries, 'expense');
     const now2 = new Date();
     const isCur = period === getMonthKey(now2);
     const [py, pm] = period.split('-').map(Number);
     const totalDays = new Date(py, pm, 0).getDate();
-    const daysRem = isCur ? totalDays - now2.getDate() : 0;
     const savingsGoal2 = monthlyPlan?.savingsGoal ?? 0;
     const daysForLimit2 = isCur ? totalDays - now2.getDate() + 1 : 0;
-    const valorLivre2 = inc - sp - savingsGoal2;
-    const target = isCur && valorLivre2 > 0 ? valorLivre2 / Math.max(daysForLimit2, 1) : 0;
+    const recurringIncome2 = recurringExpenses
+      .filter((r) => r.active && r.type === 'income')
+      .reduce((sum, r) => sum + r.amount, 0);
+    const fixedCosts2 = recurringExpenses
+      .filter((r) => r.active && r.type === 'expense')
+      .reduce((sum, r) => sum + r.amount, 0);
+    const livreTotal2 = recurringIncome2 - fixedCosts2 - savingsGoal2;
+    const target = isCur && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit2, 1) : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -231,7 +235,7 @@ export default function HomePage() {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [ready, mounted, period, expenses, monthlyPlan]);
+  }, [ready, mounted, period, monthlyPlan, recurringExpenses]);
 
   useEffect(() => {
     if (!ready) return;
@@ -265,6 +269,26 @@ export default function HomePage() {
       );
     } finally {
       setPayingIds((prev) => { const next = new Set(prev); next.delete(obligationId); return next; });
+    }
+  }
+
+  async function handleConfirmIncome(rec: RecurringExpense) {
+    if (receivingIds.has(rec.id)) return;
+    setReceivingIds((prev) => new Set([...prev, rec.id]));
+    const date = new Date().toISOString().slice(0, 10);
+    try {
+      const expense = await addExpense({
+        description: rec.description,
+        amount: rec.amount,
+        category: rec.category,
+        type: 'income',
+        date,
+      }, rec.id);
+      setExpenses((prev) => [expense, ...prev]);
+    } catch {
+      // no-op; user can retry
+    } finally {
+      setReceivingIds((prev) => { const next = new Set(prev); next.delete(rec.id); return next; });
     }
   }
 
@@ -377,6 +401,18 @@ export default function HomePage() {
     .filter((r) => r.active && r.type === 'expense')
     .reduce((sum, r) => sum + r.amount, 0);
 
+  const recurringIncome = recurringExpenses
+    .filter((r) => r.active && r.type === 'income')
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  const activeIncomeRecs = recurringExpenses.filter((r) => r.active && r.type === 'income');
+  const receivedIncomeRecIds = new Set(
+    periodEntries
+      .filter((e) => e.type === 'income' && e.recurringExpenseId != null)
+      .map((e) => e.recurringExpenseId as string)
+  );
+  const pendingIncomeCount = activeIncomeRecs.filter((r) => !receivedIncomeRecIds.has(r.id)).length;
+
   // ── Tempo ────────────────────────────────────────────────────────────────────
   const now = new Date();
   const isCurrentMonth = period === getMonthKey(now);
@@ -485,7 +521,12 @@ export default function HomePage() {
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const daysForLimit = isCurrentMonth ? totalDaysInMonth - todayDay + 1 : 0;
   const valorLivreParaGastar = balance - savingsGoal;
-  const canSpendToday = isCurrentMonth ? (valorLivreParaGastar > 0 ? valorLivreParaGastar / Math.max(daysForLimit, 1) : 0) : null;
+  const livreTotal = recurringIncome - fixedCosts - savingsGoal;
+  const canSpendToday = isCurrentMonth ? (daysForLimit > 0 ? livreTotal / daysForLimit : 0) : null;
+
+  const firstIncomeDay = activeIncomeRecs.length > 0
+    ? Math.min(...activeIncomeRecs.map((r) => r.dayOfMonth))
+    : null;
   const valorLivreParaGastarPlanejado = heroBase - fixedCosts - savingsGoal;
   const budgetPctBase = valorLivreParaGastarPlanejado > 0 ? valorLivreParaGastarPlanejado : heroBase;
   const budgetPctFallback = valorLivreParaGastarPlanejado <= 0;
@@ -717,7 +758,7 @@ export default function HomePage() {
       )}
 
       {/* ── CONTAS DO MÊS ──────────────────────────────────────────────────────── */}
-      {isCurrentMonth && obligations.length > 0 && (
+      {isCurrentMonth && (obligations.length > 0 || activeIncomeRecs.length > 0) && (
         <div
           ref={contasMesRef}
           className="mb-3 bg-white border border-gray-100 rounded-2xl overflow-hidden"
@@ -725,9 +766,9 @@ export default function HomePage() {
         >
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <p className="text-gray-800 font-semibold text-sm uppercase tracking-wider text-xs">Contas do mês</p>
-            {pendingObligations.length > 0 ? (
+            {pendingObligations.length + pendingIncomeCount > 0 ? (
               <span className="bg-amber-500/15 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
-                {pendingObligations.length} pendente{pendingObligations.length > 1 ? 's' : ''}
+                {pendingObligations.length + pendingIncomeCount} pendente{pendingObligations.length + pendingIncomeCount > 1 ? 's' : ''}
               </span>
             ) : (
               <span className="text-mint-500 text-xs font-medium">Tudo em dia</span>
@@ -735,69 +776,131 @@ export default function HomePage() {
           </div>
 
           {(() => {
-              const sorted = [
-                ...obligations.filter((o) => o.status === 'pending').sort((a, b) => a.dueDay - b.dueDay),
-                ...obligations.filter((o) => o.status === 'paid').sort((a, b) => a.dueDay - b.dueDay),
-              ];
-              const visible = sorted.slice(0, 3);
-              return (
-                <>
-                  <div className="divide-y divide-slate-800/60">
-                    {visible.map((ob) => {
-                      const cfg = CATEGORY_CONFIG[ob.category as Category];
-                      const isPaid = ob.status === 'paid';
-                      const isPaying = payingIds.has(ob.id);
-                      const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
-                      const dueToday = !isPaid && todayDay === ob.dueDay;
-                      const dueLabelText = isPaid ? '' : daysLate > 0
-                        ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
-                        : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
-                      const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
+            type RowItem =
+              | { kind: 'obligation'; ob: MonthlyObligation }
+              | { kind: 'income'; rec: RecurringExpense; received: boolean };
+
+            const rows: RowItem[] = [
+              ...activeIncomeRecs
+                .filter((r) => !receivedIncomeRecIds.has(r.id))
+                .sort((a, b) => a.dayOfMonth - b.dayOfMonth)
+                .map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
+              ...obligations
+                .filter((o) => o.status === 'pending')
+                .sort((a, b) => a.dueDay - b.dueDay)
+                .map((o): RowItem => ({ kind: 'obligation', ob: o })),
+              ...activeIncomeRecs
+                .filter((r) => receivedIncomeRecIds.has(r.id))
+                .sort((a, b) => a.dayOfMonth - b.dayOfMonth)
+                .map((r): RowItem => ({ kind: 'income', rec: r, received: true })),
+              ...obligations
+                .filter((o) => o.status === 'paid')
+                .sort((a, b) => a.dueDay - b.dueDay)
+                .map((o): RowItem => ({ kind: 'obligation', ob: o })),
+            ];
+            const visible = rows.slice(0, 3);
+            return (
+              <>
+                <div className="divide-y divide-slate-800/60">
+                  {visible.map((item) => {
+                    if (item.kind === 'income') {
+                      const { rec, received } = item;
+                      const cfg = CATEGORY_CONFIG[rec.category as Category];
+                      const isReceiving = receivingIds.has(rec.id);
                       return (
                         <div
-                          key={ob.id}
-                          className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''} ${!isPaid && highlighting ? 'highlight-pulse' : ''}`}
+                          key={`income-${rec.id}`}
+                          className={`px-4 py-3 flex items-center gap-3 transition-all ${received ? 'opacity-50' : ''}`}
                         >
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
-                            {cfg?.icon ?? '💸'}
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-mint-50'}`}>
+                            {cfg?.icon ?? '💰'}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                              {ob.description}
+                            <p className={`text-sm font-medium truncate ${received ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                              {rec.description}
                             </p>
-                            {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                            {!received && (
+                              <p className="text-xs text-gray-500">Recebimento dia {rec.dayOfMonth}</p>
+                            )}
                           </div>
-                          <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                            {formatCurrency(ob.amount)}
+                          <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${received ? 'line-through text-gray-500' : 'text-mint-500'}`}>
+                            +{formatCurrency(rec.amount)}
                           </span>
-                          {isPaid ? (
-                            <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
+                          {received ? (
+                            <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Recebido ✓</span>
                           ) : (
                             <button
-                              onClick={() => handleMarkObligationPaid(ob.id)}
-                              disabled={isPaying}
-                              className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
-                              title="Marcar como pago"
+                              onClick={() => handleConfirmIncome(rec)}
+                              disabled={isReceiving}
+                              className="h-8 px-2.5 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 text-xs font-medium hover:bg-mint/25 transition-colors flex-shrink-0 disabled:opacity-50 whitespace-nowrap"
+                              title="Confirmar recebimento"
                             >
-                              {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              {isReceiving ? <Loader2 size={14} className="animate-spin" /> : 'Confirmar'}
                             </button>
                           )}
                         </div>
                       );
-                    })}
-                  </div>
-                  {obligations.length > 3 && (
-                    <Link
-                      href="/recorrentes"
-                      className="block px-4 py-2.5 text-mint-500 font-medium"
-                      style={{ fontSize: '14px' }}
-                    >
-                      Ver todas as {obligations.length} contas →
-                    </Link>
-                  )}
-                </>
-              );
-            })()}
+                    }
+
+                    const { ob } = item;
+                    const cfg = CATEGORY_CONFIG[ob.category as Category];
+                    const isPaid = ob.status === 'paid';
+                    const isPaying = payingIds.has(ob.id);
+                    const obRec = recurringExpenses.find((r) => r.id === ob.recurringExpenseId);
+                    const obRecCreatedThisMonth = obRec?.createdAt.slice(0, 7) === getMonthKey(now);
+                    const obRecCreatedDay = obRecCreatedThisMonth && obRec ? new Date(obRec.createdAt).getDate() : 0;
+                    const obCreatedAfterDue = obRecCreatedThisMonth && obRecCreatedDay > ob.dueDay;
+                    const daysLate = !isPaid && todayDay > ob.dueDay && !obCreatedAfterDue ? todayDay - ob.dueDay : 0;
+                    const dueToday = !isPaid && todayDay === ob.dueDay;
+                    const dueLabelText = isPaid ? '' : daysLate > 0
+                      ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
+                      : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
+                    const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
+                    return (
+                      <div
+                        key={ob.id}
+                        className={`px-4 py-3 flex items-center gap-3 transition-all ${isPaid ? 'opacity-50' : ''} ${!isPaid && highlighting ? 'highlight-pulse' : ''}`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
+                          {cfg?.icon ?? '💸'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                            {ob.description}
+                          </p>
+                          {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                        </div>
+                        <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                          {formatCurrency(ob.amount)}
+                        </span>
+                        {isPaid ? (
+                          <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
+                        ) : (
+                          <button
+                            onClick={() => handleMarkObligationPaid(ob.id)}
+                            disabled={isPaying}
+                            className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
+                            title="Marcar como pago"
+                          >
+                            {isPaying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {rows.length > 3 && (
+                  <Link
+                    href="/recorrentes"
+                    className="block px-4 py-2.5 text-mint-500 font-medium"
+                    style={{ fontSize: '14px' }}
+                  >
+                    Ver todas as {rows.length} contas →
+                  </Link>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -1028,6 +1131,8 @@ export default function HomePage() {
         periodExpenses={periodExpenses}
         monthlyPlan={monthlyPlan}
         contributions={contributions}
+        recurringIncome={recurringIncome}
+        incomeDay={firstIncomeDay}
         onPlanUpdate={setMonthlyPlan}
       />
       </div>

@@ -588,7 +588,13 @@ export default function RecorrentesPage() {
                 let showUndo = false;
 
                 if (isCurrentMonth) {
-                  const daysLate = obligation && !isPaid && todayDay > effectiveDueDay
+                  // Se o recorrente foi criado neste mês DEPOIS do vencimento,
+                  // não considerar como atrasado — só vale para meses em que
+                  // o recorrente já existia desde o início.
+                  const recCreatedThisMonth = rec.createdAt.slice(0, 7) === todayMonthKey;
+                  const recCreatedDay = recCreatedThisMonth ? new Date(rec.createdAt).getDate() : 0;
+                  const createdAfterDue = recCreatedThisMonth && recCreatedDay > effectiveDueDay;
+                  const daysLate = obligation && !isPaid && todayDay > effectiveDueDay && !createdAfterDue
                     ? todayDay - effectiveDueDay : 0;
                   const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
 

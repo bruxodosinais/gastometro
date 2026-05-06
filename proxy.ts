@@ -28,7 +28,9 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+  const { pathname } = request.nextUrl;
+  const isAuthRoute = pathname.startsWith('/auth');
+  const isOnboarding = pathname === '/onboarding';
 
   if (!user && !isAuthRoute) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
@@ -36,6 +38,18 @@ export async function proxy(request: NextRequest) {
 
   if (user && isAuthRoute) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  if (user) {
+    const onboardingCompleted = user.user_metadata?.onboarding_completed === true;
+
+    if (isOnboarding && onboardingCompleted) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    if (!isOnboarding && !isAuthRoute && !onboardingCompleted) {
+      return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
   }
 
   return supabaseResponse;
