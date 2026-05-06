@@ -379,6 +379,8 @@ export default function LancamentosPage() {
     <>
       <div className="fixed inset-0 bg-[#F9FAFB] -z-10 pointer-events-none" />
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-36 md:pb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Lançar</h1>
+        <p className="text-gray-500 text-sm mb-5">Registre um gasto ou receita</p>
         <div className="md:grid md:grid-cols-[420px_1fr] md:gap-8 md:items-start">
 
           {/* FORM COLUMN */}
@@ -439,14 +441,14 @@ export default function LancamentosPage() {
                       transform: inputScale ? 'scale(1.02)' : 'scale(1)',
                       opacity: valueOpacity,
                       transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
-                      caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+                      caretColor: '#00b87a',
                       cursor: inputFocused ? 'text' : 'pointer',
                     }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#00b87a' }} />
                   <div
                     className="absolute bottom-0 left-0 h-[2px]"
-                    style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+                    style={{ backgroundColor: '#00b87a', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
                   />
                 </div>
               </div>

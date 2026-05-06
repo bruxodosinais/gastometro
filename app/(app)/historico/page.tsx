@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { BarChart2, CheckCircle, Copy, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
 import { deleteExpense, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
@@ -459,7 +460,19 @@ export default function HistoricoPage() {
 
       {/* Lista */}
       {baseEntries.length === 0 ? (
-        <p className="text-gray-500 text-sm text-center py-8">Nenhum lançamento neste período</p>
+        <div className="py-10 text-center">
+          <p className="text-5xl mb-3">🧾</p>
+          <p className="text-gray-900 font-semibold text-lg mb-2">Nenhum lançamento aqui</p>
+          <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+            Tudo que você gastar ou receber vai aparecer por aqui. Que tal registrar seu primeiro lançamento?
+          </p>
+          <Link
+            href="/lancamentos"
+            className="inline-block px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 text-sm font-semibold transition-all active:scale-95"
+          >
+            Lançar agora
+          </Link>
+        </div>
       ) : filteredEntries.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
       ) : (

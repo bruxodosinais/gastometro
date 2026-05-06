@@ -312,20 +312,36 @@ export default function CategoriasPage() {
         </div>
       )}
 
-      {/* Legenda barras */}
-      <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-mint-500" />
-          <span>Mês atual</span>
+      {rankedSummaries.length === 0 ? (
+        <div className="py-10 text-center">
+          <p className="text-5xl mb-3">📊</p>
+          <p className="text-gray-900 font-semibold text-lg mb-2">Nenhum gasto registrado ainda</p>
+          <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+            Quando você lançar gastos, verá aqui como está distribuindo seu dinheiro por categoria.
+          </p>
+          <button
+            onClick={() => router.push('/lancamentos')}
+            className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 text-sm font-semibold transition-all active:scale-95"
+          >
+            Lançar gasto
+          </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-gray-300" />
-          <span>Média anterior</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Legenda barras */}
+          <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-mint-500" />
+              <span>Mês atual</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-gray-300" />
+              <span>Média anterior</span>
+            </div>
+          </div>
 
-      {/* Cards de categorias */}
-      <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+          {/* Cards de categorias */}
+          <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
         {summaries.map((summary) => {
           const cfg = CATEGORY_CONFIG[summary.category];
           const currentWidth = (summary.total / maxTotal) * 100;
@@ -599,7 +615,9 @@ export default function CategoriasPage() {
             </div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Evolução por categoria — últimos 6 meses */}
       {hasChartData && (

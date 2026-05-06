@@ -63,7 +63,7 @@ export default function CategoryPickerSheet({
                   onClick={() => { onSelect(cat); onClose(); }}
                   className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
                     active
-                      ? 'bg-violet-50 border-violet-400/60 text-violet-700'
+                      ? 'bg-mint-50 border-green-500/40 text-mint-500'
                       : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-400'
                   }`}
                 >

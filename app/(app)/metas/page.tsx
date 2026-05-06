@@ -29,7 +29,7 @@ const GOAL_TYPES: Record<GoalType, { label: string; icon: string; color: ColorKe
   personalizada:{ label: 'Personalizada',         icon: '⭐', color: 'slate' },
 };
 
-const COLORS: ColorKey[] = ['violet', 'blue', 'green', 'amber', 'orange', 'cyan', 'emerald', 'rose', 'slate'];
+const COLORS: ColorKey[] = ['violet', 'blue', 'green', 'amber', 'orange', 'cyan', 'rose', 'slate'];
 
 const COLOR_CONFIG: Record<ColorKey, { bar: string; text: string; bg: string; border: string; dot: string }> = {
   violet:  { bar: 'bg-mint-500',  text: 'text-mint-500',  bg: 'bg-mint-50',  border: 'border-mint-500/20',  dot: 'bg-mint-500' },
@@ -173,6 +173,8 @@ export default function MetasPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAllTypes, setShowAllTypes] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Contribuição
   const [contributingGoal, setContributingGoal] = useState<Goal | null>(null);
@@ -244,6 +246,7 @@ export default function MetasPage() {
     setForm(EMPTY_FORM);
     setFormError(null);
     setShowAdvanced(false);
+    setShowAllTypes(false);
   }
 
   function handleTypeChange(type: GoalType) {
@@ -440,10 +443,34 @@ export default function MetasPage() {
 
         {/* Formulário de criação / edição */}
         {showForm && (
-          <div className="bg-white border border-mint-500/30 rounded-2xl p-5 mb-6">
-            <p className="text-gray-800 font-semibold text-sm mb-4">
-              {editingId ? 'Editar meta' : 'Nova meta'}
-            </p>
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}
+          >
+          <div
+            className="bg-white rounded-2xl p-6 shadow-xl overflow-y-auto"
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'calc(100% - 2rem)',
+              maxWidth: '32rem',
+              maxHeight: '90vh',
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-gray-800 font-semibold text-sm">
+                {editingId ? 'Editar meta' : 'Nova meta'}
+              </p>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
             <div className="space-y-4">
               {/* Nome */}
               <div>
@@ -497,22 +524,31 @@ export default function MetasPage() {
                   <div>
                     <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {(Object.keys(GOAL_TYPES) as GoalType[]).map((t) => {
-                        const cfg = GOAL_TYPES[t];
-                        const active = form.type === t;
-                        return (
-                          <button key={t} type="button" onClick={() => handleTypeChange(t)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
-                              active ? 'bg-mint-50 border-mint-500/40 text-gray-900'
-                                     : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
-                            }`}
-                          >
-                            <span>{cfg.icon}</span>
-                            <span className="text-xs font-medium truncate">{cfg.label}</span>
-                          </button>
-                        );
-                      })}
+                      {(Object.keys(GOAL_TYPES) as GoalType[])
+                        .filter((_, i) => showAllTypes || i < 3)
+                        .map((t) => {
+                          const cfg = GOAL_TYPES[t];
+                          const active = form.type === t;
+                          return (
+                            <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
+                                active ? 'bg-mint-50 border-mint-500/40 text-gray-900'
+                                       : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
+                              }`}
+                            >
+                              <span>{cfg.icon}</span>
+                              <span className="text-xs font-medium truncate">{cfg.label}</span>
+                            </button>
+                          );
+                        })}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTypes((v) => !v)}
+                      className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showAllTypes ? '− Ver menos' : '+ Ver mais tipos'}
+                    </button>
                   </div>
                   {/* Emoji personalizado */}
                   <div>
@@ -520,31 +556,28 @@ export default function MetasPage() {
                       Emoji da meta{' '}
                       <span className="normal-case text-gray-500">(opcional — substitui o ícone de categoria)</span>
                     </label>
-                    <div className="grid grid-cols-7 md:grid-cols-14 gap-1.5">
-                      {EMOJI_OPTIONS.map((e) => (
-                        <button
-                          key={e}
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, emoji: f.emoji === e ? '' : e }))}
-                          className={`h-9 rounded-xl text-lg flex items-center justify-center transition-all ${
-                            form.emoji === e
-                              ? 'bg-mint-50 border border-mint-500/50 scale-110'
-                              : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:scale-105'
-                          }`}
-                        >
-                          {e}
-                        </button>
-                      ))}
-                    </div>
-                    {form.emoji && (
+                    <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
-                        className="mt-1.5 text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
+                        onClick={() => setShowEmojiPicker(true)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-sm"
                       >
-                        ✕ Remover emoji
+                        {form.emoji ? (
+                          <span className="text-2xl leading-none">{form.emoji}</span>
+                        ) : (
+                          <span className="text-gray-500">Escolher emoji</span>
+                        )}
                       </button>
-                    )}
+                      {form.emoji && (
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
+                          className="text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          ✕ Remover
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {/* Prazo e cor */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -614,23 +647,21 @@ export default function MetasPage() {
                   {deletingId === editingId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 </button>
               )}
-              <button onClick={closeForm}
-                className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
-                aria-label="Cancelar"
-              >
-                <X size={16} />
-              </button>
             </div>
+          </div>
           </div>
         )}
 
         {/* Estado vazio */}
-        {goals.length === 0 && !showForm && (
-          <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
-            <Target size={32} className="text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-1">Nenhuma meta criada ainda</p>
-            <p className="text-gray-500 text-xs mb-5">Defina seus objetivos e acompanhe a evolução</p>
-            <button onClick={openCreate}
+        {goals.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-5xl mb-3">🎯</p>
+            <p className="text-gray-900 font-semibold text-lg mb-2">Nenhuma meta ainda</p>
+            <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+              Defina um objetivo — comprar um carro, fazer uma viagem, montar uma reserva. O Gastômetro te ajuda a chegar lá.
+            </p>
+            <button
+              onClick={openCreate}
               className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 active:scale-95 text-gray-900 text-sm font-semibold transition-all"
             >
               Criar primeira meta
@@ -745,6 +776,48 @@ export default function MetasPage() {
             >
               {contribSaving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={16} /> Registrar aporte</>}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Emoji picker */}
+      {showEmojiPicker && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowEmojiPicker(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-[90%] max-w-[400px] max-h-[80vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-semibold text-base">Escolher emoji</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {EMOJI_OPTIONS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => { setForm((f) => ({ ...f, emoji: e })); setShowEmojiPicker(false); }}
+                    className={`h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
+                      form.emoji === e
+                        ? 'bg-mint-50 border border-mint-500/50 scale-110'
+                        : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:scale-105'
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1011,7 +1084,13 @@ function GoalCard({
     : null;
 
   return (
-    <div className={`rounded-2xl p-5 border bg-white ${isPriority && !isCompleted ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]' : 'border-gray-100'}`}>
+    <div className={`rounded-2xl p-5 border bg-white ${
+      isPriority && !isCompleted && statusKey === 'atrasada'
+        ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]'
+        : isPriority && !isCompleted && statusKey === 'atencao'
+        ? 'border-yellow-500/40 shadow-[0_0_14px_rgba(234,179,8,0.22)]'
+        : 'border-gray-100'
+    }`}>
 
       {/* Cabeçalho */}
       <div className="flex items-start justify-between mb-4">
@@ -1059,7 +1138,16 @@ function GoalCard({
       <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0f0f0' }}>
         <div
           className="h-full rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${pct}%`, background: isCompleted ? '#00b87a' : '#f04e5e' }}
+          style={{
+            width: `${pct}%`,
+            background: isCompleted
+              ? '#00b87a'
+              : statusKey === 'atrasada'
+              ? '#f04e5e'
+              : statusKey === 'atencao'
+              ? '#f59e0b'
+              : '#00b87a',
+          }}
         />
       </div>
 

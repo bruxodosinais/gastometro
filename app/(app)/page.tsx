@@ -582,7 +582,10 @@ export default function HomePage() {
       }
     }
     if (monthlyPlan && monthlyPlan.expectedIncome > 0 && income < monthlyPlan.expectedIncome) {
-      newAlerts.push({ emoji: '📉', text: 'Receita abaixo do previsto', priority: 50 });
+      const beforeIncomeDay = firstIncomeDay !== null && todayDay < firstIncomeDay;
+      if (!beforeIncomeDay) {
+        newAlerts.push({ emoji: '📉', text: 'Receita abaixo do previsto', priority: 50 });
+      }
     }
   }
   const topNewAlerts = [...newAlerts].sort((a, b) => b.priority - a.priority).slice(0, 2);
@@ -930,14 +933,20 @@ export default function HomePage() {
             Ver análise →
           </button>
         </div>
-        <ul className="space-y-1.5">
-          {compactBullets.map((bullet, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs">
-              <span className="text-mint-500 mt-0.5 flex-shrink-0">•</span>
-              <span className="text-gray-800">{bullet}</span>
-            </li>
-          ))}
-        </ul>
+        {periodEntries.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            Nenhum gasto registrado ainda. Lance seu primeiro gasto para começar a análise.
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {compactBullets.map((bullet, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-mint-500 mt-0.5 flex-shrink-0">•</span>
+                <span className="text-gray-800">{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* ── ALERTAS INTELIGENTES ───────────────────────────────────────────────── */}

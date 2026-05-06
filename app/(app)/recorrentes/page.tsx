@@ -32,6 +32,23 @@ function shiftMonth(monthKey: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function findSimilarRecurring(desc: string, recurrings: RecurringExpense[]): RecurringExpense | null {
+  const normalize = (s: string) =>
+    s.toLowerCase().trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const input = normalize(desc);
+  if (input.length < 3) return null;
+  const active = recurrings.filter((r) => r.active);
+  for (const r of active) {
+    if (normalize(r.description) === input) return r;
+  }
+  const inputWords = input.split(' ').filter((w) => w.length >= 3);
+  for (const r of active) {
+    const existingWords = normalize(r.description).split(' ').filter((w) => w.length >= 3);
+    if (inputWords.some((w) => existingWords.includes(w))) return r;
+  }
+  return null;
+}
+
 export default function RecorrentesPage() {
   const todayMonthKey = new Date().toISOString().slice(0, 7);
 
@@ -58,6 +75,7 @@ export default function RecorrentesPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pendentes' | 'pagas'>('all');
+  const [duplicateWarning, setDuplicateWarning] = useState<RecurringExpense | null>(null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => parseInt(todayMonthKey.split('-')[0]));
@@ -135,6 +153,7 @@ export default function RecorrentesPage() {
       setDescription('');
       setDayOfMonth('');
       setDueDay('');
+      setDuplicateWarning(null);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar.');
     } finally {
@@ -324,14 +343,14 @@ export default function RecorrentesPage() {
                 style={{
                   transform: inputScale ? 'scale(1.02)' : 'scale(1)',
                   transition: 'transform 100ms ease-out, color 200ms ease',
-                  caretColor: entryType === 'expense' ? '#f87171' : '#4ade80',
+                  caretColor: '#00b87a',
                   cursor: inputFocused ? 'text' : 'pointer',
                 }}
               />
-              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#7C3AED' }} />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#00b87a' }} />
               <div
                 className="absolute bottom-0 left-0 h-[2px]"
-                style={{ backgroundColor: '#6D28D9', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+                style={{ backgroundColor: '#00b87a', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
               />
             </div>
           </div>
@@ -344,7 +363,15 @@ export default function RecorrentesPage() {
             <input
               type="text"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDescription(val);
+                if (val.trim().length >= 3) {
+                  setDuplicateWarning(findSimilarRecurring(val, recurrings));
+                } else {
+                  setDuplicateWarning(null);
+                }
+              }}
               placeholder={
                 entryType === 'expense'
                   ? 'Ex: Netflix, Academia, Aluguel...'
@@ -352,8 +379,31 @@ export default function RecorrentesPage() {
               }
               maxLength={80}
               required
-              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
             />
+            {duplicateWarning && (
+              <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <p className="text-amber-700 text-sm font-medium">
+                  ⚠️ Já existe um recorrente parecido: <strong>{duplicateWarning.description}</strong>
+                </p>
+                <div className="flex gap-4 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setDescription(''); setDuplicateWarning(null); }}
+                    className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
+                  >
+                    Sim, cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDuplicateWarning(null)}
+                    className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
+                  >
+                    Não, cadastrar assim mesmo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Dia do mês + Dia de vencimento — side by side */}
@@ -371,7 +421,7 @@ export default function RecorrentesPage() {
                 onChange={(e) => setDayOfMonth(e.target.value)}
                 placeholder="Ex: 1 (dia do mês)"
                 required
-                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
               />
               <p className="text-gray-500 text-xs mt-1">Quando aparece no histórico</p>
             </div>
@@ -387,7 +437,7 @@ export default function RecorrentesPage() {
                 value={dueDay}
                 onChange={(e) => setDueDay(e.target.value)}
                 placeholder="Ex: 10"
-                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
               />
               <p className="text-gray-500 text-xs mt-1">Limite para pagar sem atraso</p>
             </div>
@@ -401,7 +451,7 @@ export default function RecorrentesPage() {
             <button
               type="button"
               onClick={() => setShowCategoryPicker(true)}
-              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
+              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#00b87a]"
             >
               <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
               <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
@@ -562,9 +612,13 @@ export default function RecorrentesPage() {
           )}
 
           {recurrings.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-6">
-              Nenhum recorrente cadastrado ainda
-            </p>
+            <div className="py-10 text-center">
+              <p className="text-5xl mb-3">🔄</p>
+              <p className="text-gray-900 font-semibold text-lg mb-2">Nenhuma conta fixa cadastrada</p>
+              <p className="text-gray-500 text-sm mx-auto max-w-[280px]">
+                Cadastre contas que se repetem todo mês — aluguel, streaming, academia — e nunca perca um vencimento.
+              </p>
+            </div>
           ) : filteredRecurrings.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">
               Nenhum item nesta categoria

@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
+async function handleLogout() {
+  await createClient().auth.signOut();
+  window.location.href = '/auth/login';
+}
+
 export default function PerfilPage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
@@ -131,6 +136,16 @@ export default function PerfilPage() {
             )}
           </button>
         </form>
+
+        <div className="border-t border-gray-100" />
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full py-2.5 text-red-400 text-sm font-medium hover:text-red-500 transition-colors"
+        >
+          Sair da conta
+        </button>
       </div>
     </main>
   );

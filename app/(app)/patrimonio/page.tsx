@@ -339,6 +339,29 @@ export default function PatrimonioPage() {
         </div>
 
         {/* Listas */}
+        {assets.length === 0 && liabilities.length === 0 ? (
+          <div className="py-10 text-center mb-6">
+            <p className="text-5xl mb-3">🏦</p>
+            <p className="text-gray-900 font-semibold text-lg mb-2">Seu patrimônio começa aqui</p>
+            <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+              Cadastre seus bens e dívidas para acompanhar seu patrimônio líquido ao longo do tempo.
+            </p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <button
+                onClick={openAddAsset}
+                className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 text-sm font-semibold transition-all active:scale-95"
+              >
+                + Adicionar ativo
+              </button>
+              <button
+                onClick={openAddLiability}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all active:scale-95"
+              >
+                + Adicionar dívida
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
           {/* Ativos */}
@@ -446,6 +469,7 @@ export default function PatrimonioPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* Cards de aportes e evolução */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
