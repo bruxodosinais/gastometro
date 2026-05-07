@@ -117,6 +117,8 @@ export default function HomePage() {
   const [showMissoesModal, setShowMissoesModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const [profileAvatarEmoji, setProfileAvatarEmoji] = useState<string | null>(null);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const contasMesRef = useRef<HTMLDivElement>(null);
   const [highlighting, setHighlighting] = useState(false);
@@ -143,6 +145,31 @@ export default function HomePage() {
       setReady(true);
     });
 
+    // Carrega usuário e avatar do profile
+    async function loadUserAndProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const meta = user.user_metadata as Record<string, string> | undefined;
+      const name =
+        meta?.display_name ||
+        meta?.full_name?.split(' ')[0] ||
+        meta?.name?.split(' ')[0] ||
+        user.email?.split('@')[0] ||
+        '';
+      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url, avatar_emoji')
+        .eq('id', user.id)
+        .single();
+      if (profile) {
+        setProfileAvatarUrl(profile.avatar_url ?? null);
+        setProfileAvatarEmoji(profile.avatar_emoji ?? null);
+      }
+    }
+    loadUserAndProfile();
+
     // Recarrega dados quando o usuário volta para esta aba (ex: após cadastrar recorrente)
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
@@ -152,22 +179,11 @@ export default function HomePage() {
           setExpenses(exp);
           setRecurringExpenses(rec);
         });
+        loadUserAndProfile();
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-    createClient().auth.getUser().then(({ data }) => {
-      const u = data.user;
-      if (!u) return;
-      const meta = u.user_metadata as Record<string, string> | undefined;
-      const name =
-        meta?.display_name ||
-        meta?.full_name?.split(' ')[0] ||
-        meta?.name?.split(' ')[0] ||
-        u.email?.split('@')[0] ||
-        '';
-      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-    });
   }, []);
 
   useEffect(() => {
@@ -662,9 +678,18 @@ export default function HomePage() {
             <button
               onClick={() => setShowAvatarMenu((v) => !v)}
               title="Menu do perfil"
-              className="w-10 h-10 rounded-2xl bg-mint-50 border border-mint-500/40 flex items-center justify-center text-mint-500 font-bold text-sm hover:bg-mint/30 transition-colors"
+              className="w-10 h-10 rounded-2xl bg-mint-50 border border-mint-500/40 flex items-center justify-center overflow-hidden hover:bg-mint/30 transition-colors"
             >
-              {userName ? userName.charAt(0).toUpperCase() : '?'}
+              {profileAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profileAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : profileAvatarEmoji ? (
+                <span style={{ fontSize: 22 }}>{profileAvatarEmoji}</span>
+              ) : (
+                <span className="text-mint-500 font-bold text-sm">
+                  {userName ? userName.charAt(0).toUpperCase() : '?'}
+                </span>
+              )}
             </button>
             {showAvatarMenu && (
               <div className="absolute right-0 top-12 w-40 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50">
