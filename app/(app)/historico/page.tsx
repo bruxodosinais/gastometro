@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BarChart2, CheckCircle, Copy, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
+import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
 import { deleteExpense, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import ExportModal from '@/components/ExportModal';
 import { ToastContainer, useToast } from '@/components/Toast';
 import {
   calculateTotalByType,
@@ -99,6 +100,7 @@ export default function HistoricoPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('recent');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [exportOpen, setExportOpen] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   // When user navigates via PeriodSelector, switch off quick filter and reset category
@@ -305,7 +307,17 @@ export default function HistoricoPage() {
   return (
     <>
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Histórico</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-bold text-gray-900">Histórico</h1>
+        <button
+          onClick={() => setExportOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-600 hover:text-gray-900 text-sm font-medium transition-all active:scale-95"
+          aria-label="Exportar extrato"
+        >
+          <Download size={14} />
+          Exportar
+        </button>
+      </div>
       <p className="text-gray-500 text-sm mb-4 capitalize">{periodLabel}</p>
 
       {/* Filtros rápidos de período */}
@@ -617,6 +629,12 @@ export default function HistoricoPage() {
         description={`"${deletingExpense.description}" será removido permanentemente.`}
         onConfirm={() => handleDelete(deletingExpense.id)}
         onClose={() => setDeletingExpense(null)}
+      />
+    )}
+    {exportOpen && (
+      <ExportModal
+        onClose={() => setExportOpen(false)}
+        onSuccess={(msg) => addToast(msg, 'success')}
       />
     )}
     <ToastContainer toasts={toasts} onRemove={removeToast} />
