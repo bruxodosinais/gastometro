@@ -28,9 +28,10 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Category, Expense, EXPENSE_CATEGORIES, GoalContribution, INCOME_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, Expense, EXPENSE_CATEGORIES, ExpenseCategory, GoalContribution, INCOME_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
+import MonthlyCloseModal from '@/components/MonthlyCloseModal';
 
 const SpendingDonut = dynamic(() => import('@/components/SpendingDonut'), { ssr: false });
 
@@ -126,6 +127,8 @@ export default function HomePage() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [heroDisplayValue, setHeroDisplayValue] = useState(0);
   const [userName, setUserName] = useState('');
+  const [showMonthlyClose, setShowMonthlyClose] = useState(false);
+  const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
@@ -210,6 +213,23 @@ export default function HomePage() {
   useEffect(() => {
     if (ready) setMounted(true);
   }, [ready]);
+
+  // Monthly close modal: show on day 1 if prev month has data and flag not set
+  useEffect(() => {
+    if (!ready) return;
+    const today = new Date();
+    if (today.getDate() !== 1) return;
+    const currentMonthKey = getMonthKey(today);
+    if (localStorage.getItem(`fechamento_mes_visto_${currentMonthKey}`)) return;
+    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const prevMonthKey = getMonthKey(prevMonthDate);
+    const hasPrevData = expenses.some((e) => e.date.slice(0, 7) === prevMonthKey);
+    if (!hasPrevData) return;
+    getMonthlyPlan(prevMonthKey).then((plan) => {
+      setPrevMonthlyPlan(plan);
+      setShowMonthlyClose(true);
+    });
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showAvatarMenu) return;
@@ -552,6 +572,33 @@ export default function HomePage() {
     { id: 'semana_controlada', icon: '💚', name: 'Semana Controlada', desc: '7 dias abaixo da média diária de gastos', earned: badge7Earned, bg: 'bg-mint-50', border: 'border-green-500/30', text: 'text-mint-500' },
     { id: 'mes_perfeito', icon: '🌟', name: 'Mês Perfeito', desc: 'Saldo positivo e meta de poupança atingida', earned: badge8Earned, bg: 'bg-mint-50', border: 'border-mint-500/30', text: 'text-mint-500' },
   ] as const;
+
+  // ── Fechamento do mês anterior ───────────────────────────────────────────────
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthKey = getMonthKey(prevMonthDate);
+  const prevMonthLabel = prevMonthDate.toLocaleDateString('pt-BR', { month: 'long' });
+  const prevMonthLabelCapitalized = prevMonthLabel.charAt(0).toUpperCase() + prevMonthLabel.slice(1);
+  const prevMonthEntries = expenses.filter((e) => e.date.slice(0, 7) === prevMonthKey);
+  const prevMonthIncome = prevMonthEntries.filter((e) => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const prevMonthSpent = prevMonthEntries.filter((e) => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  const prevMonthTopCat = (() => {
+    const totals = EXPENSE_CATEGORIES
+      .map((cat) => ({ cat, total: prevMonthEntries.filter((e) => e.type === 'expense' && e.category === cat).reduce((s, e) => s + e.amount, 0) }))
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total);
+    return totals[0] ?? null;
+  })();
+
+  function handleCloseMonthlyClose() {
+    localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
+    setShowMonthlyClose(false);
+  }
+
+  function handleViewMonthHistory() {
+    localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
+    setShowMonthlyClose(false);
+    router.push('/historico?filter=prevMonth');
+  }
 
   // ── V2: Header ───────────────────────────────────────────────────────────────
   const hour = now.getHours();
@@ -1415,6 +1462,19 @@ export default function HomePage() {
         markAsRead={markAsRead}
         markAllAsRead={markAllAsRead}
       />
+
+      {/* ── MODAL: Fechamento de mês ───────────────────────────────────────────── */}
+      {showMonthlyClose && (
+        <MonthlyCloseModal
+          prevMonthLabel={prevMonthLabelCapitalized}
+          income={prevMonthIncome}
+          spent={prevMonthSpent}
+          topCategory={prevMonthTopCat}
+          monthlyPlan={prevMonthlyPlan}
+          onClose={handleCloseMonthlyClose}
+          onViewHistory={handleViewMonthHistory}
+        />
+      )}
 
       {/* Modal: valor real para despesa variável */}
       {variablePayModal && (

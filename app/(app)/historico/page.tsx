@@ -103,6 +103,12 @@ export default function HistoricoPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
+  // Apply filter from URL param on mount (e.g. ?filter=prevMonth from monthly close modal)
+  useEffect(() => {
+    const f = new URLSearchParams(window.location.search).get('filter');
+    if (f === 'prevMonth') setQuickFilter('prevMonth');
+  }, []);
+
   // When user navigates via PeriodSelector, switch off quick filter and reset category
   useEffect(() => {
     if (prevPeriodRef.current !== period) {
