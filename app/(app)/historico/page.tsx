@@ -101,10 +101,11 @@ export default function HistoricoPage() {
   const [maxAmount, setMaxAmount] = useState('');
   const { toasts, addToast, removeToast } = useToast();
 
-  // When user navigates via PeriodSelector, switch off quick filter
+  // When user navigates via PeriodSelector, switch off quick filter and reset category
   useEffect(() => {
     if (prevPeriodRef.current !== period) {
       setQuickFilter(null);
+      setCategoryFilter('all');
       prevPeriodRef.current = period;
     }
   }, [period]);
@@ -205,10 +206,11 @@ export default function HistoricoPage() {
   const showIncomeBreakdown = typeFilter !== 'expense' && incomeBySource.length > 0;
 
   // ── Filtered + sorted list ───────────────────────────────────────────────────
-  const categoryOptions: Category[] =
-    typeFilter === 'expense' ? EXPENSE_CATEGORIES
-    : typeFilter === 'income' ? INCOME_CATEGORIES
-    : ([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES.filter((c) => !EXPENSE_CATEGORIES.includes(c as never))] as Category[]);
+  const activeCategories = [...new Set(
+    baseEntries
+      .filter((e) => typeFilter === 'all' || e.type === typeFilter)
+      .map((e) => e.category)
+  )];
 
   function handleTypeFilterChange(type: 'all' | EntryType) {
     setTypeFilter(type);
@@ -311,7 +313,7 @@ export default function HistoricoPage() {
         {(Object.entries(QUICK_FILTER_LABELS) as [Exclude<QuickFilter, null>, string][]).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setQuickFilter(key)}
+            onClick={() => { setQuickFilter(key); setCategoryFilter('all'); }}
             className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               quickFilter === key
                 ? 'bg-mint text-gray-900'
@@ -350,6 +352,39 @@ export default function HistoricoPage() {
           </p>
         </div>
       </div>
+
+      {/* Filtro por categoria */}
+      {activeCategories.length > 0 && (
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+          <button
+            onClick={() => setCategoryFilter('all')}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              categoryFilter === 'all'
+                ? 'bg-mint text-gray-900'
+                : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            Todos
+          </button>
+          {activeCategories.map((cat) => {
+            const cfg = CATEGORY_CONFIG[cat];
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-mint text-gray-900'
+                    : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                <span>{cfg.icon}</span>
+                <span>{cat}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Busca */}
       <div className="relative mb-2">
@@ -409,16 +444,6 @@ export default function HistoricoPage() {
             </button>
           ))}
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as Category | 'all')}
-          className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
-        >
-          <option value="all">Todas</option>
-          {categoryOptions.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
