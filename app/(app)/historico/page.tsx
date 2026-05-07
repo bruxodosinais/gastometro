@@ -29,6 +29,20 @@ type SortOrder = 'recent' | 'oldest' | 'highest' | 'lowest';
 
 interface TopGasto { displayName: string; total: number; count: number }
 
+const INCOME_SOURCE_ICONS: Record<string, string> = {
+  'Salário': '💰',
+  'Freela': '💻',
+  'Renda passiva': '📊',
+  'Outros': '📦',
+};
+
+const INCOME_SOURCE_COLORS: Record<string, string> = {
+  'Salário': '#00b87a',
+  'Freela': '#3b9eff',
+  'Renda passiva': '#9333ea',
+  'Outros': '#9ca3af',
+};
+
 const QUICK_FILTER_LABELS: Record<Exclude<QuickFilter, null>, string> = {
   today: 'Hoje',
   '7d': '7 dias',
@@ -180,6 +194,15 @@ export default function HistoricoPage() {
   const income = calculateTotalByType(baseEntries, 'income');
   const spent = calculateTotalByType(baseEntries, 'expense');
   const balance = income - spent;
+
+  // ── Breakdown de receitas por fonte ─────────────────────────────────────────
+  const incomeEntries = baseEntries.filter((e) => e.type === 'income');
+  const totalPeriodIncome = incomeEntries.reduce((s, e) => s + e.amount, 0);
+  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
+    cat,
+    total: incomeEntries.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
+  })).filter((c) => c.total > 0);
+  const showIncomeBreakdown = typeFilter !== 'expense' && incomeBySource.length > 0;
 
   // ── Filtered + sorted list ───────────────────────────────────────────────────
   const categoryOptions: Category[] =
@@ -454,6 +477,42 @@ export default function HistoricoPage() {
                 <span className="text-xs text-gray-500 mt-1">{patternContext(g.count)} · {g.count}x</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Receitas do período */}
+      {showIncomeBreakdown && (
+        <div className="rounded-2xl bg-white border border-gray-100 p-4 mb-4">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Receitas do período</p>
+          <div className="space-y-2.5">
+            {incomeBySource.map(({ cat, total }) => {
+              const pct = totalPeriodIncome > 0 ? (total / totalPeriodIncome) * 100 : 0;
+              return (
+                <div key={cat}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                      <span>{INCOME_SOURCE_ICONS[cat]}</span>
+                      <span>{cat}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-gray-900">
+                      {formatCurrency(total)}{' '}
+                      <span className="text-gray-400 font-normal">({Math.round(pct)}%)</span>
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, background: INCOME_SOURCE_COLORS[cat] }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Total</span>
+            <span className="text-xs font-bold" style={{ color: '#00b87a' }}>{formatCurrency(totalPeriodIncome)}</span>
           </div>
         </div>
       )}

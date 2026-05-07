@@ -4,7 +4,14 @@ import { useState } from 'react';
 import { Check, Loader2, Pencil, X } from 'lucide-react';
 import { upsertMonthlyPlan } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
-import { Budget, Expense, GoalContribution, MonthlyPlan } from '@/lib/types';
+import { Budget, Expense, GoalContribution, INCOME_CATEGORIES, MonthlyPlan, RecurringExpense } from '@/lib/types';
+
+const INCOME_SOURCE_ICONS: Record<string, string> = {
+  'Salário': '💰',
+  'Freela': '💻',
+  'Renda passiva': '📊',
+  'Outros': '📦',
+};
 
 interface Props {
   period: string;
@@ -18,6 +25,8 @@ interface Props {
   recurringIncome: number;
   incomeDay?: number | null;
   onPlanUpdate: (plan: MonthlyPlan) => void;
+  recurringExpenses?: RecurringExpense[];
+  periodIncomes?: Expense[];
 }
 
 export default function PlanningSection({
@@ -32,6 +41,8 @@ export default function PlanningSection({
   recurringIncome,
   incomeDay,
   onPlanUpdate,
+  recurringExpenses = [],
+  periodIncomes = [],
 }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [editIncome, setEditIncome] = useState('');
@@ -56,6 +67,17 @@ export default function PlanningSection({
   const savingsPct = savingsGoal > 0 ? (savedAmount / savingsGoal) * 100 : null;
   const freeAmount = expectedIncome - fixedCosts - savingsGoal;
   const freeRemaining = freeAmount - spent;
+
+  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
+    cat,
+    previsto: recurringExpenses
+      .filter((r) => r.active && r.type === 'income' && r.category === cat)
+      .reduce((s, r) => s + r.amount, 0),
+    realizado: periodIncomes
+      .filter((e) => e.category === cat)
+      .reduce((s, e) => s + e.amount, 0),
+  })).filter((c) => c.previsto > 0 || c.realizado > 0);
+  const showIncomeSources = incomeBySource.length >= 2;
 
   type IncomeStatus = 'above' | 'ok' | 'below';
   const incomeStatus: IncomeStatus | null =
@@ -284,6 +306,18 @@ export default function PlanningSection({
                 ? `Abaixo do previsto (−${formatCurrency(expectedIncome - income)})`
                 : 'Dentro do esperado'}
             </p>
+            {showIncomeSources && (
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                {incomeBySource.map(({ cat, previsto, realizado }) => (
+                  <div key={cat} className="flex items-center gap-2 text-xs">
+                    <span className="flex-shrink-0 w-4 text-center">{INCOME_SOURCE_ICONS[cat]}</span>
+                    <span className="text-gray-600 flex-1 min-w-0 truncate">{cat}</span>
+                    <span className="text-gray-400 flex-shrink-0">Prev: {formatCurrency(previsto)}</span>
+                    <span className="font-semibold text-gray-700 flex-shrink-0">Real: {formatCurrency(realizado)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Card 2 — Meta de poupança */}

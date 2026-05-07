@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell, Check, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
+import { useNotifications } from '@/lib/useNotifications';
+import NotificationsDrawer from '@/components/NotificationsDrawer';
 import {
   getExpenses,
   getBudgets,
@@ -26,7 +28,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Category, Expense, EXPENSE_CATEGORIES, GoalContribution, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, Expense, EXPENSE_CATEGORIES, GoalContribution, INCOME_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
 
@@ -86,6 +88,13 @@ function AutoValue({ value, className = '', style }: { value: number; className?
   );
 }
 
+const INCOME_SOURCE_ICONS: Record<string, string> = {
+  'Salário': '💰',
+  'Freela': '💻',
+  'Renda passiva': '📊',
+  'Outros': '📦',
+};
+
 export default function HomePage() {
   const router = useRouter();
   const { period } = usePeriod();
@@ -105,9 +114,8 @@ export default function HomePage() {
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [showMissoesModal, setShowMissoesModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const [showBellMenu, setShowBellMenu] = useState(false);
+  const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
-  const bellMenuRef = useRef<HTMLDivElement>(null);
   const contasMesRef = useRef<HTMLDivElement>(null);
   const [highlighting, setHighlighting] = useState(false);
   const badgeEarnedRef = useRef({ b1: false, b2: false, b3: false, b4: false, b5: false, b6: false, b7: false, b8: false });
@@ -195,16 +203,12 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAvatarMenu]);
 
-  useEffect(() => {
-    if (!showBellMenu) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (bellMenuRef.current && !bellMenuRef.current.contains(e.target as Node)) {
-        setShowBellMenu(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showBellMenu]);
+  const currentMonthIncome = useMemo(
+    () => expenses
+      .filter((e) => e.date.slice(0, 7) === period && e.type === 'income')
+      .reduce((sum, e) => sum + e.amount, 0),
+    [expenses, period]
+  );
 
   useEffect(() => {
     if (!ready || !mounted) return;
@@ -220,8 +224,12 @@ export default function HomePage() {
     const fixedCosts2 = recurringExpenses
       .filter((r) => r.active && r.type === 'expense')
       .reduce((sum, r) => sum + r.amount, 0);
-    const livreTotal2 = recurringIncome2 - fixedCosts2 - savingsGoal2;
-    const target = isCur && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit2, 1) : 0;
+    const todayStr = now2.toISOString().slice(0, 10);
+    const spentToday2 = expenses
+      .filter((e) => e.date.slice(0, 10) === todayStr && e.type === 'expense')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const livreTotal2 = Math.max(recurringIncome2, currentMonthIncome) - fixedCosts2 - savingsGoal2;
+    const target = isCur && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit2, 1) - spentToday2 : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -235,7 +243,7 @@ export default function HomePage() {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [ready, mounted, period, monthlyPlan, recurringExpenses]);
+  }, [ready, mounted, period, monthlyPlan, recurringExpenses, currentMonthIncome, expenses]);
 
   useEffect(() => {
     if (!ready) return;
@@ -324,6 +332,15 @@ export default function HomePage() {
     finally { setResumoLoading(false); }
   }
 
+  const { notifications, unreadCount, readIds, markAsRead, markAllAsRead } = useNotifications({
+    expenses,
+    budgets,
+    recurringExpenses,
+    obligations,
+    monthlyPlan,
+    period,
+  });
+
   if (!ready) {
     return (
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-10">
@@ -380,6 +397,12 @@ export default function HomePage() {
   const spent = calculateTotalByType(periodEntries, 'expense');
   const balance = income - spent;
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
+  const periodIncomes = periodEntries.filter((e) => e.type === 'income');
+  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
+    cat,
+    total: periodIncomes.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
+  })).filter((c) => c.total > 0);
+  const showIncomeBreakdown = incomeBySource.length >= 2;
 
   // ── Obrigações do mês ────────────────────────────────────────────────────────
   const pendingObligations = obligations.filter((o) => o.status === 'pending');
@@ -521,8 +544,12 @@ export default function HomePage() {
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const daysForLimit = isCurrentMonth ? totalDaysInMonth - todayDay + 1 : 0;
   const valorLivreParaGastar = balance - savingsGoal;
-  const livreTotal = recurringIncome - fixedCosts - savingsGoal;
-  const canSpendToday = isCurrentMonth ? (daysForLimit > 0 ? livreTotal / daysForLimit : 0) : null;
+  const effectiveIncome = Math.max(recurringIncome, income);
+  const livreTotal = effectiveIncome - fixedCosts - savingsGoal;
+  const spentToday = expenses
+    .filter((e) => e.date.slice(0, 10) === now.toISOString().slice(0, 10) && e.type === 'expense')
+    .reduce((sum, e) => sum + e.amount, 0);
+  const canSpendToday = isCurrentMonth ? (daysForLimit > 0 ? livreTotal / daysForLimit - spentToday : 0) : null;
 
   const firstIncomeDay = activeIncomeRecs.length > 0
     ? Math.min(...activeIncomeRecs.map((r) => r.dayOfMonth))
@@ -609,19 +636,22 @@ export default function HomePage() {
           <p className="text-gray-700 font-medium text-sm capitalize">{currentMonthLabel}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div ref={bellMenuRef} className="relative">
+          <div className="relative">
             <button
               title="Notificações"
-              onClick={() => setShowBellMenu((v) => !v)}
+              onClick={() => setShowNotifDrawer(true)}
               className="w-10 h-10 rounded-2xl bg-warning-50 border border-warning/20 flex items-center justify-center transition-colors"
               style={{ color: '#ffaa33' }}
             >
               <Bell size={16} />
             </button>
-            {showBellMenu && (
-              <div className="absolute right-0 top-12 w-48 bg-white border border-gray-200 rounded-xl shadow-xl px-4 py-3 z-50">
-                <p className="text-gray-500 text-sm">🔔 Notificações em breve</p>
-              </div>
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center pointer-events-none leading-none"
+                style={{ background: '#f04e5e' }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
           </div>
           <div ref={avatarMenuRef} className="relative">
@@ -668,6 +698,19 @@ export default function HomePage() {
             <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Receitas</p>
             <AutoValue value={income} className="text-xl font-bold leading-none" style={{ color: '#00b87a' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">entradas do mês</p>
+            {showIncomeBreakdown && (
+              <div className="mt-2 pt-2 border-t space-y-1" style={{ borderColor: 'rgba(0,184,122,0.12)' }}>
+                {incomeBySource.map(({ cat, total }) => (
+                  <div key={cat} className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] text-gray-500 flex items-center gap-1 min-w-0">
+                      <span className="flex-shrink-0">{INCOME_SOURCE_ICONS[cat]}</span>
+                      <span className="truncate">{cat}</span>
+                    </span>
+                    <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#00b87a' }}>{formatCurrency(total)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="rounded-2xl p-4 border" style={{ background: '#fff0f2', borderColor: '#fdd0d5' }}>
             <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Despesas</p>
@@ -849,16 +892,15 @@ export default function HomePage() {
                     const cfg = CATEGORY_CONFIG[ob.category as Category];
                     const isPaid = ob.status === 'paid';
                     const isPaying = payingIds.has(ob.id);
-                    const obRec = recurringExpenses.find((r) => r.id === ob.recurringExpenseId);
-                    const obRecCreatedThisMonth = obRec?.createdAt.slice(0, 7) === getMonthKey(now);
-                    const obRecCreatedDay = obRecCreatedThisMonth && obRec ? new Date(obRec.createdAt).getDate() : 0;
-                    const obCreatedAfterDue = obRecCreatedThisMonth && obRecCreatedDay > ob.dueDay;
-                    const daysLate = !isPaid && todayDay > ob.dueDay && !obCreatedAfterDue ? todayDay - ob.dueDay : 0;
+                    const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
                     const dueToday = !isPaid && todayDay === ob.dueDay;
+                    const dueTomorrow = !isPaid && ob.dueDay === todayDay + 1;
                     const dueLabelText = isPaid ? '' : daysLate > 0
                       ? `Atrasado ${daysLate} dia${daysLate > 1 ? 's' : ''}`
-                      : dueToday ? 'Vence hoje' : `Vence dia ${ob.dueDay}`;
-                    const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : 'text-gray-500';
+                      : dueToday ? 'Vence hoje'
+                      : dueTomorrow ? 'Vence amanhã'
+                      : `Vence dia ${ob.dueDay}`;
+                    const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : dueTomorrow ? 'text-yellow-500' : 'text-gray-500';
                     return (
                       <div
                         key={ob.id}
@@ -1143,6 +1185,8 @@ export default function HomePage() {
         recurringIncome={recurringIncome}
         incomeDay={firstIncomeDay}
         onPlanUpdate={setMonthlyPlan}
+        recurringExpenses={recurringExpenses}
+        periodIncomes={periodIncomes}
       />
       </div>
 
@@ -1323,6 +1367,17 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── DRAWER: Notificações ───────────────────────────────────────────────── */}
+      <NotificationsDrawer
+        isOpen={showNotifDrawer}
+        onClose={() => setShowNotifDrawer(false)}
+        notifications={notifications}
+        readIds={readIds}
+        unreadCount={unreadCount}
+        markAsRead={markAsRead}
+        markAllAsRead={markAllAsRead}
+      />
 
     </main>
   );

@@ -642,14 +642,7 @@ export default function RecorrentesPage() {
                 let showUndo = false;
 
                 if (isCurrentMonth) {
-                  // Se o recorrente foi criado neste mês DEPOIS do vencimento,
-                  // não considerar como atrasado — só vale para meses em que
-                  // o recorrente já existia desde o início.
-                  const recCreatedThisMonth = rec.createdAt.slice(0, 7) === todayMonthKey;
-                  const recCreatedDay = recCreatedThisMonth ? new Date(rec.createdAt).getDate() : 0;
-                  const createdAfterDue = recCreatedThisMonth && recCreatedDay > effectiveDueDay;
-                  const daysLate = obligation && !isPaid && todayDay > effectiveDueDay && !createdAfterDue
-                    ? todayDay - effectiveDueDay : 0;
+                  const daysLate = !isPaid && todayDay > effectiveDueDay ? todayDay - effectiveDueDay : 0;
                   const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
 
                   leftBorderColor = !hasObligation
@@ -676,11 +669,14 @@ export default function RecorrentesPage() {
                       ? paidAtLabel
                       : daysLate > 0 ? `Atrasado ${daysLate}d`
                       : todayDay === effectiveDueDay ? 'Vence hoje'
+                      : effectiveDueDay === todayDay + 1 ? 'Vence amanhã'
                       : `Vence dia ${effectiveDueDay}`;
                     badgeClass = isPaid
                       ? 'bg-emerald-500 text-white'
                       : daysLate > 0 ? 'bg-red-500 text-white'
-                      : 'bg-amber-500/20 text-amber-700';
+                      : todayDay === effectiveDueDay ? 'bg-orange-500/20 text-orange-700'
+                      : effectiveDueDay === todayDay + 1 ? 'bg-yellow-400/20 text-yellow-700'
+                      : 'bg-gray-100 text-gray-500';
                     showMarkPaid = !isPaid;
                     showUndo = isPaid && paidExpenseIds.has(obligation!.id);
                   }

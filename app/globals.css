@@ -101,3 +101,8 @@ input[type='date']::-webkit-calendar-picker-indicator {
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
+
+@keyframes notif-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
