@@ -68,6 +68,7 @@ export default function RecorrentesPage() {
   const [category, setCategory] = useState<Category>('Alimentação');
   const [dayOfMonth, setDayOfMonth] = useState('');
   const [dueDay, setDueDay] = useState('');
+  const [isVariable, setIsVariable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
@@ -76,6 +77,8 @@ export default function RecorrentesPage() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pendentes' | 'pagas'>('all');
   const [duplicateWarning, setDuplicateWarning] = useState<RecurringExpense | null>(null);
+  const [variablePayModal, setVariablePayModal] = useState<{ obligationId: string; estimatedAmount: number } | null>(null);
+  const [variableAmount, setVariableAmount] = useState('');
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => parseInt(todayMonthKey.split('-')[0]));
@@ -141,6 +144,7 @@ export default function RecorrentesPage() {
         dayOfMonth: day,
         dueDay: due,
         active: true,
+        isVariable,
       });
       setRecurrings((prev) => [saved, ...prev]);
 
@@ -153,6 +157,7 @@ export default function RecorrentesPage() {
       setDescription('');
       setDayOfMonth('');
       setDueDay('');
+      setIsVariable(false);
       setDuplicateWarning(null);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar.');
@@ -172,7 +177,7 @@ export default function RecorrentesPage() {
     await deleteRecurringExpense(id);
   }
 
-  async function handleMarkObligationPaid(obligationId: string) {
+  async function handleMarkObligationPaid(obligationId: string, actualAmount?: number) {
     const ob = obligations.find((o) => o.id === obligationId);
     if (!ob || payingIds.has(obligationId)) return;
     setPayingIds((prev) => new Set([...prev, obligationId]));
@@ -181,7 +186,7 @@ export default function RecorrentesPage() {
       prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const, paidAt: optimisticPaidAt } : o))
     );
     try {
-      const { expense } = await markObligationAsPaid(obligationId, ob);
+      const { expense } = await markObligationAsPaid(obligationId, ob, actualAmount);
       setPaidExpenseIds((prev) => new Map(prev).set(obligationId, expense.id));
     } catch {
       setObligations((prev) =>
@@ -353,6 +358,24 @@ export default function RecorrentesPage() {
                 style={{ backgroundColor: '#00b87a', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
               />
             </div>
+          </div>
+
+          {/* Toggle: Valor variável */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-gray-700 text-sm font-medium">Valor variável</p>
+              <p className="text-gray-400 text-xs">{isVariable ? 'Valor acima é estimado — você define o real ao pagar' : 'Valor fixo todo mês'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsVariable((v) => !v)}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isVariable ? 'bg-emerald-500' : 'bg-gray-200'}`}
+              aria-label="Valor variável"
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isVariable ? 'left-[22px]' : 'left-0.5'}`}
+              />
+            </button>
           </div>
 
           {/* Descrição */}
@@ -737,8 +760,13 @@ export default function RecorrentesPage() {
                           <p className={`flex-1 min-w-0 text-sm font-medium text-gray-900 truncate ${contentOpacity}`}>
                             {rec.description}
                           </p>
+                          {rec.isVariable && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 flex-shrink-0">
+                              ~variável
+                            </span>
+                          )}
                           <span className={`font-bold text-sm flex-shrink-0 ${isIncome ? 'text-mint-500' : 'text-gray-900'} ${contentOpacity}`}>
-                            {isIncome ? '+' : ''}{formatCurrency(rec.amount)}
+                            {isIncome ? '+' : ''}{rec.isVariable ? '~' : ''}{formatCurrency(rec.amount)}
                           </span>
 
                           {/* Three-dot menu */}
@@ -786,7 +814,14 @@ export default function RecorrentesPage() {
                           )}
                           {showMarkPaid && obligation && (
                             <button
-                              onClick={() => handleMarkObligationPaid(obligation.id)}
+                              onClick={() => {
+                                if (rec.isVariable) {
+                                  setVariablePayModal({ obligationId: obligation.id, estimatedAmount: rec.amount });
+                                  setVariableAmount(String(rec.amount));
+                                } else {
+                                  handleMarkObligationPaid(obligation.id);
+                                }
+                              }}
                               disabled={isPaying}
                               className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
                             >
@@ -825,6 +860,60 @@ export default function RecorrentesPage() {
         onClose={() => setShowCategoryPicker(false)}
         columns={entryType === 'expense' ? 4 : 2}
       />
+
+      {/* Modal: valor real para despesa variável */}
+      {variablePayModal && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            style={{ padding: '16px' }}
+            onClick={() => setVariablePayModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl"
+              style={{ width: '90%', maxWidth: '400px', padding: '24px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-gray-900 font-semibold text-base mb-1">Confirmar pagamento</p>
+              <p className="text-gray-400 text-xs mb-4">
+                Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o valor real pago
+              </p>
+              <label className="text-gray-500 text-xs font-medium block mb-1.5">Valor pago (R$)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                autoFocus
+                value={variableAmount}
+                onChange={(e) => setVariableAmount(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-lg font-semibold focus:outline-none focus:border-emerald-500 transition-colors mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setVariablePayModal(null)}
+                  className="flex-1 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors border border-gray-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const parsed = parseFloat(variableAmount.replace(',', '.'));
+                    if (!parsed || parsed <= 0) return;
+                    const id = variablePayModal.obligationId;
+                    setVariablePayModal(null);
+                    handleMarkObligationPaid(id, parsed);
+                  }}
+                  className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                >
+                  Confirmar pagamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   );
 }

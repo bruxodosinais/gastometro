@@ -296,6 +296,7 @@ export default function LancamentosPage() {
           type: entryType,
           dayOfMonth: day,
           active: true,
+          isVariable: false,
         });
         const saved = await addExpense(base, rec.id);
         setExpenses((prev) => [saved, ...prev]);

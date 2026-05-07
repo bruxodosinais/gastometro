@@ -133,6 +133,7 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
     dayOfMonth: row.day_of_month as number,
     dueDay: (row.due_day as number | null) ?? undefined,
     active: row.active as boolean,
+    isVariable: (row.is_variable as boolean | null) ?? false,
     createdAt: row.created_at as string,
   };
 }
@@ -167,6 +168,7 @@ export async function addRecurringExpense(
       day_of_month: data.dayOfMonth,
       due_day: data.dueDay ?? data.dayOfMonth,
       active: data.active,
+      is_variable: data.isVariable ?? false,
     })
     .select()
     .single();
@@ -250,6 +252,8 @@ export async function checkAndLaunchRecurring(): Promise<void> {
     // Só lança se o dia já chegou e ainda não foi lançado este mês
     if (rec.day_of_month > todayDay) continue;
     if (launchedIds.has(rec.id)) continue;
+    // Despesas variáveis exigem valor real informado pelo usuário no momento do pagamento
+    if (rec.is_variable) continue;
 
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const day = Math.min(rec.day_of_month, lastDay);
@@ -675,7 +679,8 @@ export async function checkAndGenerateObligations(): Promise<void> {
 
 export async function markObligationAsPaid(
   obligationId: string,
-  obligation: MonthlyObligation
+  obligation: MonthlyObligation,
+  actualAmount?: number
 ): Promise<{ obligation: MonthlyObligation; expense: Expense }> {
   const supabase = createClient();
   const {
@@ -696,6 +701,8 @@ export async function markObligationAsPaid(
 
   if (obErr) throw obErr;
 
+  const expenseAmount = actualAmount ?? obligation.amount;
+
   // Dedup: se já existe expense com o mesmo recurring_expense_id neste mês, reutiliza
   if (obligation.recurringExpenseId) {
     const { data: existing } = await supabase
@@ -708,6 +715,20 @@ export async function markObligationAsPaid(
       .maybeSingle();
 
     if (existing) {
+      // Para despesas variáveis, atualiza o valor real se diferente do estimado
+      if (actualAmount !== undefined && actualAmount !== (existing.amount as number)) {
+        const { data: updated } = await supabase
+          .from('expenses')
+          .update({ amount: actualAmount })
+          .eq('id', existing.id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+        return {
+          obligation: toMonthlyObligation(obligationRow),
+          expense: toExpense(updated ?? existing),
+        };
+      }
       return {
         obligation: toMonthlyObligation(obligationRow),
         expense: toExpense(existing),
@@ -720,7 +741,7 @@ export async function markObligationAsPaid(
     .insert({
       user_id: user.id,
       type: 'expense',
-      amount: obligation.amount,
+      amount: expenseAmount,
       description: obligation.description,
       category: obligation.category,
       date: today,

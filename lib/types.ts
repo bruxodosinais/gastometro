@@ -77,6 +77,7 @@ export interface RecurringExpense {
   dayOfMonth: number;
   dueDay?: number;
   active: boolean;
+  isVariable: boolean;
   createdAt: string;
 }
 

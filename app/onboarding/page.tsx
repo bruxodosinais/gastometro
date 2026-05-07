@@ -214,6 +214,7 @@ export default function OnboardingPage() {
           type: 'income',
           dayOfMonth: day,
           active: true,
+          isVariable: false,
         });
         setSavedIncome(amount);
       } catch (e) {
@@ -255,6 +256,7 @@ export default function OnboardingPage() {
           dayOfMonth: day,
           dueDay: day,
           active: true,
+          isVariable: false,
         });
         await addObligationForNewRecurring(rec);
         count++;
@@ -274,6 +276,7 @@ export default function OnboardingPage() {
             dayOfMonth: customDay,
             dueDay: customDay,
             active: true,
+            isVariable: false,
           });
           await addObligationForNewRecurring(rec);
           count++;

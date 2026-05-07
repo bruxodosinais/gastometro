@@ -308,12 +308,11 @@ export default function PlanningSection({
             </p>
             {showIncomeSources && (
               <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
-                {incomeBySource.map(({ cat, previsto, realizado }) => (
+                {incomeBySource.map(({ cat, realizado }) => (
                   <div key={cat} className="flex items-center gap-2 text-xs">
                     <span className="flex-shrink-0 w-4 text-center">{INCOME_SOURCE_ICONS[cat]}</span>
                     <span className="text-gray-600 flex-1 min-w-0 truncate">{cat}</span>
-                    <span className="text-gray-400 flex-shrink-0">Prev: {formatCurrency(previsto)}</span>
-                    <span className="font-semibold text-gray-700 flex-shrink-0">Real: {formatCurrency(realizado)}</span>
+                    <span className="font-semibold text-mint-500 flex-shrink-0">{formatCurrency(realizado)}</span>
                   </div>
                 ))}
               </div>

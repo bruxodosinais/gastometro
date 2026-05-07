@@ -106,6 +106,8 @@ export default function HomePage() {
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [receivingIds, setReceivingIds] = useState<Set<string>>(new Set());
+  const [variablePayModal, setVariablePayModal] = useState<{ obligationId: string; estimatedAmount: number } | null>(null);
+  const [variableAmount, setVariableAmount] = useState('');
   const [ready, setReady] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [newBadgeIds, setNewBadgeIds] = useState<Set<string>>(new Set());
@@ -261,7 +263,7 @@ export default function HomePage() {
     return () => { document.body.style.overflow = ''; };
   }, [showResumoModal]);
 
-  async function handleMarkObligationPaid(obligationId: string) {
+  async function handleMarkObligationPaid(obligationId: string, actualAmount?: number) {
     const ob = obligations.find((o) => o.id === obligationId);
     if (!ob || payingIds.has(obligationId)) return;
     setPayingIds((prev) => new Set([...prev, obligationId]));
@@ -269,7 +271,7 @@ export default function HomePage() {
       prev.map((o) => (o.id === obligationId ? { ...o, status: 'paid' as const } : o))
     );
     try {
-      const { expense } = await markObligationAsPaid(obligationId, ob);
+      const { expense } = await markObligationAsPaid(obligationId, ob, actualAmount);
       setExpenses((prev) => [expense, ...prev]);
     } catch {
       setObligations((prev) =>
@@ -922,7 +924,15 @@ export default function HomePage() {
                           <span className="text-mint-500 text-xs font-semibold flex-shrink-0">Pago ✓</span>
                         ) : (
                           <button
-                            onClick={() => handleMarkObligationPaid(ob.id)}
+                            onClick={() => {
+                              const rec = recurringExpenses.find((r) => r.id === ob.recurringExpenseId);
+                              if (rec?.isVariable) {
+                                setVariablePayModal({ obligationId: ob.id, estimatedAmount: ob.amount });
+                                setVariableAmount(String(ob.amount));
+                              } else {
+                                handleMarkObligationPaid(ob.id);
+                              }
+                            }}
                             disabled={isPaying}
                             className="w-8 h-8 rounded-xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-mint-500 hover:bg-mint-50 transition-colors flex-shrink-0 disabled:opacity-50"
                             title="Marcar como pago"
@@ -1378,6 +1388,60 @@ export default function HomePage() {
         markAsRead={markAsRead}
         markAllAsRead={markAllAsRead}
       />
+
+      {/* Modal: valor real para despesa variável */}
+      {variablePayModal && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            style={{ padding: '16px' }}
+            onClick={() => setVariablePayModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl"
+              style={{ width: '90%', maxWidth: '400px', padding: '24px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-gray-900 font-semibold text-base mb-1">Confirmar pagamento</p>
+              <p className="text-gray-400 text-xs mb-4">
+                Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o valor real pago
+              </p>
+              <label className="text-gray-500 text-xs font-medium block mb-1.5">Valor pago (R$)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                autoFocus
+                value={variableAmount}
+                onChange={(e) => setVariableAmount(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-lg font-semibold focus:outline-none focus:border-emerald-500 transition-colors mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setVariablePayModal(null)}
+                  className="flex-1 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors border border-gray-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const parsed = parseFloat(variableAmount.replace(',', '.'));
+                    if (!parsed || parsed <= 0) return;
+                    const id = variablePayModal.obligationId;
+                    setVariablePayModal(null);
+                    handleMarkObligationPaid(id, parsed);
+                  }}
+                  className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                >
+                  Confirmar pagamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
     </main>
   );
