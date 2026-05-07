@@ -1,46 +1,50 @@
 export type EntryType = 'expense' | 'income';
 
 export type ExpenseCategory =
-  | 'Delivery'
   | 'Alimentação'
-  | 'Transporte'
   | 'Assinaturas'
-  | 'Saúde'
+  | 'Beleza'
+  | 'Combustível'
+  | 'Delivery'
+  | 'Educação'
+  | 'Farmácia'
+  | 'Internet'
+  | 'Investimentos'
   | 'Lazer'
   | 'Moradia'
-  | 'Educação'
-  | 'Investimentos'
+  | 'Outros'
   | 'Pet'
-  | 'Vestuário'
-  | 'Beleza'
-  | 'Farmácia'
-  | 'Combustível'
-  | 'Internet'
+  | 'Presente'
+  | 'Saúde'
   | 'Telefone'
-  | 'Outros';
+  | 'Transporte'
+  | 'Vestuário'
+  | 'Viagem';
 
 export type IncomeCategory = 'Salário' | 'Freela' | 'Renda passiva' | 'Outros';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Delivery',
   'Alimentação',
-  'Transporte',
   'Assinaturas',
-  'Saúde',
+  'Beleza',
+  'Combustível',
+  'Delivery',
+  'Educação',
+  'Farmácia',
+  'Internet',
+  'Investimentos',
   'Lazer',
   'Moradia',
-  'Educação',
-  'Investimentos',
-  'Pet',
-  'Vestuário',
-  'Beleza',
-  'Farmácia',
-  'Combustível',
-  'Internet',
-  'Telefone',
   'Outros',
+  'Pet',
+  'Presente',
+  'Saúde',
+  'Telefone',
+  'Transporte',
+  'Vestuário',
+  'Viagem',
 ];
 
 export const INCOME_CATEGORIES: IncomeCategory[] = [

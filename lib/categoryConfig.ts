@@ -91,6 +91,14 @@ export const CATEGORY_CONFIG: Record<Category, Config> = {
     textClass: 'text-amber-400',
     barClass: 'bg-amber-600',
   },
+  Presente: {
+    icon: '🎁',
+    color: '#ec4899',
+    bgClass: 'bg-pink-500/10',
+    borderClass: 'border-pink-500/20',
+    textClass: 'text-pink-500',
+    barClass: 'bg-pink-500',
+  },
   Vestuário: {
     icon: '👕',
     color: '#db2777',
@@ -146,6 +154,14 @@ export const CATEGORY_CONFIG: Record<Category, Config> = {
     borderClass: 'border-slate-500/20',
     textClass: 'text-slate-400',
     barClass: 'bg-slate-500',
+  },
+  Viagem: {
+    icon: '✈️',
+    color: '#0d9488',
+    bgClass: 'bg-teal-600/10',
+    borderClass: 'border-teal-600/20',
+    textClass: 'text-teal-500',
+    barClass: 'bg-teal-600',
   },
   // Categorias de receita
   Salário: {

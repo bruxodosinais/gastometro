@@ -143,13 +143,14 @@ export default function HomePage() {
       setReady(true);
     });
 
-    // Recarrega obrigações e expenses quando o usuário volta para esta aba
+    // Recarrega dados quando o usuário volta para esta aba (ex: após cadastrar recorrente)
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
         const month = new Date().toISOString().slice(0, 7);
-        Promise.all([getMonthlyObligations(month), getExpenses()]).then(([obs, exp]) => {
+        Promise.all([getMonthlyObligations(month), getExpenses(), getRecurringExpenses()]).then(([obs, exp, rec]) => {
           setObligations(obs);
           setExpenses(exp);
+          setRecurringExpenses(rec);
         });
       }
     }
@@ -557,9 +558,10 @@ export default function HomePage() {
     ? Math.min(...activeIncomeRecs.map((r) => r.dayOfMonth))
     : null;
   const valorLivreParaGastarPlanejado = heroBase - fixedCosts - savingsGoal;
-  const budgetPctBase = valorLivreParaGastarPlanejado > 0 ? valorLivreParaGastarPlanejado : heroBase;
-  const budgetPctFallback = valorLivreParaGastarPlanejado <= 0;
-  const budgetPct = budgetPctBase > 0 ? Math.min((spent / budgetPctBase) * 100, 100) : 0;
+  const budgetPctFallback = heroBase <= 0;
+  const budgetPct = valorLivreParaGastarPlanejado > 0
+    ? Math.min((spent / valorLivreParaGastarPlanejado) * 100, 100)
+    : spent > 0 ? 100 : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
   const heroStatusLabel = valorLivreParaGastar < 0 ? 'Orçamento estourado' : heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
   const heroStatusColor = valorLivreParaGastar < 0 ? 'text-white/70' : heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
