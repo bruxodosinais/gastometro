@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, Loader2, Plus, RefreshCw, Star, X } from 'lucide-react';
+import { Bell, Check, Loader2, RefreshCw, Star, X } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
 import {
@@ -626,9 +626,10 @@ export default function HomePage() {
     ? Math.min((spent / valorLivreParaGastarPlanejado) * 100, 100)
     : spent > 0 ? 100 : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
-  const heroStatusLabel = valorLivreParaGastar < 0 ? 'Orçamento estourado' : heroStatus === 'excellent' ? 'Excelente controle' : heroStatus === 'ok' ? 'Dentro do plano' : 'Atenção ao ritmo';
+  const heroStatusLabel = budgetPct >= 100 ? 'Limite do mês atingido' : budgetPct >= 90 ? 'Quase no limite, desacelere' : budgetPct >= 70 ? 'Atenção ao ritmo de gastos' : 'Você está no controle 👍';
   const heroStatusColor = valorLivreParaGastar < 0 ? 'text-white/70' : heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
   const heroBarColor = 'bg-white/90';
+  const budgetBarColor = budgetPct >= 100 ? '#EF4444' : budgetPct >= 90 ? '#F97316' : budgetPct >= 70 ? '#F59E0B' : '#10B981';
 
   // ── Frases dinâmicas ─────────────────────────────────────────────────────────
   const POSITIVE_PHRASES = ['Você está no controle 💚', 'Excelente ritmo esse mês', `${currentMonthLabel} melhor que o esperado`];
@@ -640,6 +641,15 @@ export default function HomePage() {
     : budgetPct < 80 ? MEDIUM_PHRASES
     : CRITICAL_PHRASES;
   const dynamicPhrase = dynamicPhrases[phraseIndex % dynamicPhrases.length];
+
+  const overdueCount = isCurrentMonth ? pendingObligations.filter((o) => todayDay > o.dueDay).length : 0;
+  const contextualGreeting = overdueCount > 0
+    ? `Você tem ${overdueCount} conta${overdueCount > 1 ? 's' : ''} atrasada${overdueCount > 1 ? 's' : ''} ⚠️`
+    : budgetPct >= 90
+    ? 'Você está quase no limite do mês'
+    : pendingObligations.length === 0 && budgetPct < 70
+    ? 'Tudo sob controle por hoje ✓'
+    : 'Revise seus gastos hoje';
 
   // ── V2: Resumo IA bullets ────────────────────────────────────────────────────
   const categoryTotals = EXPENSE_CATEGORIES.map((cat) => ({
@@ -700,7 +710,7 @@ export default function HomePage() {
       <div className="flex items-start justify-between mb-1">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{greeting}{userName ? `, ${userName}` : ''}</h1>
-          <p className="text-gray-700 font-medium text-sm capitalize">{currentMonthLabel}</p>
+          <p className="text-gray-700 font-medium text-sm">{currentMonthLabel.charAt(0).toUpperCase() + currentMonthLabel.slice(1)}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -752,7 +762,7 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-      <p className="text-mint-700 text-sm font-medium italic mb-4">{dynamicPhrase}</p>
+      <p className="text-mint-700 text-sm font-medium italic mb-4">{contextualGreeting}</p>
 
       {/* ── SELETOR DE PERÍODO ─────────────────────────────────────────────────── */}
       <div className="flex justify-end mb-3">
@@ -764,14 +774,14 @@ export default function HomePage() {
         {/* Saldo — card largo, destaque principal */}
         <div className={`rounded-2xl p-4 border ${balance >= 0 ? '' : 'bg-negative-50 border-negative/20'}`}
           style={balance >= 0 ? { background: '#f0fdf8', border: '1px solid #d4f5e9' } : undefined}>
-          <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Saldo</p>
+          <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Saldo</p>
           <AutoValue value={balance} className="text-3xl font-bold leading-none" style={{ color: balance >= 0 ? '#00b87a' : '#f04e5e' }} />
           <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
         </div>
         {/* Receitas + Despesas — 2 cards lado a lado */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl p-4" style={{ background: '#f0fdf8' }}>
-            <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Receitas</p>
+            <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Receitas</p>
             <AutoValue value={income} className="text-xl font-bold leading-none" style={{ color: '#00b87a' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">entradas do mês</p>
             {showIncomeBreakdown && (
@@ -789,7 +799,7 @@ export default function HomePage() {
             )}
           </div>
           <div className="rounded-2xl p-4 border" style={{ background: '#fff0f2', borderColor: '#fdd0d5' }}>
-            <p className="text-gray-700 text-xs font-semibold uppercase tracking-wider mb-1">Despesas</p>
+            <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Despesas</p>
             <AutoValue value={spent} className="text-xl font-bold leading-none" style={{ color: '#f04e5e' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">lançadas</p>
           </div>
@@ -838,7 +848,7 @@ export default function HomePage() {
             <>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Limite de hoje</p>
+                  <p className="text-white/70 text-[10px] font-medium tracking-wider mb-0.5">Limite de hoje</p>
                   {canSpendToday >= 0 ? (
                     <p className="text-2xl font-bold text-white leading-none">{formatCurrency(heroDisplayValue)}</p>
                   ) : (
@@ -849,14 +859,14 @@ export default function HomePage() {
                   )}
                 </div>
                 <div className="text-center shrink-0">
-                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">Orçamento</p>
+                  <p className="text-white/70 text-[10px] font-medium tracking-wider mb-0.5">Orçamento</p>
                   <p className="text-xl font-bold text-white leading-none">{Math.round(budgetPct)}%</p>
                   {budgetPctFallback && (
                     <p className="text-white/50 text-[9px] leading-tight mt-0.5">Configure seu plano<br/>para ver o real</p>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider mb-0.5">
+                  <p className="text-white/70 text-[10px] font-medium tracking-wider mb-0.5">
                     {daysRemaining === 0 ? 'Último dia' : 'Dias'}
                   </p>
                   <p className="text-xl font-bold text-white leading-none">
@@ -870,7 +880,7 @@ export default function HomePage() {
               <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.3)' }}>
                 <div
                   className="h-full rounded-full"
-                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out', background: 'rgba(255,255,255,0.9)' }}
+                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out', background: budgetBarColor }}
                 />
               </div>
               <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
@@ -887,7 +897,7 @@ export default function HomePage() {
           style={mounted ? anim(130) : hidden}
         >
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-gray-800 font-semibold text-sm uppercase tracking-wider text-xs">Contas do mês</p>
+            <p className="text-gray-800 font-semibold text-sm tracking-wider text-xs">Contas do mês</p>
             {pendingObligations.length + pendingIncomeCount > 0 ? (
               <span className="bg-amber-500/15 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
                 {pendingObligations.length + pendingIncomeCount} pendente{pendingObligations.length + pendingIncomeCount > 1 ? 's' : ''}
@@ -1273,16 +1283,6 @@ export default function HomePage() {
         periodIncomes={periodIncomes}
       />
       </div>
-
-      {/* ── CTA FIXO MOBILE ────────────────────────────────────────────────────── */}
-      <Link
-        href="/lancamentos"
-        className="fixed bottom-20 right-4 md:hidden flex items-center gap-2 text-white font-semibold text-sm pl-4 pr-5 h-12 rounded-full shadow-xl shadow-mint-500/40 transition-colors z-40"
-        style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
-      >
-        <Plus size={18} />
-        Lançar
-      </Link>
 
       {/* ── MODAL: Análise IA Completa ─────────────────────────────────────────── */}
       {showResumoModal && (
