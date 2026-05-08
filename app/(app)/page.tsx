@@ -28,7 +28,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Category, Expense, EXPENSE_CATEGORIES, ExpenseCategory, GoalContribution, INCOME_CATEGORIES, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, Expense, EXPENSE_CATEGORIES, ExpenseCategory, GoalContribution, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
@@ -88,13 +88,6 @@ function AutoValue({ value, className = '', style }: { value: number; className?
     </p>
   );
 }
-
-const INCOME_SOURCE_ICONS: Record<string, string> = {
-  'Salário': '💰',
-  'Freela': '💻',
-  'Renda passiva': '📊',
-  'Outros': '📦',
-};
 
 export default function HomePage() {
   const router = useRouter();
@@ -441,12 +434,6 @@ export default function HomePage() {
   const balance = income - spent;
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
-  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
-    cat,
-    total: periodIncomes.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
-  })).filter((c) => c.total > 0);
-  const showIncomeBreakdown = incomeBySource.length >= 2;
-
   // ── Obrigações do mês ────────────────────────────────────────────────────────
   const pendingObligations = obligations.filter((o) => o.status === 'pending');
   const pendingTotal = pendingObligations.reduce((s, o) => s + o.amount, 0);
@@ -787,24 +774,11 @@ export default function HomePage() {
           <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
         </div>
         {/* Receitas + Despesas — 2 cards lado a lado */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 items-stretch">
           <div className="rounded-2xl p-4" style={{ background: '#f0fdf8' }}>
             <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Receitas</p>
             <AutoValue value={income} className="text-xl font-bold leading-none" style={{ color: '#00b87a' }} />
             <p className="text-gray-600 text-xs mt-1 font-medium">entradas do mês</p>
-            {showIncomeBreakdown && (
-              <div className="mt-2 pt-2 border-t space-y-1" style={{ borderColor: 'rgba(0,184,122,0.12)' }}>
-                {incomeBySource.map(({ cat, total }) => (
-                  <div key={cat} className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] text-gray-500 flex items-center gap-1 min-w-0">
-                      <span className="flex-shrink-0">{INCOME_SOURCE_ICONS[cat]}</span>
-                      <span className="truncate">{cat}</span>
-                    </span>
-                    <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#00b87a' }}>{formatCurrency(total)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
           <div className="rounded-2xl p-4 border" style={{ background: '#fff0f2', borderColor: '#fdd0d5' }}>
             <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Despesas</p>
