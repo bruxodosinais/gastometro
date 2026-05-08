@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import {
@@ -473,7 +473,9 @@ export default function RecorrentesPage() {
             {duplicateWarning && (
               <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                 <p className="text-amber-700 text-sm font-medium">
-                  ⚠️ Já existe um recorrente parecido: <strong>{duplicateWarning.description}</strong>
+                  ⚠️ Já existe um recorrente com nome similar:{' '}
+                  <strong>{duplicateWarning.description} ({formatCurrency(duplicateWarning.amount)})</strong>.
+                  {' '}Deseja cadastrar mesmo assim?
                 </p>
                 <div className="flex gap-4 mt-2">
                   <button
@@ -481,14 +483,14 @@ export default function RecorrentesPage() {
                     onClick={() => { setDescription(''); setDuplicateWarning(null); }}
                     className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
                   >
-                    Sim, cancelar
+                    Cancelar
                   </button>
                   <button
                     type="button"
                     onClick={() => setDuplicateWarning(null)}
                     className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
                   >
-                    Não, cadastrar assim mesmo
+                    Cadastrar mesmo assim
                   </button>
                 </div>
               </div>
@@ -580,7 +582,7 @@ export default function RecorrentesPage() {
           {/* Seletor de mês */}
           <div className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-1 py-1 mb-4">
             <button
-              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))}
+              onClick={() => startTransition(() => setSelectedMonth(shiftMonth(selectedMonth, -1)))}
               className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
               aria-label="Mês anterior"
             >
@@ -595,7 +597,7 @@ export default function RecorrentesPage() {
               {loadingMonth && <Loader2 size={12} className="animate-spin text-gray-400" />}
             </button>
             <button
-              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))}
+              onClick={() => startTransition(() => setSelectedMonth(shiftMonth(selectedMonth, 1)))}
               className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
               aria-label="Próximo mês"
             >
@@ -644,7 +646,7 @@ export default function RecorrentesPage() {
                       return (
                         <button
                           key={month}
-                          onClick={() => { setSelectedMonth(key); setPickerOpen(false); }}
+                          onClick={() => { startTransition(() => setSelectedMonth(key)); setPickerOpen(false); }}
                           className={`py-3 rounded-xl text-sm font-medium transition-all ${
                             isSelected
                               ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
@@ -685,7 +687,7 @@ export default function RecorrentesPage() {
                 return (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => startTransition(() => setActiveTab(tab))}
                     className="pb-1 text-sm font-medium transition-colors"
                     style={{
                       color: isActive ? '#10b981' : '#9ca3af',

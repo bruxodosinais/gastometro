@@ -1199,7 +1199,7 @@ export default function HomePage() {
                       {cfg.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
+                      <p className="text-gray-900 text-sm font-medium truncate">{exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}</p>
                       <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
                     </div>
                     <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#00b87a' : '#f04e5e' }}>

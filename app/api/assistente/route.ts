@@ -248,9 +248,10 @@ O campo amount deve ser número puro (ex: 45.90).`;
     }
   } catch (err) {
     console.error('[assistente]', err);
-    return Response.json(
-      { type: 'query', message: 'Desculpe, ocorreu um erro. Tente novamente.' },
-      { status: 500 },
-    );
+    const isAuthErr = err instanceof Error && err.message?.includes('authentication_error');
+    const message = isAuthErr
+      ? 'Erro de configuração: chave da API inválida. Contate o suporte.'
+      : 'Desculpe, ocorreu um erro. Tente novamente.';
+    return Response.json({ type: 'query', message }, { status: 500 });
   }
 }

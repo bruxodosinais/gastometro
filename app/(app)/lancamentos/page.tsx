@@ -154,7 +154,7 @@ function ExpenseList({
                     {cfg.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
+                    <p className="text-gray-900 text-sm font-medium truncate">{exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}</p>
                     <p className="text-gray-500 text-xs">{exp.category}</p>
                   </div>
                   <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444', minWidth: 'fit-content' }}>

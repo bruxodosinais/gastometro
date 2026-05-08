@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
 import { deleteExpense, getExpenses } from '@/lib/storage';
@@ -76,7 +76,7 @@ function formatBrand(text: string): string {
   };
   const key = text.toLowerCase().trim();
   if (map[key]) return map[key];
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function patternContext(count: number): string {
@@ -167,6 +167,88 @@ export default function HistoricoPage() {
     };
   }, []);
 
+  // ── Memoized computations (must be before any early return per hooks rules) ──
+  const needle = search.trim().toLowerCase();
+  const minAmt = minAmount !== '' ? parseFloat(minAmount) : null;
+  const maxAmt = maxAmount !== '' ? parseFloat(maxAmount) : null;
+
+  const { rangeFrom, rangeTo, periodLabel } = useMemo(() => {
+    const now = new Date();
+    const todayStr = isoDate(now);
+    if (quickFilter === 'today') {
+      return { rangeFrom: todayStr, rangeTo: todayStr, periodLabel: 'Hoje' };
+    } else if (quickFilter === '7d') {
+      const f = new Date(now); f.setDate(f.getDate() - 6);
+      return { rangeFrom: isoDate(f), rangeTo: todayStr, periodLabel: 'Últimos 7 dias' };
+    } else if (quickFilter === '30d') {
+      const f = new Date(now); f.setDate(f.getDate() - 29);
+      return { rangeFrom: isoDate(f), rangeTo: todayStr, periodLabel: 'Últimos 30 dias' };
+    } else if (quickFilter === 'thisMonth') {
+      const y = now.getFullYear(), m = now.getMonth() + 1;
+      const last = new Date(y, m, 0).getDate();
+      return {
+        rangeFrom: `${y}-${String(m).padStart(2, '0')}-01`,
+        rangeTo: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`,
+        periodLabel: getMonthLabel(getMonthKey(now)),
+      };
+    } else if (quickFilter === 'prevMonth') {
+      const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const y = pd.getFullYear(), m = pd.getMonth() + 1;
+      const last = new Date(y, m, 0).getDate();
+      return {
+        rangeFrom: `${y}-${String(m).padStart(2, '0')}-01`,
+        rangeTo: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`,
+        periodLabel: getMonthLabel(getMonthKey(pd)),
+      };
+    } else {
+      const [py, pm] = period.split('-').map(Number);
+      const last = new Date(py, pm, 0).getDate();
+      return {
+        rangeFrom: `${period}-01`,
+        rangeTo: `${period}-${String(last).padStart(2, '0')}`,
+        periodLabel: getMonthLabel(period),
+      };
+    }
+  }, [quickFilter, period]);
+
+  const baseEntries = useMemo(
+    () => expenses.filter((e) => e.date >= rangeFrom && e.date <= rangeTo),
+    [expenses, rangeFrom, rangeTo]
+  );
+
+  const filteredEntries = useMemo(() =>
+    baseEntries
+      .filter((e) => typeFilter === 'all' || e.type === typeFilter)
+      .filter((e) => categoryFilter === 'all' || e.category === categoryFilter)
+      .filter((e) => !needle || e.description.toLowerCase().includes(needle))
+      .filter((e) => minAmt === null || e.amount >= minAmt)
+      .filter((e) => maxAmt === null || e.amount <= maxAmt)
+      .sort((a, b) => {
+        if (sortOrder === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (sortOrder === 'highest') return b.amount - a.amount;
+        if (sortOrder === 'lowest') return a.amount - b.amount;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      }),
+    [baseEntries, typeFilter, categoryFilter, needle, minAmt, maxAmt, sortOrder]
+  );
+
+  const { topGastosByValue, topGastosByCount } = useMemo(() => {
+    const map: Record<string, TopGasto> = {};
+    for (const e of filteredEntries.filter((e) => e.type === 'expense')) {
+      const key = normalizeDescription(e.description);
+      if (!map[key]) map[key] = { displayName: e.description, total: 0, count: 0 };
+      map[key].total += e.amount;
+      map[key].count += 1;
+    }
+    return {
+      topGastosByValue: Object.values(map).sort((a, b) => b.total - a.total).slice(0, 3),
+      topGastosByCount: Object.values(map)
+        .filter((g) => g.count >= 2)
+        .sort((a, b) => b.count !== a.count ? b.count - a.count : b.total - a.total)
+        .slice(0, 3),
+    };
+  }, [filteredEntries]);
+
   if (!ready) {
     return (
       <main className="flex items-center justify-center min-h-screen">
@@ -175,48 +257,8 @@ export default function HistoricoPage() {
     );
   }
 
-  // ── Date range from quick filter or period context ───────────────────────────
-  const now = new Date();
-  const todayIso = isoDate(now);
-
-  let rangeFrom: string;
-  let rangeTo: string;
-  let periodLabel: string;
-
-  if (quickFilter === 'today') {
-    rangeFrom = rangeTo = todayIso;
-    periodLabel = 'Hoje';
-  } else if (quickFilter === '7d') {
-    const f = new Date(now); f.setDate(f.getDate() - 6);
-    rangeFrom = isoDate(f); rangeTo = todayIso;
-    periodLabel = 'Últimos 7 dias';
-  } else if (quickFilter === '30d') {
-    const f = new Date(now); f.setDate(f.getDate() - 29);
-    rangeFrom = isoDate(f); rangeTo = todayIso;
-    periodLabel = 'Últimos 30 dias';
-  } else if (quickFilter === 'thisMonth') {
-    const y = now.getFullYear(), m = now.getMonth() + 1;
-    const last = new Date(y, m, 0).getDate();
-    rangeFrom = `${y}-${String(m).padStart(2, '0')}-01`;
-    rangeTo = `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
-    periodLabel = getMonthLabel(getMonthKey(now));
-  } else if (quickFilter === 'prevMonth') {
-    const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const y = pd.getFullYear(), m = pd.getMonth() + 1;
-    const last = new Date(y, m, 0).getDate();
-    rangeFrom = `${y}-${String(m).padStart(2, '0')}-01`;
-    rangeTo = `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
-    periodLabel = getMonthLabel(getMonthKey(pd));
-  } else {
-    const [py, pm] = period.split('-').map(Number);
-    const last = new Date(py, pm, 0).getDate();
-    rangeFrom = `${period}-01`;
-    rangeTo = `${period}-${String(last).padStart(2, '0')}`;
-    periodLabel = getMonthLabel(period);
-  }
-
   // ── Summary (all entries in range, no search/type filters) ──────────────────
-  const baseEntries = expenses.filter((e) => e.date >= rangeFrom && e.date <= rangeTo);
+  const todayIso = isoDate(new Date());
   const income = calculateTotalByType(baseEntries, 'income');
   const spent = calculateTotalByType(baseEntries, 'expense');
   const balance = income - spent;
@@ -242,45 +284,6 @@ export default function HistoricoPage() {
     if (type === 'expense' && INCOME_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
     if (type === 'income' && EXPENSE_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
   }
-
-  const needle = search.trim().toLowerCase();
-  const minAmt = minAmount !== '' ? parseFloat(minAmount) : null;
-  const maxAmt = maxAmount !== '' ? parseFloat(maxAmount) : null;
-
-  const filteredEntries = baseEntries
-    .filter((e) => typeFilter === 'all' || e.type === typeFilter)
-    .filter((e) => categoryFilter === 'all' || e.category === categoryFilter)
-    .filter((e) => !needle || e.description.toLowerCase().includes(needle))
-    .filter((e) => minAmt === null || e.amount >= minAmt)
-    .filter((e) => maxAmt === null || e.amount <= maxAmt)
-    .sort((a, b) => {
-      if (sortOrder === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortOrder === 'highest') return b.amount - a.amount;
-      if (sortOrder === 'lowest') return a.amount - b.amount;
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-
-  // ── Top gastos (grouping by description) ────────────────────────────────────
-  const topGastosMap: Record<string, TopGasto> = {};
-  for (const e of filteredEntries.filter((e) => e.type === 'expense')) {
-    const key = normalizeDescription(e.description);
-    if (!topGastosMap[key]) topGastosMap[key] = { displayName: e.description, total: 0, count: 0 };
-    topGastosMap[key].total += e.amount;
-    topGastosMap[key].count += 1;
-  }
-  // Top Gastos: sorted by total desc (valor)
-  const topGastosByValue = Object.values(topGastosMap)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 3);
-
-  // Padrões: sorted by count desc (frequência), only recurring (>= 2)
-  const topGastosByCount = Object.values(topGastosMap)
-    .filter((g) => g.count >= 2)
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return b.total - a.total;
-    })
-    .slice(0, 3);
 
   // ── Insight hero contextual ──────────────────────────────────────────────────
   const insightGroup = topGastosByCount[0] ?? null;
@@ -351,7 +354,7 @@ export default function HistoricoPage() {
             onClick={() => {
               setQuickFilter(key);
               setCategoryFilter('all');
-              if (key === 'thisMonth') {
+              if (key === 'thisMonth' || key === 'today' || key === '7d' || key === '30d') {
                 const p = getMonthKey(new Date());
                 prevPeriodRef.current = p;
                 setPeriod(p);
@@ -415,7 +418,7 @@ export default function HistoricoPage() {
           className="flex gap-2 overflow-x-auto pb-0.5"
         >
           <button
-            onClick={() => setCategoryFilter('all')}
+            onClick={() => startTransition(() => setCategoryFilter('all'))}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
               categoryFilter === 'all'
                 ? 'bg-mint text-gray-900'
@@ -429,7 +432,7 @@ export default function HistoricoPage() {
             return (
               <button
                 key={cat}
-                onClick={() => setCategoryFilter(cat)}
+                onClick={() => startTransition(() => setCategoryFilter(cat))}
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   categoryFilter === cat
                     ? 'bg-mint text-gray-900'
