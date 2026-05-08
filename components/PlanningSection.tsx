@@ -27,6 +27,7 @@ interface Props {
   onPlanUpdate: (plan: MonthlyPlan) => void;
   recurringExpenses?: RecurringExpense[];
   periodIncomes?: Expense[];
+  creditSpent?: number;
 }
 
 export default function PlanningSection({
@@ -43,6 +44,7 @@ export default function PlanningSection({
   onPlanUpdate,
   recurringExpenses = [],
   periodIncomes = [],
+  creditSpent = 0,
 }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [editIncome, setEditIncome] = useState('');
@@ -66,7 +68,8 @@ export default function PlanningSection({
     : manualContribution;
   const savingsPct = savingsGoal > 0 ? (savedAmount / savingsGoal) * 100 : null;
   const freeAmount = expectedIncome - fixedCosts - savingsGoal;
-  const freeRemaining = freeAmount - spent;
+  const debitSpent = spent - creditSpent;
+  const freeRemaining = freeAmount - debitSpent;
 
   const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
     cat,
@@ -402,8 +405,13 @@ export default function PlanningSection({
                       {freeRemaining < 0 ? '−' : ''}{formatCurrency(Math.abs(freeRemaining))}
                     </p>
                     <p className="text-gray-500 text-xs mt-1">
-                      após {formatCurrency(spent)} gastos no período
+                      após {formatCurrency(debitSpent)} gastos no período
                     </p>
+                    {creditSpent > 0 && (
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        Fatura cartão: −{formatCurrency(creditSpent)}
+                      </p>
+                    )}
                   </div>
                 </>
               )}

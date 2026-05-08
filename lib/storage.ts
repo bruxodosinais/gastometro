@@ -1,5 +1,5 @@
 import { createClient } from './supabase/client';
-import { Asset, AssetType, Budget, Category, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyObligation, MonthlyPlan, RecurringExpense } from './types';
+import { Asset, AssetType, Budget, Category, CreditCard, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyObligation, MonthlyPlan, RecurringExpense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
   return {
@@ -11,6 +11,8 @@ function toExpense(row: Record<string, unknown>): Expense {
     date: row.date as string,
     createdAt: row.created_at as string,
     recurringExpenseId: (row.recurring_expense_id as string | null) ?? undefined,
+    creditCardId: (row.credit_card_id as string | null) ?? undefined,
+    isCredit: (row.is_credit as boolean | null) ?? undefined,
   };
 }
 
@@ -45,6 +47,8 @@ export async function addExpense(
       category: data.category,
       date: data.date,
       ...(recurringExpenseId ? { recurring_expense_id: recurringExpenseId } : {}),
+      is_credit: data.isCredit ?? false,
+      credit_card_id: data.creditCardId ?? null,
     })
     .select()
     .single();
@@ -106,6 +110,8 @@ export async function updateExpense(
       description: data.description,
       category: data.category,
       date: data.date,
+      credit_card_id: data.creditCardId ?? null,
+      is_credit: data.isCredit ?? false,
     })
     .eq('id', id)
     .eq('user_id', user.id)
@@ -134,6 +140,8 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
     dueDay: (row.due_day as number | null) ?? undefined,
     active: row.active as boolean,
     isVariable: (row.is_variable as boolean | null) ?? false,
+    isCredit: (row.is_credit as boolean | null) ?? undefined,
+    creditCardId: (row.credit_card_id as string | null) ?? undefined,
     createdAt: row.created_at as string,
   };
 }
@@ -169,6 +177,8 @@ export async function addRecurringExpense(
       due_day: data.dueDay ?? data.dayOfMonth,
       active: data.active,
       is_variable: data.isVariable ?? false,
+      is_credit: data.isCredit ?? false,
+      credit_card_id: data.creditCardId ?? null,
     })
     .select()
     .single();
@@ -299,6 +309,8 @@ export async function checkAndLaunchRecurring(): Promise<void> {
       category: rec.category,
       date,
       recurring_expense_id: rec.id,
+      is_credit: rec.is_credit ?? false,
+      credit_card_id: rec.credit_card_id ?? null,
     });
   }
 }
@@ -845,6 +857,129 @@ export async function addObligationForNewRecurring(
 
   if (error) return null;
   return toMonthlyObligation(data);
+}
+
+// ─── Cartões de Crédito ───────────────────────────────────────────────────────
+
+function toCreditCard(row: Record<string, unknown>): CreditCard {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    nome: row.nome as string,
+    limite: row.limite as number,
+    diaFechamento: row.dia_fechamento as number,
+    diaVencimento: row.dia_vencimento as number,
+    ativo: row.ativo as boolean,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getCreditCards(): Promise<CreditCard[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('credit_cards')
+    .select('*')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map(toCreditCard);
+}
+
+export async function addCreditCard(
+  data: Omit<CreditCard, 'id' | 'userId' | 'createdAt'>
+): Promise<CreditCard> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const { data: row, error } = await supabase
+    .from('credit_cards')
+    .insert({
+      user_id: user.id,
+      nome: data.nome,
+      limite: data.limite,
+      dia_fechamento: data.diaFechamento,
+      dia_vencimento: data.diaVencimento,
+      ativo: data.ativo,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toCreditCard(row);
+}
+
+export async function updateCreditCard(
+  id: string,
+  data: Partial<Omit<CreditCard, 'id' | 'userId' | 'createdAt'>>
+): Promise<CreditCard> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const patch: Record<string, unknown> = {};
+  if (data.nome !== undefined) patch.nome = data.nome;
+  if (data.limite !== undefined) patch.limite = data.limite;
+  if (data.diaFechamento !== undefined) patch.dia_fechamento = data.diaFechamento;
+  if (data.diaVencimento !== undefined) patch.dia_vencimento = data.diaVencimento;
+  if (data.ativo !== undefined) patch.ativo = data.ativo;
+
+  const { data: row, error } = await supabase
+    .from('credit_cards')
+    .update(patch)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toCreditCard(row);
+}
+
+export async function deleteCreditCard(id: string): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from('credit_cards')
+    .update({ ativo: false })
+    .eq('id', id)
+    .eq('user_id', user.id);
+}
+
+export async function getCreditCardFatura(cardId: string, period: string): Promise<number> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('amount')
+    .eq('credit_card_id', cardId)
+    .eq('is_credit', true)
+    .gte('date', `${period}-01`)
+    .lte('date', `${period}-31`);
+
+  if (error) return 0;
+  return (data ?? []).reduce((sum, row) => sum + (row.amount as number), 0);
+}
+
+export async function getExpensesByCard(cardId: string, period: string): Promise<Expense[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('*')
+    .eq('credit_card_id', cardId)
+    .eq('is_credit', true)
+    .gte('date', `${period}-01`)
+    .lte('date', `${period}-31`)
+    .order('date', { ascending: false });
+
+  if (error) return [];
+  return (data ?? []).map(toExpense);
 }
 
 export async function addGoalContribution(

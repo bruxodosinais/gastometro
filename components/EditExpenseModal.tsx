@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import { addExpense, updateExpense } from '@/lib/storage';
+import { addExpense, getCreditCards, updateExpense } from '@/lib/storage';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
+  CreditCard as CreditCardType,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   Category,
@@ -31,6 +32,18 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
   const [date, setDate] = useState(mode === 'duplicate' ? todayStr() : expense.date);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCredit, setIsCredit] = useState(expense.isCredit ?? false);
+  const [selectedCardId, setSelectedCardId] = useState(expense.creditCardId ?? '');
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+
+  useEffect(() => {
+    if (expense.type === 'expense') {
+      getCreditCards().then((cards) => {
+        setCreditCards(cards);
+        if (!expense.creditCardId && cards.length > 0) setSelectedCardId(cards[0].id);
+      });
+    }
+  }, [expense.type, expense.creditCardId]);
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const title = mode === 'duplicate' ? 'Duplicar lançamento' : 'Editar lançamento';
@@ -49,7 +62,16 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
     setSaving(true);
     setError(null);
     try {
-      const payload = { type: entryType, amount: num, description: description.trim(), category, date };
+      const payload = {
+        type: entryType,
+        amount: num,
+        description: description.trim(),
+        category,
+        date,
+        ...(entryType === 'expense' && isCredit && selectedCardId
+          ? { isCredit: true, creditCardId: selectedCardId }
+          : { isCredit: false, creditCardId: undefined }),
+      };
       const saved =
         mode === 'duplicate'
           ? await addExpense(payload)
@@ -169,6 +191,47 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
+
+              {/* Cartão de crédito */}
+              {entryType === 'expense' && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider">
+                      Pagar com cartão
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCredit((v) => !v)}
+                      className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
+                      style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
+                      role="switch"
+                      aria-checked={isCredit}
+                    >
+                      <span
+                        className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out"
+                        style={{ margin: 2, transform: isCredit ? 'translateX(16px)' : 'translateX(0)' }}
+                      />
+                    </button>
+                  </div>
+                  {isCredit && creditCards.length > 0 && (
+                    <select
+                      value={selectedCardId}
+                      onChange={(e) => setSelectedCardId(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
+                    >
+                      {creditCards.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </select>
+                  )}
+                  {isCredit && creditCards.length === 0 && (
+                    <p className="text-xs text-gray-500">
+                      Nenhum cartão cadastrado.{' '}
+                      <a href="/cartoes" className="text-blue-500 underline">Adicionar →</a>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Categoria */}
               <div>

@@ -16,6 +16,8 @@ import {
   markObligationAsPaid,
   addExpense,
   getAllGoalContributions,
+  getCreditCards,
+  getCreditCardFatura,
 } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -28,7 +30,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import PeriodSelector from '@/components/PeriodSelector';
-import { Budget, Category, Expense, EXPENSE_CATEGORIES, ExpenseCategory, GoalContribution, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
+import { Budget, Category, CreditCard as CreditCardType, Expense, EXPENSE_CATEGORIES, ExpenseCategory, GoalContribution, MonthlyObligation, MonthlyPlan, RecurringExpense } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
@@ -120,6 +122,10 @@ export default function HomePage() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [heroDisplayValue, setHeroDisplayValue] = useState(0);
   const [userName, setUserName] = useState('');
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [cardFaturas, setCardFaturas] = useState<{ card: CreditCardType; total: number }[]>([]);
+  const [cardVencimentoAlert, setCardVencimentoAlert] = useState<{ card: CreditCardType; fatura: number } | null>(null);
+  const [payingFaturaId, setPayingFaturaId] = useState<string | null>(null);
   const [showMonthlyClose, setShowMonthlyClose] = useState(false);
   const [showLimiteTooltip, setShowLimiteTooltip] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
@@ -133,12 +139,23 @@ export default function HomePage() {
       getRecurringExpenses(),
       checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
       getAllGoalContributions(),
-    ]).then(([exp, bud, rec, obs, contrib]) => {
+      getCreditCards(),
+    ]).then(async ([exp, bud, rec, obs, contrib, cards]) => {
       setExpenses(exp);
       setBudgets(bud);
       setRecurringExpenses(rec);
       setObligations(obs);
       setContributions(contrib);
+      setCreditCards(cards);
+      if (cards.length > 0) {
+        const faturas = await Promise.all(
+          cards.map(async (card) => ({
+            card,
+            total: await getCreditCardFatura(card.id, currentMonth),
+          }))
+        );
+        setCardFaturas(faturas);
+      }
       setReady(true);
     });
 
@@ -226,6 +243,17 @@ export default function HomePage() {
   }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!ready || creditCards.length === 0) return;
+    const todayDayNum = new Date().getDate();
+    for (const cf of cardFaturas) {
+      if (cf.card.diaVencimento === todayDayNum && cf.total > 0) {
+        setCardVencimentoAlert({ card: cf.card, fatura: cf.total });
+        break;
+      }
+    }
+  }, [ready, creditCards, cardFaturas]);
+
+  useEffect(() => {
     if (!showAvatarMenu) return;
     function handleClickOutside(e: MouseEvent) {
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
@@ -262,7 +290,7 @@ export default function HomePage() {
       .reduce((sum, r) => sum + r.amount, 0);
     const todayStr = now.toISOString().slice(0, 10);
     const spentToday2 = expenses
-      .filter((e) => e.date.slice(0, 10) === todayStr && e.type === 'expense')
+      .filter((e) => e.date.slice(0, 10) === todayStr && e.type === 'expense' && !e.isCredit)
       .reduce((sum, e) => sum + e.amount, 0);
     const livreTotal2 = Math.max(recurringIncome2, currentMonthIncome) - fixedCosts2 - savingsGoal2;
     const target = isCurrentMonth && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit, 1) - spentToday2 : 0;
@@ -427,11 +455,34 @@ export default function HomePage() {
     );
   }
 
+  async function handlePayFatura(card: CreditCardType, faturaTotal: number) {
+    if (payingFaturaId === card.id) return;
+    setPayingFaturaId(card.id);
+    try {
+      const expense = await addExpense({
+        type: 'expense',
+        amount: faturaTotal,
+        description: `Fatura ${card.nome}`,
+        category: 'Outros',
+        date: new Date().toISOString().slice(0, 10),
+      });
+      setExpenses((prev) => [expense, ...prev]);
+      setCardFaturas((prev) => prev.map((cf) => cf.card.id === card.id ? { ...cf, total: 0 } : cf));
+      setCardVencimentoAlert(null);
+    } finally {
+      setPayingFaturaId(null);
+    }
+  }
+
   // ── Dados do período ─────────────────────────────────────────────────────────
   const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
   const income = calculateTotalByType(periodEntries, 'income');
   const spent = calculateTotalByType(periodEntries, 'expense');
   const balance = income - spent;
+  const periodCreditTotal = periodEntries
+    .filter((e) => e.type === 'expense' && e.isCredit === true)
+    .reduce((s, e) => s + e.amount, 0);
+  const debitBalance = income - (spent - periodCreditTotal);
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
   // ── Obrigações do mês ────────────────────────────────────────────────────────
@@ -601,7 +652,7 @@ export default function HomePage() {
   const effectiveIncome = Math.max(recurringIncome, income);
   const livreTotal = effectiveIncome - fixedCosts - savingsGoal;
   const spentToday = expenses
-    .filter((e) => e.date.slice(0, 10) === now.toISOString().slice(0, 10) && e.type === 'expense')
+    .filter((e) => e.date.slice(0, 10) === now.toISOString().slice(0, 10) && e.type === 'expense' && !e.isCredit)
     .reduce((sum, e) => sum + e.amount, 0);
   const canSpendToday = isCurrentMonth ? (daysForLimit > 0 ? livreTotal / daysForLimit - spentToday : 0) : null;
 
@@ -610,9 +661,10 @@ export default function HomePage() {
     : null;
   const valorLivreParaGastarPlanejado = heroBase - fixedCosts - savingsGoal;
   const budgetPctFallback = heroBase <= 0;
+  const debitSpent = spent - periodCreditTotal;
   const budgetPct = valorLivreParaGastarPlanejado > 0
-    ? Math.min((spent / valorLivreParaGastarPlanejado) * 100, 100)
-    : spent > 0 ? 100 : 0;
+    ? Math.min((debitSpent / valorLivreParaGastarPlanejado) * 100, 100)
+    : debitSpent > 0 ? 100 : 0;
   const heroStatus: 'excellent' | 'ok' | 'warning' = budgetPct < 60 ? 'excellent' : budgetPct < 85 ? 'ok' : 'warning';
   const heroStatusLabel = budgetPct >= 100 ? 'Limite do mês atingido' : budgetPct >= 90 ? 'Quase no limite, desacelere' : budgetPct >= 70 ? 'Atenção ao ritmo de gastos' : 'Você está no controle 👍';
   const heroStatusColor = valorLivreParaGastar < 0 ? 'text-white/70' : heroStatus === 'excellent' ? 'text-white/90' : heroStatus === 'ok' ? 'text-white/80' : 'text-white/70';
@@ -769,9 +821,32 @@ export default function HomePage() {
         {/* Saldo — card largo, destaque principal */}
         <div className={`rounded-2xl p-4 border ${balance >= 0 ? '' : 'bg-negative-50 border-negative/20'}`}
           style={balance >= 0 ? { background: '#f0fdf8', border: '1px solid #d4f5e9' } : undefined}>
-          <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Saldo</p>
-          <AutoValue value={balance} className="text-3xl font-bold leading-none" style={{ color: balance >= 0 ? '#00b87a' : '#f04e5e' }} />
-          <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
+          {creditCards.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-gray-600 text-xs font-medium">Saldo em conta</p>
+                <span className="font-semibold text-sm" style={{ color: debitBalance >= 0 ? '#00b87a' : '#f04e5e' }}>
+                  {formatCurrency(debitBalance)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-gray-600 text-xs font-medium">Fatura atual</p>
+                <span className="font-semibold text-sm" style={{ color: periodCreditTotal > 0 ? '#f04e5e' : '#9ca3af' }}>
+                  {periodCreditTotal > 0 ? `−${formatCurrency(periodCreditTotal)}` : formatCurrency(0)}
+                </span>
+              </div>
+              <div className="border-t border-gray-200 pt-2 flex items-center justify-between">
+                <p className="text-gray-700 text-xs font-bold tracking-wider">Saldo real</p>
+                <AutoValue value={balance} className="text-2xl font-bold leading-none" style={{ color: balance >= 0 ? '#00b87a' : '#f04e5e' }} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-gray-700 text-xs font-semibold tracking-wider mb-1">Saldo</p>
+              <AutoValue value={balance} className="text-3xl font-bold leading-none" style={{ color: balance >= 0 ? '#00b87a' : '#f04e5e' }} />
+              <p className="text-gray-600 text-xs mt-1 font-medium">receitas − gastos</p>
+            </>
+          )}
         </div>
         {/* Receitas + Despesas — 2 cards lado a lado */}
         <div className="grid grid-cols-2 gap-2 items-stretch">
@@ -993,6 +1068,10 @@ export default function HomePage() {
                       : dueTomorrow ? 'Vence amanhã'
                       : `Vence dia ${ob.dueDay}`;
                     const dueLabelColor = daysLate > 0 ? 'text-red-400' : dueToday ? 'text-amber-400' : dueTomorrow ? 'text-yellow-500' : 'text-gray-500';
+                    const obRec = recurringExpenses.find((r) => r.id === ob.recurringExpenseId);
+                    const obCardName = obRec?.isCredit && obRec.creditCardId
+                      ? creditCards.find((c) => c.id === obRec.creditCardId)?.nome
+                      : undefined;
                     return (
                       <div
                         key={ob.id}
@@ -1005,7 +1084,14 @@ export default function HomePage() {
                           <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                             {ob.description ? ob.description.charAt(0).toUpperCase() + ob.description.slice(1) : ''}
                           </p>
-                          {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
+                            {obCardName && (
+                              <span className="text-[11px] font-medium px-2 py-0.5 rounded" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
+                                {obCardName}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className={`font-semibold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                           {formatCurrency(ob.amount)}
@@ -1046,6 +1132,48 @@ export default function HomePage() {
               </>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── FATURAS DE CARTÃO ─────────────────────────────────────────────────── */}
+      {isCurrentMonth && cardFaturas.some((cf) => cf.total > 0) && (
+        <div
+          className="mb-3 bg-white border border-gray-100 rounded-2xl overflow-hidden"
+          style={mounted ? anim(145) : hidden}
+        >
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <p className="text-gray-800 font-semibold text-sm">Faturas</p>
+            <span className="text-xs text-gray-500">
+              {cardFaturas.filter((cf) => cf.total > 0).length} cartão
+              {cardFaturas.filter((cf) => cf.total > 0).length > 1 ? 'ões' : ''}
+            </span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {cardFaturas
+              .filter((cf) => cf.total > 0)
+              .map(({ card, total }) => (
+                <div key={card.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm">💳</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-900 text-sm font-medium truncate">{card.nome}</p>
+                    <p className="text-gray-500 text-xs">Vence dia {card.diaVencimento}</p>
+                  </div>
+                  <span className="font-semibold text-sm text-red-400 whitespace-nowrap flex-shrink-0">
+                    {formatCurrency(total)}
+                  </span>
+                  <button
+                    onClick={() => handlePayFatura(card, total)}
+                    disabled={payingFaturaId === card.id}
+                    className="h-8 px-2.5 rounded-xl flex items-center justify-center text-xs font-medium transition-colors flex-shrink-0 disabled:opacity-50 whitespace-nowrap"
+                    style={{ background: '#fff0f2', border: '1px solid rgba(240,78,94,0.3)', color: '#f04e5e' }}
+                  >
+                    {payingFaturaId === card.id ? '...' : 'Pagar'}
+                  </button>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
@@ -1287,6 +1415,7 @@ export default function HomePage() {
         onPlanUpdate={setMonthlyPlan}
         recurringExpenses={recurringExpenses}
         periodIncomes={periodIncomes}
+        creditSpent={periodCreditTotal}
       />
       </div>
 
@@ -1453,6 +1582,38 @@ export default function HomePage() {
                   <div className={`h-full rounded-full transition-all ${m3Done ? 'bg-mint' : 'bg-mint-500'}`} style={{ width: `${Math.round(m3Pct * 100)}%` }} />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ALERTA: Fatura vence hoje ─────────────────────────────────────────── */}
+      {cardVencimentoAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div
+            className="bg-white border border-gray-100 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-gray-900 font-semibold text-base mb-1">
+              💳 Fatura do {cardVencimentoAlert.card.nome} vence hoje
+            </p>
+            <p className="text-gray-500 text-sm mb-4">
+              {formatCurrency(cardVencimentoAlert.fatura)} — deseja registrar o pagamento?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCardVencimentoAlert(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Lembrar depois
+              </button>
+              <button
+                onClick={() => handlePayFatura(cardVencimentoAlert.card, cardVencimentoAlert.fatura)}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold transition-all active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+              >
+                Pagar agora
+              </button>
             </div>
           </div>
         </div>

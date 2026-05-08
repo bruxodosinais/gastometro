@@ -54,6 +54,17 @@ export const INCOME_CATEGORIES: IncomeCategory[] = [
   'Outros',
 ];
 
+export interface CreditCard {
+  id: string;
+  userId: string;
+  nome: string;
+  limite: number;
+  diaFechamento: number;
+  diaVencimento: number;
+  ativo: boolean;
+  createdAt: string;
+}
+
 export interface Expense {
   id: string;
   type: EntryType;
@@ -63,6 +74,8 @@ export interface Expense {
   date: string; // YYYY-MM-DD
   createdAt: string;
   recurringExpenseId?: string;
+  creditCardId?: string;
+  isCredit?: boolean;
 }
 
 export interface MonthlyPlan {
@@ -82,6 +95,8 @@ export interface RecurringExpense {
   dueDay?: number;
   active: boolean;
   isVariable: boolean;
+  isCredit?: boolean;
+  creditCardId?: string;
   createdAt: string;
 }
 

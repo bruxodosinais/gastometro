@@ -7,6 +7,7 @@ import {
   addExpenseInstallments,
   addRecurringExpense,
   deleteExpense,
+  getCreditCards,
   getExpenses,
 } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
@@ -15,7 +16,7 @@ import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { Category, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
+import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
 
 function todayStr() {
   const d = new Date();
@@ -104,6 +105,7 @@ function ExpenseList({
   onEdit,
   onDuplicate,
   onDelete,
+  creditCards = [],
 }: {
   expenses: Expense[];
   newestId: string | null;
@@ -111,6 +113,7 @@ function ExpenseList({
   onEdit: (e: Expense) => void;
   onDuplicate: (e: Expense) => void;
   onDelete: (e: Expense) => void;
+  creditCards?: CreditCardType[];
 }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -155,7 +158,14 @@ function ExpenseList({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-900 text-sm font-medium truncate">{exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}</p>
-                    <p className="text-gray-500 text-xs">{exp.category}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-gray-500 text-xs">{exp.category}</p>
+                      {exp.isCredit && exp.creditCardId
+                        ? creditCards.find((c) => c.id === exp.creditCardId)?.nome
+                          ? <span className="text-[11px] font-medium px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: '#eff6ff', color: '#1d4ed8' }}>{creditCards.find((c) => c.id === exp.creditCardId)!.nome}</span>
+                          : null
+                        : null}
+                    </div>
                   </div>
                   <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444', minWidth: 'fit-content' }}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
@@ -226,6 +236,10 @@ export default function LancamentosPage() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
+  const [isCredit, setIsCredit] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState('');
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
@@ -236,6 +250,10 @@ export default function LancamentosPage() {
 
   useEffect(() => {
     getExpenses().then(setExpenses);
+    getCreditCards().then((cards) => {
+      setCreditCards(cards);
+      if (cards.length > 0) setSelectedCardId(cards[0].id);
+    });
     amountRef.current?.focus();
   }, []);
 
@@ -257,6 +275,7 @@ export default function LancamentosPage() {
     setEntryType(type);
     setCategory(type === 'expense' ? 'Alimentação' : 'Salário');
     setShowCategoryPicker(false);
+    if (type === 'income') setIsCredit(false);
   }
 
   const numAmount = parseFloat(amount.replace(',', '.'));
@@ -273,6 +292,7 @@ export default function LancamentosPage() {
       description: description.trim() || category,
       category,
       date,
+      ...(isCredit && selectedCardId ? { isCredit: true, creditCardId: selectedCardId } : {}),
     };
     setSaving(true);
     setError(null);
@@ -321,6 +341,7 @@ export default function LancamentosPage() {
           setDescription('');
           setDate(todayStr());
           setRecurringDay('');
+          setIsCredit(false);
           setValueOpacity(1);
           amountRef.current?.focus();
         }, 150);
@@ -451,6 +472,48 @@ export default function LancamentosPage() {
                   />
                 </div>
               </div>
+
+              {/* 2b. CARTÃO DE CRÉDITO */}
+              {entryType === 'expense' && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-gray-500 text-xs font-medium">Pagar com cartão de crédito</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCredit((v) => !v)}
+                      className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
+                      style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
+                      role="switch"
+                      aria-checked={isCredit}
+                    >
+                      <span
+                        className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                        style={{ margin: 2, transform: isCredit ? 'translateX(16px)' : 'translateX(0)' }}
+                      />
+                    </button>
+                  </div>
+                  {isCredit && (
+                    <div className="mt-2">
+                      {creditCards.length === 0 ? (
+                        <p className="text-xs text-gray-500">
+                          Nenhum cartão cadastrado.{' '}
+                          <a href="/cartoes" className="text-blue-500 underline">Adicionar cartão →</a>
+                        </p>
+                      ) : (
+                        <select
+                          value={selectedCardId}
+                          onChange={(e) => setSelectedCardId(e.target.value)}
+                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                        >
+                          {creditCards.map((c) => (
+                            <option key={c.id} value={c.id}>{c.nome}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 3. CATEGORY */}
               <div>
@@ -611,6 +674,7 @@ export default function LancamentosPage() {
               onEdit={setEditingExpense}
               onDuplicate={setDuplicatingExpense}
               onDelete={setDeletingExpense}
+              creditCards={creditCards}
             />
           </div>
         </div>

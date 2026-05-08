@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
-import { deleteExpense, getExpenses } from '@/lib/storage';
+import { deleteExpense, getCreditCards, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ExportModal from '@/components/ExportModal';
@@ -19,6 +19,7 @@ import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
 import {
   Category,
+  CreditCard as CreditCardType,
   EntryType,
   EXPENSE_CATEGORIES,
   Expense,
@@ -101,6 +102,8 @@ export default function HistoricoPage() {
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [cardFilter, setCardFilter] = useState<string | 'all'>('all');
   const [chipsAtEnd, setChipsAtEnd] = useState(false);
   const chipScrollRef = useRef<HTMLDivElement>(null);
   const { toasts, addToast, removeToast } = useToast();
@@ -148,7 +151,11 @@ export default function HistoricoPage() {
   };
 
   useEffect(() => {
-    getExpenses().then((data) => { setExpenses(data); setReady(true); });
+    Promise.all([getExpenses(), getCreditCards()]).then(([data, cards]) => {
+      setExpenses(data);
+      setCreditCards(cards);
+      setReady(true);
+    });
   }, []);
 
   // Recalculate chip overflow indicator whenever expenses or type filter changes
@@ -220,6 +227,7 @@ export default function HistoricoPage() {
     baseEntries
       .filter((e) => typeFilter === 'all' || e.type === typeFilter)
       .filter((e) => categoryFilter === 'all' || e.category === categoryFilter)
+      .filter((e) => cardFilter === 'all' || e.creditCardId === cardFilter)
       .filter((e) => !needle || e.description.toLowerCase().includes(needle))
       .filter((e) => minAmt === null || e.amount >= minAmt)
       .filter((e) => maxAmt === null || e.amount <= maxAmt)
@@ -229,7 +237,7 @@ export default function HistoricoPage() {
         if (sortOrder === 'lowest') return a.amount - b.amount;
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       }),
-    [baseEntries, typeFilter, categoryFilter, needle, minAmt, maxAmt, sortOrder]
+    [baseEntries, typeFilter, categoryFilter, cardFilter, needle, minAmt, maxAmt, sortOrder]
   );
 
   const { topGastosByValue, topGastosByCount } = useMemo(() => {
@@ -497,7 +505,7 @@ export default function HistoricoPage() {
         />
       </div>
 
-      {/* Tipo + Categoria + Ordenação */}
+      {/* Tipo + Cartão + Ordenação */}
       <div className="flex gap-2 mb-5 flex-wrap">
         <div className="flex gap-2">
           {(['all', 'expense', 'income'] as const).map((t) => (
@@ -512,6 +520,18 @@ export default function HistoricoPage() {
             </button>
           ))}
         </div>
+        {creditCards.length > 0 && (
+          <select
+            value={cardFilter}
+            onChange={(e) => setCardFilter(e.target.value)}
+            className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
+          >
+            <option value="all">Todos os cartões</option>
+            {creditCards.map((c) => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+        )}
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
@@ -644,7 +664,17 @@ export default function HistoricoPage() {
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-900 text-sm font-medium truncate">{formatBrand(exp.description)}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-gray-900 text-sm font-medium truncate">{formatBrand(exp.description)}</p>
+                    {exp.isCredit && exp.creditCardId && (() => {
+                      const card = creditCards.find((c) => c.id === exp.creditCardId);
+                      return card ? (
+                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe' }}>
+                          {card.nome}
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
                   <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">

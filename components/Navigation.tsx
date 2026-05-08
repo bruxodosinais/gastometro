@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, LayoutGrid,
-  Target, Bot, TrendingUp, UserCircle, X,
+  Target, Bot, TrendingUp, UserCircle, X, CreditCard,
 } from 'lucide-react';
 
 const ACTIVE = '#1a9e6e';
@@ -15,6 +15,7 @@ const INACTIVE = '#9CA3AF';
 const sheetItems = [
   { href: '/categorias',  label: 'Categorias',  Icon: LayoutGrid  },
   { href: '/metas',       label: 'Metas',        Icon: Target      },
+  { href: '/cartoes',     label: 'Cartões',      Icon: CreditCard  },
   { href: '/patrimonio',  label: 'Patrimônio',   Icon: TrendingUp  },
   { href: '/assistente',  label: 'Assistente',   Icon: Bot         },
   { href: '/perfil',      label: 'Perfil',       Icon: UserCircle  },
@@ -27,6 +28,7 @@ const allTabs = [
   { href: '/categorias',  label: 'Categorias',   Icon: LayoutGrid  },
   { href: '/historico',   label: 'Histórico',    Icon: Clock       },
   { href: '/metas',       label: 'Metas',        Icon: Target      },
+  { href: '/cartoes',     label: 'Cartões',      Icon: CreditCard  },
   { href: '/patrimonio',  label: 'Patrimônio',   Icon: TrendingUp  },
   { href: '/recorrentes', label: 'Recorrentes',  Icon: RefreshCw   },
   { href: '/assistente',  label: 'Assistente',   Icon: Bot         },

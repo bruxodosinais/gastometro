@@ -7,6 +7,7 @@ import {
   addObligationForNewRecurring,
   addRecurringExpense,
   deleteRecurringExpense,
+  getCreditCards,
   getMonthlyObligations,
   getRecurringExpenses,
   markObligationAsPaid,
@@ -18,6 +19,7 @@ import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
   Category,
+  CreditCard as CreditCardType,
   EntryType,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -70,6 +72,9 @@ export default function RecorrentesPage() {
   const [dayOfMonth, setDayOfMonth] = useState('');
   const [dueDay, setDueDay] = useState('');
   const [isVariable, setIsVariable] = useState(false);
+  const [isCredit, setIsCredit] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState('');
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [saving, setSaving] = useState(false);
   const [descricaoError, setDescricaoError] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -112,10 +117,12 @@ export default function RecorrentesPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'pendentes') setActiveTab('pendentes');
 
-    Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey)]).then(
-      ([recs, obs]) => {
+    Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()]).then(
+      ([recs, obs, cards]) => {
         setRecurrings(recs);
         setObligations(obs);
+        setCreditCards(cards);
+        if (cards.length > 0) setSelectedCardId(cards[0].id);
         setReady(true);
         isFirstLoad.current = false;
       }
@@ -135,6 +142,7 @@ export default function RecorrentesPage() {
     setEntryType(type);
     setCategory(type === 'expense' ? 'Alimentação' : 'Salário');
     setShowCategoryPicker(false);
+    if (type === 'income') setIsCredit(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -165,6 +173,9 @@ export default function RecorrentesPage() {
         dueDay: due,
         active: true,
         isVariable,
+        ...(entryType === 'expense' && isCredit && selectedCardId
+          ? { isCredit: true, creditCardId: selectedCardId }
+          : { isCredit: false, creditCardId: undefined }),
       });
       setRecurrings((prev) => [saved, ...prev]);
 
@@ -178,6 +189,7 @@ export default function RecorrentesPage() {
       setDayOfMonth('');
       setDueDay('');
       setIsVariable(false);
+      setIsCredit(false);
       setDuplicateWarning(null);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar.');
@@ -435,6 +447,47 @@ export default function RecorrentesPage() {
               />
             </button>
           </div>
+
+          {/* Toggle: Cartão de crédito */}
+          {entryType === 'expense' && (
+            <div>
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <p className="text-gray-700 text-sm font-medium">Pagar no cartão</p>
+                  <p className="text-gray-400 text-xs">{isCredit ? 'Cobrado na fatura do cartão' : 'Débito / dinheiro'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCredit((v) => !v)}
+                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
+                  aria-label="Pagar no cartão"
+                >
+                  <span
+                    className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
+                    style={{ left: isCredit ? 22 : 2 }}
+                  />
+                </button>
+              </div>
+              {isCredit && creditCards.length > 0 && (
+                <select
+                  value={selectedCardId}
+                  onChange={(e) => setSelectedCardId(e.target.value)}
+                  className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
+                >
+                  {creditCards.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              )}
+              {isCredit && creditCards.length === 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Nenhum cartão cadastrado.{' '}
+                  <a href="/cartoes" className="text-blue-500 underline">Adicionar →</a>
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Descrição */}
           <div>
@@ -884,6 +937,14 @@ export default function RecorrentesPage() {
                           <span className="text-gray-400 text-xs flex-1 min-w-0 truncate">
                             {rec.category} · Dia {rec.dayOfMonth}
                           </span>
+                          {rec.isCredit && rec.creditCardId && (() => {
+                            const cardName = creditCards.find((c) => c.id === rec.creditCardId)?.nome;
+                            return cardName ? (
+                              <span className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
+                                {cardName}
+                              </span>
+                            ) : null;
+                          })()}
                           {showBadge && (
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0 ${badgeClass}`}>
                               {badgeText}
