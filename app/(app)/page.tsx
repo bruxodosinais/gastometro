@@ -288,12 +288,15 @@ export default function HomePage() {
     const fixedCosts2 = recurringExpenses
       .filter((r) => r.active && r.type === 'expense')
       .reduce((sum, r) => sum + r.amount, 0);
-    const todayStr = now.toISOString().slice(0, 10);
-    const spentToday2 = expenses
-      .filter((e) => e.date.slice(0, 10) === todayStr && e.type === 'expense' && !e.isCredit)
+    const heroBase2 = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : currentMonthIncome;
+    const effectiveBase2 = heroBase2 > 0 ? heroBase2 : Math.max(recurringIncome2, currentMonthIncome);
+    const livreTotal2 = effectiveBase2 - fixedCosts2 - savingsGoal2;
+    const debitSpentMonth2 = expenses
+      .filter((e) => e.date.slice(0, 7) === period && e.type === 'expense' && !e.isCredit)
       .reduce((sum, e) => sum + e.amount, 0);
-    const livreTotal2 = Math.max(recurringIncome2, currentMonthIncome) - fixedCosts2 - savingsGoal2;
-    const target = isCurrentMonth && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit, 1) - spentToday2 : 0;
+    const target = isCurrentMonth && daysForLimit > 0
+      ? Math.max(0, (livreTotal2 - debitSpentMonth2) / Math.max(daysForLimit, 1))
+      : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -671,6 +674,17 @@ export default function HomePage() {
   const heroBarColor = 'bg-white/90';
   const budgetBarColor = budgetPct >= 100 ? '#EF4444' : budgetPct >= 90 ? '#F97316' : budgetPct >= 70 ? '#F59E0B' : '#10B981';
 
+  const pctMes = isCurrentMonth ? (todayDay / totalDaysInMonth) * 100 : 100;
+  const pctGasto = valorLivreParaGastarPlanejado > 0
+    ? (debitSpent / valorLivreParaGastarPlanejado) * 100
+    : debitSpent > 0 ? 100 : 0;
+  const gaugeWidth = Math.min(pctGasto, 100);
+  const limiteHoje = isCurrentMonth && daysForLimit > 0
+    ? Math.max(0, (valorLivreParaGastarPlanejado - debitSpent) / Math.max(daysForLimit, 1))
+    : 0;
+  const cardState: 'on-track' | 'accelerating' | 'over' =
+    pctGasto > 100 ? 'over' : pctGasto > pctMes ? 'accelerating' : 'on-track';
+
   // ── Frases dinâmicas ─────────────────────────────────────────────────────────
   const POSITIVE_PHRASES = ['Você está no controle 💚', 'Excelente ritmo esse mês', `${currentMonthLabel} melhor que o esperado`];
   const MEDIUM_PHRASES = ['Ainda dá pra ajustar 🎯', 'Fique atento ao ritmo', 'Metade do mês, metade do orçamento'];
@@ -896,7 +910,14 @@ export default function HomePage() {
       {isCurrentMonth && (
         <div
           className="mb-3 rounded-2xl p-4"
-          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)', ...(mounted ? anim(80, 500) : hidden) }}
+          style={{
+            background: cardState === 'over'
+              ? 'linear-gradient(135deg, #EF4444, #F87171)'
+              : cardState === 'accelerating'
+              ? 'linear-gradient(135deg, #F59E0B, #FBBF24)'
+              : 'linear-gradient(135deg, #00b87a, #00d68f)',
+            ...(mounted ? anim(80, 500) : hidden),
+          }}
         >
           {todayDay === 1 && spent === 0 ? (
             <div>
@@ -906,12 +927,19 @@ export default function HomePage() {
                 Configurar orçamento
               </a>
             </div>
-          ) : canSpendToday !== null && (
+          ) : (
             <>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0 flex-1">
-                  <div className="relative flex items-center gap-1 mb-0.5">
-                    <p className="text-white/70 text-[10px] font-medium tracking-wider">Limite de hoje</p>
+                  <div className="relative flex items-center gap-1.5 mb-0.5">
+                    <p className="text-white/70 text-[10px] font-medium tracking-wider">
+                      {cardState === 'over' ? 'Orçamento esgotado' : 'Limite de hoje'}
+                    </p>
+                    {cardState !== 'over' && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-white leading-none">
+                        {cardState === 'on-track' ? 'No ritmo' : 'Acelerando'}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => setShowLimiteTooltip((v) => !v)}
@@ -930,14 +958,9 @@ export default function HomePage() {
                       </div>
                     )}
                   </div>
-                  {canSpendToday >= 0 ? (
-                    <p className="text-2xl font-bold text-white leading-none">{formatCurrency(heroDisplayValue)}</p>
-                  ) : (
-                    <>
-                      <p className="text-sm font-semibold text-white/80 leading-snug">Limite do dia atingido</p>
-                      <p className="text-white/60 text-xs">−{formatCurrency(Math.abs(canSpendToday))}</p>
-                    </>
-                  )}
+                  <p className="text-2xl font-bold text-white leading-none">
+                    {formatCurrency(cardState === 'over' ? 0 : heroDisplayValue)}
+                  </p>
                 </div>
                 <div className="text-center shrink-0">
                   <p className="text-white/70 text-[10px] font-medium tracking-wider mb-0.5">Orçamento</p>
@@ -960,11 +983,18 @@ export default function HomePage() {
               </div>
               <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.3)' }}>
                 <div
-                  className="h-full rounded-full"
-                  style={{ width: mounted ? `${budgetPct}%` : '0%', transition: 'width 500ms ease-out', background: budgetBarColor }}
+                  className="h-full rounded-full bg-white/90"
+                  style={{ width: mounted ? `${gaugeWidth}%` : '0%', transition: 'width 500ms ease-out' }}
                 />
               </div>
-              <span className={`text-xs font-medium ${heroStatusColor}`}>{heroStatusLabel}</span>
+              <span className="text-xs font-medium text-white/80">
+                {cardState === 'over'
+                  ? `Orçamento livre usado em ${Math.round(pctMes)}% do mês`
+                  : `${Math.round(pctGasto)}% do orçamento em ${Math.round(pctMes)}% do mês`}
+              </span>
+              {cardState === 'over' && (
+                <p className="text-white/70 text-xs mt-0.5">Limite do mês atingido</p>
+              )}
             </>
           )}
         </div>
