@@ -509,7 +509,6 @@ export default function RecorrentesPage() {
                 value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(e.target.value)}
                 placeholder="Ex: 1 (dia do mês)"
-                required
                 className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
               />
               <p className="text-gray-500 text-xs mt-1">Quando aparece no histórico</p>

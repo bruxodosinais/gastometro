@@ -157,7 +157,7 @@ function ExpenseList({
                     <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
                     <p className="text-gray-500 text-xs">{exp.category}</p>
                   </div>
-                  <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>
+                  <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444', minWidth: 'fit-content' }}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
                   <div className="relative flex-shrink-0">

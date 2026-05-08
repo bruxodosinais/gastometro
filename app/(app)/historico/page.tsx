@@ -86,7 +86,7 @@ function patternContext(count: number): string {
 }
 
 export default function HistoricoPage() {
-  const { period } = usePeriod();
+  const { period, setPeriod } = usePeriod();
   const prevPeriodRef = useRef(period);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ready, setReady] = useState(false);
@@ -108,7 +108,16 @@ export default function HistoricoPage() {
   // Apply filter from URL param on mount (e.g. ?filter=prevMonth from monthly close modal)
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get('filter');
-    if (f === 'prevMonth') setQuickFilter('prevMonth');
+    if (f === 'prevMonth') {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 1);
+      const p = getMonthKey(d);
+      prevPeriodRef.current = p;
+      setPeriod(p);
+      setQuickFilter('prevMonth');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When user navigates via PeriodSelector, switch off quick filter and reset category
@@ -141,6 +150,12 @@ export default function HistoricoPage() {
   useEffect(() => {
     getExpenses().then((data) => { setExpenses(data); setReady(true); });
   }, []);
+
+  // Recalculate chip overflow indicator whenever expenses or type filter changes
+  useEffect(() => {
+    const el = chipScrollRef.current;
+    if (el) setChipsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+  }, [expenses, typeFilter]);
 
   useEffect(() => {
     const refresh = () => getExpenses().then(setExpenses);
@@ -333,7 +348,22 @@ export default function HistoricoPage() {
         {(Object.entries(QUICK_FILTER_LABELS) as [Exclude<QuickFilter, null>, string][]).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => { setQuickFilter(key); setCategoryFilter('all'); }}
+            onClick={() => {
+              setQuickFilter(key);
+              setCategoryFilter('all');
+              if (key === 'thisMonth') {
+                const p = getMonthKey(new Date());
+                prevPeriodRef.current = p;
+                setPeriod(p);
+              } else if (key === 'prevMonth') {
+                const d = new Date();
+                d.setDate(1);
+                d.setMonth(d.getMonth() - 1);
+                const p = getMonthKey(d);
+                prevPeriodRef.current = p;
+                setPeriod(p);
+              }
+            }}
             className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               quickFilter === key
                 ? 'bg-mint text-gray-900'
@@ -414,8 +444,8 @@ export default function HistoricoPage() {
         </div>
         {!chipsAtEnd && (
           <div
-            className="absolute right-0 top-0 bottom-0.5 w-10 pointer-events-none"
-            style={{ background: 'linear-gradient(to right, transparent, white)' }}
+            className="absolute right-0 top-0 bottom-0.5 w-12 pointer-events-none z-10"
+            style={{ background: 'linear-gradient(to right, transparent, #F9FAFB)' }}
           />
         )}
         </div>

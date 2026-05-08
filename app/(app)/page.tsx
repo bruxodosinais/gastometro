@@ -243,6 +243,14 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAvatarMenu]);
 
+  // Single source of truth for today — shared between render body and animation effect
+  const now = new Date();
+  const isCurrentMonth = period === getMonthKey(now);
+  const isFutureMonth = period > getMonthKey(now);
+  const daysForLimit = isCurrentMonth
+    ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1
+    : 0;
+
   const currentMonthIncome = useMemo(
     () => expenses
       .filter((e) => e.date.slice(0, 7) === period && e.type === 'income')
@@ -252,24 +260,19 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!ready || !mounted) return;
-    const now2 = new Date();
-    const isCur = period === getMonthKey(now2);
-    const [py, pm] = period.split('-').map(Number);
-    const totalDays = new Date(py, pm, 0).getDate();
     const savingsGoal2 = monthlyPlan?.savingsGoal ?? 0;
-    const daysForLimit2 = isCur ? totalDays - now2.getDate() + 1 : 0;
     const recurringIncome2 = recurringExpenses
       .filter((r) => r.active && r.type === 'income')
       .reduce((sum, r) => sum + r.amount, 0);
     const fixedCosts2 = recurringExpenses
       .filter((r) => r.active && r.type === 'expense')
       .reduce((sum, r) => sum + r.amount, 0);
-    const todayStr = now2.toISOString().slice(0, 10);
+    const todayStr = now.toISOString().slice(0, 10);
     const spentToday2 = expenses
       .filter((e) => e.date.slice(0, 10) === todayStr && e.type === 'expense')
       .reduce((sum, e) => sum + e.amount, 0);
     const livreTotal2 = Math.max(recurringIncome2, currentMonthIncome) - fixedCosts2 - savingsGoal2;
-    const target = isCur && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit2, 1) - spentToday2 : 0;
+    const target = isCurrentMonth && livreTotal2 > 0 ? livreTotal2 / Math.max(daysForLimit, 1) - spentToday2 : 0;
     if (target === 0) { setHeroDisplayValue(0); return; }
     const duration = 600;
     const startTime = performance.now();
@@ -477,8 +480,6 @@ export default function HomePage() {
   const pendingIncomeCount = activeIncomeRecs.filter((r) => !receivedIncomeRecIds.has(r.id)).length;
 
   // ── Tempo ────────────────────────────────────────────────────────────────────
-  const now = new Date();
-  const isCurrentMonth = period === getMonthKey(now);
   const [periodYear, periodMonth] = period.split('-').map(Number);
   const totalDaysInMonth = new Date(periodYear, periodMonth, 0).getDate();
   const todayDay = isCurrentMonth ? now.getDate() : totalDaysInMonth;
@@ -609,7 +610,6 @@ export default function HomePage() {
   // ── V2: Hero Card ────────────────────────────────────────────────────────────
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
-  const daysForLimit = isCurrentMonth ? totalDaysInMonth - todayDay + 1 : 0;
   const valorLivreParaGastar = balance - savingsGoal;
   const effectiveIncome = Math.max(recurringIncome, income);
   const livreTotal = effectiveIncome - fixedCosts - savingsGoal;
@@ -768,7 +768,12 @@ export default function HomePage() {
       <p className="text-mint-700 text-sm font-medium italic mb-4">{contextualGreeting}</p>
 
       {/* ── SELETOR DE PERÍODO ─────────────────────────────────────────────────── */}
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end items-center gap-2 mb-3">
+        {isFutureMonth && (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#FEF3C7', color: '#D97706' }}>
+            Projeção
+          </span>
+        )}
         <PeriodSelector compact />
       </div>
 
@@ -807,6 +812,11 @@ export default function HomePage() {
             <p className="text-gray-600 text-xs mt-1 font-medium">lançadas</p>
           </div>
         </div>
+        {isFutureMonth && (
+          <p className="text-xs" style={{ color: '#6b7280' }}>
+            Valores estimados com base em recorrentes cadastrados
+          </p>
+        )}
       </div>
 
       {/* ── ALERTA DE CONTAS PENDENTES ─────────────────────────────────────────── */}
@@ -971,7 +981,7 @@ export default function HomePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${received ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                              {rec.description}
+                              {rec.description ? rec.description.charAt(0).toUpperCase() + rec.description.slice(1) : ''}
                             </p>
                             {!received && (
                               <p className="text-xs text-gray-500">Recebimento dia {rec.dayOfMonth}</p>
@@ -1019,7 +1029,7 @@ export default function HomePage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                            {ob.description}
+                            {ob.description ? ob.description.charAt(0).toUpperCase() + ob.description.slice(1) : ''}
                           </p>
                           {!isPaid && <p className={`text-xs ${dueLabelColor}`}>{dueLabelText}</p>}
                         </div>
