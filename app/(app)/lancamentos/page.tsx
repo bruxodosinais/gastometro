@@ -157,7 +157,7 @@ function ExpenseList({
                     <p className="text-gray-900 text-sm font-medium truncate">{exp.description}</p>
                     <p className="text-gray-500 text-xs">{exp.category}</p>
                   </div>
-                  <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>
+                  <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
                   <div className="relative flex-shrink-0">
@@ -428,8 +428,6 @@ export default function LancamentosPage() {
                     value={amount}
                     onChange={(e) => {
                       setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                      setInputScale(true);
-                      setTimeout(() => setInputScale(false), 100);
                     }}
                     onFocus={(e) => {
                       setInputFocused(true);

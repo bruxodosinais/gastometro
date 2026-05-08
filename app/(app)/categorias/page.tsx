@@ -246,7 +246,7 @@ export default function CategoriasPage() {
   return (
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Categorias</h1>
-      <p className="text-gray-500 text-sm capitalize mb-5">{getMonthLabel(period)}</p>
+      <p className="text-gray-500 text-sm mb-5">{getMonthLabel(period)}</p>
 
       <PeriodSelector />
 

@@ -170,14 +170,9 @@ export default function AssistentePage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load history from sessionStorage on mount
+  // Clear any stale history so the assistant always opens with a clean state
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) setMessages(JSON.parse(saved));
-    } catch {
-      // ignore parse errors
-    }
+    sessionStorage.removeItem(STORAGE_KEY);
   }, []);
 
   // Persist to sessionStorage whenever messages change

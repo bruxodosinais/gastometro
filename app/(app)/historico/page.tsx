@@ -101,6 +101,8 @@ export default function HistoricoPage() {
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
+  const [chipsAtEnd, setChipsAtEnd] = useState(false);
+  const chipScrollRef = useRef<HTMLDivElement>(null);
   const { toasts, addToast, removeToast } = useToast();
 
   // Apply filter from URL param on mount (e.g. ?filter=prevMonth from monthly close modal)
@@ -324,7 +326,7 @@ export default function HistoricoPage() {
           Exportar
         </button>
       </div>
-      <p className="text-gray-500 text-sm mb-4 capitalize">{periodLabel}</p>
+      <p className="text-gray-500 text-sm mb-4">{periodLabel}</p>
 
       {/* Filtros rápidos de período */}
       <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
@@ -373,7 +375,15 @@ export default function HistoricoPage() {
 
       {/* Filtro por categoria */}
       {activeCategories.length > 0 && (
-        <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+        <div className="relative mb-3">
+        <div
+          ref={chipScrollRef}
+          onScroll={() => {
+            const el = chipScrollRef.current;
+            if (el) setChipsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+          }}
+          className="flex gap-2 overflow-x-auto pb-0.5"
+        >
           <button
             onClick={() => setCategoryFilter('all')}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
@@ -401,6 +411,13 @@ export default function HistoricoPage() {
               </button>
             );
           })}
+        </div>
+        {!chipsAtEnd && (
+          <div
+            className="absolute right-0 top-0 bottom-0.5 w-10 pointer-events-none"
+            style={{ background: 'linear-gradient(to right, transparent, white)' }}
+          />
+        )}
         </div>
       )}
 
@@ -497,7 +514,8 @@ export default function HistoricoPage() {
       {/* Top gastos */}
       {topGastosByValue.length > 0 && (
         <div className="rounded-2xl bg-white/80 border border-gray-100 p-4 mb-4">
-          <p className="text-lg font-semibold text-gray-900 mb-3">Top gastos</p>
+          <p className="text-lg font-semibold text-gray-900">Top gastos</p>
+          <p className="text-xs mb-3" style={{ color: '#6b7280', marginTop: '2px' }}>Agrupado por descrição do lançamento</p>
           <div>
             {topGastosByValue.map((g) => (
               <div key={g.displayName} className="flex items-center justify-between py-2">

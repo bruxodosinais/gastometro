@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import {
   addObligationForNewRecurring,
@@ -12,6 +12,7 @@ import {
   markObligationAsPaid,
   unmarkObligationAsPaid,
   toggleRecurringExpense,
+  updateRecurringExpense,
 } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
@@ -70,6 +71,7 @@ export default function RecorrentesPage() {
   const [dueDay, setDueDay] = useState('');
   const [isVariable, setIsVariable] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [descricaoError, setDescricaoError] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
   const [inputScale, setInputScale] = useState(false);
@@ -82,6 +84,16 @@ export default function RecorrentesPage() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => parseInt(todayMonthKey.split('-')[0]));
+
+  // edit modal
+  const [editingRec, setEditingRec] = useState<RecurringExpense | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDayOfMonth, setEditDayOfMonth] = useState('');
+  const [editDueDay, setEditDueDay] = useState('');
+  const [editIsVariable, setEditIsVariable] = useState(false);
+  const [editCategory, setEditCategory] = useState<Category>('Alimentação');
+  const [editSaving, setEditSaving] = useState(false);
 
   const isFirstLoad = useRef(true);
 
@@ -127,17 +139,25 @@ export default function RecorrentesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!description.trim()) {
+      setDescricaoError('Descrição é obrigatória');
+      return;
+    }
+
     const num = parseFloat(amount.replace(',', '.'));
     const day = parseInt(dayOfMonth, 10);
     const due = dueDay ? parseInt(dueDay, 10) : day;
-    if (!num || num <= 0 || !description.trim() || !day || day < 1 || day > 31) return;
+    if (!num || num <= 0 || !day || day < 1 || day > 31) return;
     if (dueDay && (due < 1 || due > 31)) return;
 
     setSaving(true);
     setFormError(null);
     try {
+      const trimmed = description.trim();
+      const normalizedDesc = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
       const saved = await addRecurringExpense({
-        description: description.trim(),
+        description: normalizedDesc,
         amount: num,
         category,
         type: entryType,
@@ -163,6 +183,44 @@ export default function RecorrentesPage() {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEditModal(rec: RecurringExpense) {
+    setEditingRec(rec);
+    setEditDesc(rec.description ?? '');
+    setEditAmount(String(rec.amount));
+    setEditDayOfMonth(String(rec.dayOfMonth));
+    setEditDueDay(rec.dueDay ? String(rec.dueDay) : '');
+    setEditIsVariable(rec.isVariable);
+    setEditCategory(rec.category);
+  }
+
+  async function handleEditSave() {
+    if (!editingRec) return;
+    const num = parseFloat(editAmount.replace(',', '.'));
+    const day = parseInt(editDayOfMonth, 10);
+    if (!num || num <= 0 || !day || day < 1 || day > 31) return;
+    const due = editDueDay ? parseInt(editDueDay, 10) : day;
+    const trimmed = editDesc.trim();
+    const normalizedDesc = trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase() : '';
+
+    setEditSaving(true);
+    try {
+      const updated = await updateRecurringExpense(editingRec.id, {
+        description: normalizedDesc,
+        amount: num,
+        category: editCategory,
+        dayOfMonth: day,
+        dueDay: due,
+        isVariable: editIsVariable,
+      });
+      setRecurrings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setEditingRec(null);
+    } catch (err) {
+      console.error('handleEditSave:', err);
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -384,11 +442,13 @@ export default function RecorrentesPage() {
               Descrição
             </label>
             <input
+              id="campo-descricao"
               type="text"
               value={description}
               onChange={(e) => {
                 const val = e.target.value;
                 setDescription(val);
+                if (descricaoError) setDescricaoError('');
                 if (val.trim().length >= 3) {
                   setDuplicateWarning(findSimilarRecurring(val, recurrings));
                 } else {
@@ -401,9 +461,15 @@ export default function RecorrentesPage() {
                   : 'Ex: Salário, Freela mensal...'
               }
               maxLength={80}
-              required
-              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
+              className={`w-full bg-white border rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none transition-colors ${
+                descricaoError
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-[#E5E7EB] focus:border-[#00b87a]'
+              }`}
             />
+            {descricaoError && (
+              <p className="text-red-500 text-xs mt-1">{descricaoError}</p>
+            )}
             {duplicateWarning && (
               <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                 <p className="text-amber-700 text-sm font-medium">
@@ -735,6 +801,9 @@ export default function RecorrentesPage() {
                 const contentOpacity = isCurrentMonth && isPaid ? 'opacity-60' : '';
                 const isMenuOpen = openMenuId === rec.id;
                 const showBadge = badgeText !== '';
+                const displayName = rec.description?.trim()
+                  ? rec.description.charAt(0).toUpperCase() + rec.description.slice(1)
+                  : rec.category || 'Sem descrição';
 
                 return (
                   <div
@@ -758,7 +827,7 @@ export default function RecorrentesPage() {
                         {/* Row 1: name + value + menu */}
                         <div className="flex items-center gap-1.5 mb-1">
                           <p className={`flex-1 min-w-0 text-sm font-medium text-gray-900 truncate ${contentOpacity}`}>
-                            {rec.description}
+                            {displayName}
                           </p>
                           {rec.isVariable && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 flex-shrink-0">
@@ -783,6 +852,13 @@ export default function RecorrentesPage() {
                             </button>
                             {isMenuOpen && (
                               <div className="absolute right-0 top-7 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[120px]">
+                                <button
+                                  onClick={() => { openEditModal(rec); setOpenMenuId(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  <Pencil size={12} />
+                                  Editar
+                                </button>
                                 <button
                                   onClick={() => { handleToggle(rec); setOpenMenuId(null); }}
                                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
@@ -908,6 +984,110 @@ export default function RecorrentesPage() {
                   style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
                 >
                   Confirmar pagamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal de edição de recorrente */}
+      {editingRec && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            style={{ padding: '16px' }}
+            onClick={() => setEditingRec(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
+              style={{ padding: '24px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-gray-900 font-semibold text-base mb-4">Editar recorrente</p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-gray-500 text-xs font-medium block mb-1">Descrição</label>
+                  <input
+                    type="text"
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    placeholder="Ex: Netflix, Academia, Aluguel..."
+                    maxLength={80}
+                    autoFocus
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-500 text-xs font-medium block mb-1">Valor (R$)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-medium block mb-1">Dia de lançamento</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      value={editDayOfMonth}
+                      onChange={(e) => setEditDayOfMonth(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-500 text-xs font-medium block mb-1">Dia de vencimento</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      value={editDueDay}
+                      onChange={(e) => setEditDueDay(e.target.value)}
+                      placeholder={editDayOfMonth || '—'}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <label className="text-gray-500 text-xs font-medium block mb-1">Valor variável</label>
+                    <button
+                      type="button"
+                      onClick={() => setEditIsVariable((v) => !v)}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${editIsVariable ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                    >
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${editIsVariable ? 'left-[22px]' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => setEditingRec(null)}
+                  className="flex-1 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors border border-gray-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={editSaving}
+                  className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                >
+                  {editSaving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
                 </button>
               </div>
             </div>

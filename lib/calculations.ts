@@ -9,7 +9,8 @@ export function getMonthKey(date: Date): string {
 export function getMonthLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-');
   const d = new Date(parseInt(y), parseInt(m) - 1);
-  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const raw = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 export function formatCurrency(value: number): string {

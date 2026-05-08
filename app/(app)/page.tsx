@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, Loader2, RefreshCw, Star, X } from 'lucide-react';
+import { Bell, Check, Info, Loader2, RefreshCw, Star, X } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
 import {
@@ -128,6 +128,7 @@ export default function HomePage() {
   const [heroDisplayValue, setHeroDisplayValue] = useState(0);
   const [userName, setUserName] = useState('');
   const [showMonthlyClose, setShowMonthlyClose] = useState(false);
+  const [showLimiteTooltip, setShowLimiteTooltip] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const rafRef = useRef<number>(0);
 
@@ -643,7 +644,9 @@ export default function HomePage() {
   const dynamicPhrase = dynamicPhrases[phraseIndex % dynamicPhrases.length];
 
   const overdueCount = isCurrentMonth ? pendingObligations.filter((o) => todayDay > o.dueDay).length : 0;
-  const contextualGreeting = overdueCount > 0
+  const contextualGreeting = budgetPct >= 100
+    ? 'Limite do mês atingido! Evite novos gastos'
+    : overdueCount > 0
     ? `Você tem ${overdueCount} conta${overdueCount > 1 ? 's' : ''} atrasada${overdueCount > 1 ? 's' : ''} ⚠️`
     : budgetPct >= 90
     ? 'Você está quase no limite do mês'
@@ -848,7 +851,26 @@ export default function HomePage() {
             <>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-white/70 text-[10px] font-medium tracking-wider mb-0.5">Limite de hoje</p>
+                  <div className="relative flex items-center gap-1 mb-0.5">
+                    <p className="text-white/70 text-[10px] font-medium tracking-wider">Limite de hoje</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowLimiteTooltip((v) => !v)}
+                      className="text-white/40 hover:text-white/70 transition-colors"
+                      aria-label="Mais informações sobre o limite de hoje"
+                    >
+                      <Info size={10} />
+                    </button>
+                    {showLimiteTooltip && (
+                      <div
+                        className="absolute left-0 top-full mt-1.5 z-10 text-white text-xs"
+                        style={{ background: '#1f2937', borderRadius: '8px', padding: '8px 12px', maxWidth: '220px', fontSize: '12px', lineHeight: '1.4' }}
+                        onClick={() => setShowLimiteTooltip(false)}
+                      >
+                        Valor disponível por dia com base no orçamento livre e dias restantes do mês.
+                      </div>
+                    )}
+                  </div>
                   {canSpendToday >= 0 ? (
                     <p className="text-2xl font-bold text-white leading-none">{formatCurrency(heroDisplayValue)}</p>
                   ) : (

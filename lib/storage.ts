@@ -203,6 +203,38 @@ export async function deleteRecurringExpense(id: string): Promise<void> {
     .eq('user_id', user.id);
 }
 
+export async function updateRecurringExpense(
+  id: string,
+  data: Partial<Omit<RecurringExpense, 'id' | 'createdAt'>>
+): Promise<RecurringExpense> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const patch: Record<string, unknown> = {};
+  if (data.description !== undefined) patch.description = data.description;
+  if (data.amount !== undefined) patch.amount = data.amount;
+  if (data.category !== undefined) patch.category = data.category;
+  if (data.type !== undefined) patch.type = data.type;
+  if (data.dayOfMonth !== undefined) patch.day_of_month = data.dayOfMonth;
+  if (data.dueDay !== undefined) patch.due_day = data.dueDay;
+  if (data.isVariable !== undefined) patch.is_variable = data.isVariable;
+  if (data.active !== undefined) patch.active = data.active;
+
+  const { data: row, error } = await supabase
+    .from('recurring_expenses')
+    .update(patch)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toRecurring(row);
+}
+
 // IDs de recorrentes já lançados no mês atual
 export async function getLaunchedRecurringIds(): Promise<Set<string>> {
   const supabase = createClient();
