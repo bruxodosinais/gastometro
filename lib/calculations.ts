@@ -92,6 +92,17 @@ export function getCategoryAlerts(
   });
 }
 
+export function getBillingMonthOptions(): Array<{ value: string; label: string }> {
+  const today = new Date();
+  const options: Array<{ value: string; label: string }> = [];
+  for (let i = -3; i <= 1; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const value = getMonthKey(d);
+    options.push({ value, label: getMonthLabel(value) });
+  }
+  return options;
+}
+
 export function getLastMonths(
   expenses: Expense[],
   currentMonth: string,

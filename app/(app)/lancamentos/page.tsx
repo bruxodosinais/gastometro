@@ -14,7 +14,7 @@ import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
-import { formatCurrency, getMonthKey } from '@/lib/calculations';
+import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
 
@@ -239,6 +239,10 @@ export default function LancamentosPage() {
   const [isCredit, setIsCredit] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState('');
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [billingMonth, setBillingMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
@@ -292,7 +296,9 @@ export default function LancamentosPage() {
       description: description.trim() || category,
       category,
       date,
-      ...(isCredit && selectedCardId ? { isCredit: true, creditCardId: selectedCardId } : {}),
+      ...(isCredit && selectedCardId
+        ? { isCredit: true, creditCardId: selectedCardId, billingMonth: `${billingMonth}-01` }
+        : {}),
     };
     setSaving(true);
     setError(null);
@@ -342,6 +348,8 @@ export default function LancamentosPage() {
           setDate(todayStr());
           setRecurringDay('');
           setIsCredit(false);
+          const _d = new Date();
+          setBillingMonth(`${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}`);
           setValueOpacity(1);
           amountRef.current?.focus();
         }, 150);
@@ -493,7 +501,7 @@ export default function LancamentosPage() {
                     </button>
                   </div>
                   {isCredit && (
-                    <div className="mt-2">
+                    <div className="mt-2 space-y-2">
                       {creditCards.length === 0 ? (
                         <p className="text-xs text-gray-500">
                           Nenhum cartão cadastrado.{' '}
@@ -510,6 +518,18 @@ export default function LancamentosPage() {
                           ))}
                         </select>
                       )}
+                      <div>
+                        <label className="text-gray-400 text-xs font-medium block mb-1">Mês da fatura</label>
+                        <select
+                          value={billingMonth}
+                          onChange={(e) => setBillingMonth(e.target.value)}
+                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                        >
+                          {getBillingMonthOptions().map(({ value, label }) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -124,10 +124,12 @@ export default function CartaoDetailPage() {
               </div>
             </div>
 
-            <div className="flex gap-4 text-xs text-gray-500 mb-4">
-              <span>Fecha dia {card.diaFechamento}</span>
-              <span>Vence dia {card.diaVencimento}</span>
-            </div>
+            {(card.diaFechamento || card.diaVencimento) && (
+              <div className="flex gap-4 text-xs text-gray-500 mb-4">
+                {card.diaFechamento && <span>Fecha dia {card.diaFechamento}</span>}
+                {card.diaVencimento && <span>Vence dia {card.diaVencimento}</span>}
+              </div>
+            )}
 
             {/* Period selector */}
             <div className="flex items-center justify-between mb-3">

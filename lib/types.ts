@@ -59,8 +59,8 @@ export interface CreditCard {
   userId: string;
   nome: string;
   limite: number;
-  diaFechamento: number;
-  diaVencimento: number;
+  diaFechamento: number | null;
+  diaVencimento: number | null;
   ativo: boolean;
   createdAt: string;
 }
@@ -76,6 +76,7 @@ export interface Expense {
   recurringExpenseId?: string;
   creditCardId?: string;
   isCredit?: boolean;
+  billingMonth?: string | null; // YYYY-MM-DD, always 1st of month; only for is_credit expenses
 }
 
 export interface MonthlyPlan {

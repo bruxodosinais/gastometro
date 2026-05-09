@@ -13,6 +13,7 @@ function toExpense(row: Record<string, unknown>): Expense {
     recurringExpenseId: (row.recurring_expense_id as string | null) ?? undefined,
     creditCardId: (row.credit_card_id as string | null) ?? undefined,
     isCredit: (row.is_credit as boolean | null) ?? undefined,
+    billingMonth: (row.billing_month as string | null) ?? undefined,
   };
 }
 
@@ -49,6 +50,7 @@ export async function addExpense(
       ...(recurringExpenseId ? { recurring_expense_id: recurringExpenseId } : {}),
       is_credit: data.isCredit ?? false,
       credit_card_id: data.creditCardId ?? null,
+      billing_month: data.billingMonth ?? null,
     })
     .select()
     .single();
@@ -112,6 +114,7 @@ export async function updateExpense(
       date: data.date,
       credit_card_id: data.creditCardId ?? null,
       is_credit: data.isCredit ?? false,
+      billing_month: data.billingMonth ?? null,
     })
     .eq('id', id)
     .eq('user_id', user.id)
@@ -867,11 +870,32 @@ function toCreditCard(row: Record<string, unknown>): CreditCard {
     userId: row.user_id as string,
     nome: row.nome as string,
     limite: row.limite as number,
-    diaFechamento: row.dia_fechamento as number,
-    diaVencimento: row.dia_vencimento as number,
+    diaFechamento: (row.dia_fechamento as number | null) ?? null,
+    diaVencimento: (row.dia_vencimento as number | null) ?? null,
     ativo: row.ativo as boolean,
     createdAt: row.created_at as string,
   };
+}
+
+export function calcFaturaPeriod(
+  closingDay: number | null,
+  year: number,
+  month: number
+): { start: string; end: string } {
+  function toISO(y: number, m: number, d: number): string {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  if (!closingDay) {
+    const lastDay = new Date(year, month, 0).getDate();
+    return { start: toISO(year, month, 1), end: toISO(year, month, lastDay) };
+  }
+  // end = closingDay of month M, capped to last day of M
+  const lastDayM = new Date(year, month, 0).getDate();
+  const end = toISO(year, month, Math.min(closingDay, lastDayM));
+  // start = day after closingDay in M-1 (JS Date overflow handles month-end edge cases)
+  const startDate = new Date(year, month - 2, closingDay + 1);
+  const start = toISO(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate());
+  return { start, end };
 }
 
 export async function getCreditCards(): Promise<CreditCard[]> {
@@ -894,7 +918,7 @@ export async function addCreditCard(
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Usuário não autenticado');
 
-  const { data: row, error } = await supabase
+  const { error: insertError } = await supabase
     .from('credit_cards')
     .insert({
       user_id: user.id,
@@ -903,11 +927,22 @@ export async function addCreditCard(
       dia_fechamento: data.diaFechamento,
       dia_vencimento: data.diaVencimento,
       ativo: data.ativo,
-    })
-    .select()
+    });
+
+  if (insertError) throw insertError;
+
+  // Fetch the newly created card separately — avoids RLS edge cases where
+  // INSERT RETURNING is blocked even though the row was committed.
+  const { data: row, error: selectError } = await supabase
+    .from('credit_cards')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .single();
 
-  if (error) throw error;
+  if (selectError) throw selectError;
   return toCreditCard(row);
 }
 
@@ -953,29 +988,35 @@ export async function deleteCreditCard(id: string): Promise<void> {
     .eq('user_id', user.id);
 }
 
-export async function getCreditCardFatura(cardId: string, period: string): Promise<number> {
+export async function getCreditCardFatura(
+  cardId: string,
+  period: string
+): Promise<number> {
+  const billingMonth = `${period}-01`;
   const supabase = createClient();
   const { data, error } = await supabase
     .from('expenses')
     .select('amount')
     .eq('credit_card_id', cardId)
     .eq('is_credit', true)
-    .gte('date', `${period}-01`)
-    .lte('date', `${period}-31`);
+    .eq('billing_month', billingMonth);
 
   if (error) return 0;
   return (data ?? []).reduce((sum, row) => sum + (row.amount as number), 0);
 }
 
-export async function getExpensesByCard(cardId: string, period: string): Promise<Expense[]> {
+export async function getExpensesByCard(
+  cardId: string,
+  period: string
+): Promise<Expense[]> {
+  const billingMonth = `${period}-01`;
   const supabase = createClient();
   const { data, error } = await supabase
     .from('expenses')
     .select('*')
     .eq('credit_card_id', cardId)
     .eq('is_credit', true)
-    .gte('date', `${period}-01`)
-    .lte('date', `${period}-31`)
+    .eq('billing_month', billingMonth)
     .order('date', { ascending: false });
 
   if (error) return [];
