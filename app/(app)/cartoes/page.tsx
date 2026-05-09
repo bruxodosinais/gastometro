@@ -1,24 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CreditCard, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import {
+  ChevronRight,
+  CreditCard,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import {
   addCreditCard,
   deleteCreditCard,
   getCreditCardFatura,
   getCreditCards,
+  getExpensesByCard,
   updateCreditCard,
 } from '@/lib/storage';
-import { CreditCard as CreditCardType } from '@/lib/types';
+import { CreditCard as CreditCardType, ExpenseCategory, EXPENSE_CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/calculations';
 import { ToastContainer, useToast } from '@/components/Toast';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { createClient } from '@/lib/supabase/client';
 
-function todayPeriod() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CardFormData {
   nome: string;
@@ -27,7 +36,126 @@ interface CardFormData {
   diaVencimento: string;
 }
 
+interface RawTransaction {
+  date: string;
+  description: string;
+  amount: number;
+  nubank_category: string;
+}
+
+interface PreviewItem extends RawTransaction {
+  selectedCategory: ExpenseCategory;
+  isDuplicate: boolean;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function todayPeriod() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 const EMPTY_FORM: CardFormData = { nome: '', limite: '', diaFechamento: '', diaVencimento: '' };
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (const char of line) {
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseNubankCSV(file: File): Promise<RawTransaction[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const raw = (e.target?.result as string) ?? '';
+      const text = raw.replace(/^﻿/, '');
+      const lines = text
+        .split('\n')
+        .map((l) => l.replace(/\r/g, ''))
+        .filter((l) => l.trim());
+
+      if (lines.length < 2) {
+        reject(new Error('Arquivo vazio'));
+        return;
+      }
+
+      // Discover column indices dynamically to support both formats:
+      //   3-column (current Nubank): date,title,amount
+      //   4-column (legacy):         date,category,title,amount
+      const headerParts = parseCSVLine(lines[0].toLowerCase());
+      const colDate = headerParts.findIndex((h) => h.trim() === 'date');
+      const colTitle = headerParts.findIndex((h) => h.trim() === 'title');
+      const colAmount = headerParts.findIndex((h) => h.trim() === 'amount');
+      const colCategory = headerParts.findIndex((h) => h.trim() === 'category');
+
+      if (colDate === -1 || colTitle === -1 || colAmount === -1) {
+        reject(new Error('Arquivo não reconhecido como fatura Nubank'));
+        return;
+      }
+
+      const result: RawTransaction[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = parseCSVLine(lines[i]);
+        const date = parts[colDate]?.trim() ?? '';
+        const description = parts[colTitle]?.trim() ?? '';
+        const amountStr = parts[colAmount]?.trim() ?? '';
+        const nubank_category = colCategory !== -1 ? (parts[colCategory]?.trim() ?? '') : '';
+        const amount = parseFloat(amountStr);
+
+        if (!date || !description || isNaN(amount)) continue;
+        // Nubank exports expenses as positive values; negative = payment received — skip those
+        if (amount < 0) continue;
+
+        result.push({ date, description, amount, nubank_category });
+      }
+
+      resolve(result);
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function mapToAppCategory(nubankCat: string): ExpenseCategory {
+  const map: Record<string, ExpenseCategory> = {
+    'alimentação': 'Alimentação',
+    'supermercado': 'Alimentação',
+    'restaurante': 'Alimentação',
+    'transporte': 'Transporte',
+    'moradia': 'Moradia',
+    'saúde': 'Saúde',
+    'lazer': 'Lazer',
+    'educação': 'Educação',
+    'vestuário': 'Vestuário',
+    'delivery': 'Delivery',
+    'internet': 'Internet',
+    'assinatura': 'Assinaturas',
+    'assinaturas': 'Assinaturas',
+    'farmácia': 'Farmácia',
+    'farmacia': 'Farmácia',
+    'combustível': 'Combustível',
+    'telefone': 'Telefone',
+    'beleza': 'Beleza',
+    'pet': 'Pet',
+    'viagem': 'Viagem',
+    'investimentos': 'Investimentos',
+  };
+  return map[nubankCat.toLowerCase().trim()] ?? 'Outros';
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CartoesPage() {
   const [cards, setCards] = useState<CreditCardType[]>([]);
@@ -41,6 +169,14 @@ export default function CartoesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToast();
+
+  // Import state
+  const importRef = useRef<HTMLInputElement>(null);
+  const importingCardIdRef = useRef<string | null>(null);
+  const [importFlow, setImportFlow] = useState<'idle' | 'parsing' | 'preview' | 'inserting'>(
+    'idle'
+  );
+  const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
 
   const period = todayPeriod();
 
@@ -129,6 +265,164 @@ export default function CartoesPage() {
     }
   }
 
+  // ─── Import handlers ────────────────────────────────────────────────────────
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const cardId = importingCardIdRef.current;
+    if (!cardId) return;
+
+    setImportFlow('parsing');
+    try {
+      const raw = await parseNubankCSV(file);
+      if (raw.length === 0) {
+        addToast('Nenhuma transação encontrada no arquivo.', 'error');
+        setImportFlow('idle');
+        return;
+      }
+
+      // Categorize via AI
+      let categorized: Array<{ id: number; category: string }> = [];
+      try {
+        const res = await fetch('/api/categorizar-csv', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactions: raw.map((t, i) => ({
+              id: i,
+              description: t.description,
+              nubank_category: t.nubank_category,
+            })),
+          }),
+        });
+        const json = await res.json();
+        categorized = json.categories ?? [];
+      } catch {
+        // Fallback: mapToAppCategory used below
+      }
+
+      // Check duplicates
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const importDates = raw.map((t) => t.date).sort();
+      let existingRows: Array<{ date: string; description: string; amount: number }> = [];
+      if (user) {
+        const { data } = await supabase
+          .from('expenses')
+          .select('date, description, amount')
+          .eq('credit_card_id', cardId)
+          .eq('user_id', user.id)
+          .eq('is_credit', true)
+          .gte('date', importDates[0])
+          .lte('date', importDates[importDates.length - 1]);
+        existingRows = (data ?? []) as Array<{
+          date: string;
+          description: string;
+          amount: number;
+        }>;
+      }
+
+      const items: PreviewItem[] = raw.map((t, i) => {
+        const catEntry = categorized.find((c) => c.id === i);
+        const aiCatStr = catEntry?.category;
+        const selectedCategory: ExpenseCategory =
+          aiCatStr && (EXPENSE_CATEGORIES as string[]).includes(aiCatStr)
+            ? (aiCatStr as ExpenseCategory)
+            : mapToAppCategory(t.nubank_category);
+
+        const isDuplicate = existingRows.some(
+          (e) =>
+            e.date === t.date &&
+            e.description.toLowerCase() === t.description.toLowerCase() &&
+            Math.abs(e.amount - t.amount) < 0.01
+        );
+
+        return { ...t, selectedCategory, isDuplicate };
+      });
+
+      setPreviewItems(items);
+      setImportFlow('preview');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao processar arquivo';
+      addToast(msg, 'error');
+      setImportFlow('idle');
+    }
+  }
+
+  function updatePreviewCategory(index: number, category: ExpenseCategory) {
+    setPreviewItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, selectedCategory: category } : item))
+    );
+  }
+
+  async function handleConfirmImport() {
+    const cardId = importingCardIdRef.current;
+    if (!cardId) return;
+
+    const toInsert = previewItems.filter((t) => !t.isDuplicate);
+    if (toInsert.length === 0) {
+      setImportFlow('idle');
+      setPreviewItems([]);
+      return;
+    }
+
+    setImportFlow('inserting');
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const rows = toInsert.map((t) => ({
+        user_id: user.id,
+        amount: t.amount,
+        description: t.description,
+        category: t.selectedCategory,
+        date: t.date,
+        is_credit: true,
+        credit_card_id: cardId,
+        type: 'expense',
+      }));
+
+      const { error } = await supabase.from('expenses').insert(rows);
+      if (error) throw error;
+
+      const count = toInsert.length;
+      addToast(
+        `${count} transaç${count !== 1 ? 'ões' : 'ão'} importada${count !== 1 ? 's' : ''}!`,
+        'success'
+      );
+      setImportFlow('idle');
+      setPreviewItems([]);
+
+      // Refresh fatura do cartão importado
+      const [newFatura] = await Promise.all([
+        getCreditCardFatura(cardId, period),
+        // Também recarregar os outros campos se necessário
+        getExpensesByCard(cardId, period),
+      ]);
+      setFaturas((prev) => ({ ...prev, [cardId]: newFatura }));
+    } catch {
+      addToast('Erro ao importar. Tente novamente.', 'error');
+      setImportFlow('preview');
+    }
+  }
+
+  const showPreviewModal = importFlow === 'preview' || importFlow === 'inserting';
+  const nonDupsWithIdx = previewItems
+    .map((item, i) => ({ item, i }))
+    .filter(({ item }) => !item.isDuplicate);
+  const dupCount = previewItems.length - nonDupsWithIdx.length;
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
   if (!ready) {
     return (
       <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
@@ -177,13 +471,22 @@ export default function CartoesPage() {
               const fatura = faturas[card.id] ?? 0;
               const fatPct = card.limite > 0 ? Math.min((fatura / card.limite) * 100, 100) : 0;
               const isMenuOpen = openMenuId === card.id;
+              const isImporting = importFlow !== 'idle' && importingCardIdRef.current === card.id;
+
               return (
                 <div
                   key={card.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-4 relative"
+                  className="bg-white border border-gray-100 rounded-2xl p-4 relative cursor-pointer transition-shadow hover:shadow-md"
                   style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                 >
-                  <Link href={`/cartoes/${card.id}`} className="absolute inset-0 rounded-2xl z-0" aria-label={`Ver fatura ${card.nome}`} />
+                  {/* Full-card navigation link */}
+                  <Link
+                    href={`/cartoes/${card.id}`}
+                    className="absolute inset-0 rounded-2xl z-0"
+                    aria-label={`Ver fatura ${card.nome}`}
+                  />
+
+                  {/* Header row */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -194,10 +497,17 @@ export default function CartoesPage() {
                         <p className="text-gray-500 text-xs">Limite {formatCurrency(card.limite)}</p>
                       </div>
                     </div>
-                    <div className="relative flex-shrink-0 z-10">
+
+                    {/* Chevron + menu — z-10 to be above the Link */}
+                    <div className="relative flex-shrink-0 z-10 flex items-center gap-0.5">
+                      <ChevronRight size={15} className="text-gray-300" aria-hidden="true" />
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : card.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(isMenuOpen ? null : card.id);
+                        }}
                         className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                        aria-label="Opções"
                       >
                         <MoreVertical size={16} />
                       </button>
@@ -220,11 +530,13 @@ export default function CartoesPage() {
                     </div>
                   </div>
 
+                  {/* Dates */}
                   <div className="flex gap-4 mb-3 text-xs text-gray-500">
                     <span>Fecha dia {card.diaFechamento}</span>
                     <span>Vence dia {card.diaVencimento}</span>
                   </div>
 
+                  {/* Fatura row */}
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-gray-500">
                       Fatura {period.slice(5, 7)}/{period.slice(0, 4)}
@@ -246,15 +558,156 @@ export default function CartoesPage() {
                       }}
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 text-right">
+                  <p className="text-[10px] text-gray-400 mt-1">
                     {Math.round(fatPct)}% do limite utilizado
                   </p>
+
+                  {/* Navigation hint */}
+                  <p className="text-[11px] text-gray-400 mt-0.5">Ver lançamentos →</p>
+
+                  {/* Import button — z-10 to be above the Link */}
+                  <div className="relative z-10 mt-3">
+                    <button
+                      onClick={() => {
+                        importingCardIdRef.current = card.id;
+                        importRef.current?.click();
+                      }}
+                      disabled={importFlow !== 'idle'}
+                      className="w-full py-2 rounded-xl text-xs font-medium text-blue-600 border border-blue-100 bg-blue-50/60 hover:bg-blue-50 flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      {isImporting && importFlow === 'parsing' ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Upload size={12} />
+                      )}
+                      Importar fatura CSV
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </main>
+
+      {/* Hidden file input */}
+      <input
+        ref={importRef}
+        type="file"
+        accept=".csv"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Parsing overlay */}
+      {importFlow === 'parsing' && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div
+            className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 mx-4"
+            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.16)' }}
+          >
+            <Loader2 size={32} className="animate-spin text-blue-500" />
+            <p className="text-gray-700 font-semibold text-sm text-center">
+              Analisando transações com IA...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Preview modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+          <div
+            className="bg-white rounded-t-2xl w-full max-w-lg flex flex-col"
+            style={{ maxHeight: '85vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
+          >
+            {/* Header */}
+            <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
+              <h2 className="text-gray-900 font-bold text-lg">Importar fatura Nubank</h2>
+              <p className="text-gray-500 text-sm mt-0.5">
+                {nonDupsWithIdx.length} transaç
+                {nonDupsWithIdx.length !== 1 ? 'ões' : 'ão'} encontrada
+                {nonDupsWithIdx.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+              {nonDupsWithIdx.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-3xl mb-2">✅</p>
+                  <p className="text-gray-500 text-sm">Todas as transações já existem.</p>
+                </div>
+              ) : (
+                nonDupsWithIdx.map(({ item, i }) => (
+                  <div key={i} className="px-4 py-3 flex items-center gap-2">
+                    <span className="text-xs text-gray-400 w-10 flex-shrink-0 font-mono tabular-nums">
+                      {item.date.slice(8)}/{item.date.slice(5, 7)}
+                    </span>
+                    <span className="flex-1 text-sm text-gray-900 truncate min-w-0">
+                      {item.description.charAt(0).toUpperCase() + item.description.slice(1)}
+                    </span>
+                    <select
+                      value={item.selectedCategory}
+                      onChange={(e) =>
+                        updatePreviewCategory(i, e.target.value as ExpenseCategory)
+                      }
+                      disabled={importFlow === 'inserting'}
+                      className="text-xs border border-gray-200 rounded-lg px-1.5 py-1 text-gray-700 bg-white flex-shrink-0 max-w-[108px] disabled:opacity-60"
+                    >
+                      {EXPENSE_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-red-500 font-semibold text-xs whitespace-nowrap flex-shrink-0">
+                      −{formatCurrency(item.amount)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
+              {dupCount > 0 && (
+                <p className="text-gray-400 text-xs mb-3 text-center">
+                  {dupCount} item{dupCount !== 1 ? 's' : ''} ignorado
+                  {dupCount !== 1 ? 's' : ''} (já existem)
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setImportFlow('idle');
+                    setPreviewItems([]);
+                  }}
+                  disabled={importFlow === 'inserting'}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmImport}
+                  disabled={importFlow === 'inserting' || nonDupsWithIdx.length === 0}
+                  className="py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60"
+                  style={{ flex: 2, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                >
+                  {importFlow === 'inserting' ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      Importando...
+                    </>
+                  ) : (
+                    'Confirmar importação'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal add/edit */}
       {showModal && (

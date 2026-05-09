@@ -95,7 +95,6 @@ export default function CartaoDetailPage() {
 
   return (
     <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
-      {/* Back button */}
       <button
         onClick={() => router.push('/cartoes')}
         className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 text-sm mb-5 transition-colors"
@@ -204,7 +203,10 @@ export default function CartaoDetailPage() {
               <Loader2 size={20} className="animate-spin text-gray-400" />
             </div>
           ) : expenses.length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-2xl py-10 text-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <div
+              className="bg-white border border-gray-100 rounded-2xl py-10 text-center"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+            >
               <p className="text-3xl mb-2">📭</p>
               <p className="text-gray-500 text-sm">Nenhum lançamento neste período</p>
             </div>
@@ -245,7 +247,6 @@ export default function CartaoDetailPage() {
                   })}
                 </div>
               ))}
-              {/* Footer total */}
               <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   Total
