@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -36,23 +36,18 @@ export async function proxy(request: NextRequest) {
   try {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      // Erro de rede: não há como validar a sessão, mas isso não significa sessão inválida.
       if (isNetworkErrorMessage(error)) {
         isNetworkFailure = true;
       }
-      // Qualquer outro erro do Supabase que não seja de rede → tratar como sem sessão.
     } else {
       user = data.user;
     }
   } catch (err) {
-    // getUser() lançou exceção (Edge Runtime pode lançar em vez de retornar erro).
     if (isNetworkErrorMessage(err)) {
       isNetworkFailure = true;
     }
   }
 
-  // Falha de rede: não sabemos o estado da sessão → deixar passar sem redirecionar.
-  // O banner offline no client-side informará o usuário.
   if (isNetworkFailure) {
     return supabaseResponse;
   }
@@ -62,7 +57,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    // /auth/nova-senha precisa ser acessível por usuários autenticados (fluxo de reset de senha)
     if (!pathname.startsWith('/auth/nova-senha')) {
       return NextResponse.redirect(new URL('/', request.url));
     }
@@ -79,7 +73,6 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
     }
 
-    // Verificar acesso à rota /admin (UI apenas — as API routes verificam admin internamente)
     if (pathname.startsWith('/admin') && !pathname.startsWith('/api/')) {
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
