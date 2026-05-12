@@ -26,6 +26,7 @@ import { formatCurrency, getBillingMonthOptions, getMonthLabel } from '@/lib/cal
 import { ToastContainer, useToast } from '@/components/Toast';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { createClient } from '@/lib/supabase/client';
+import { getErrorMessage } from '@/lib/errors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -335,6 +336,7 @@ export default function CartoesPage() {
   const [cards, setCards] = useState<CreditCardType[]>([]);
   const [faturas, setFaturas] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCardType | null>(null);
   const [deletingCard, setDeletingCard] = useState<CreditCardType | null>(null);
@@ -400,30 +402,34 @@ export default function CartoesPage() {
   }, [openMenuId]);
 
   async function loadAll() {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      userIdRef.current = user.id;
-      // Invalidate stale mappings for this user
-      const key = lsKey(user.id);
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const store = JSON.parse(raw);
-          if (store.version !== LS_MAPPINGS_VERSION) localStorage.removeItem(key);
+    setLoadError(null);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        userIdRef.current = user.id;
+        const key = lsKey(user.id);
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const store = JSON.parse(raw);
+            if (store.version !== LS_MAPPINGS_VERSION) localStorage.removeItem(key);
+          }
+        } catch {
+          localStorage.removeItem(key);
         }
-      } catch {
-        localStorage.removeItem(key);
       }
+      const c = await getCreditCards();
+      setCards(c);
+      const fatMap: Record<string, number> = {};
+      await Promise.all(
+        c.map(async (card) => { fatMap[card.id] = await getCreditCardFatura(card.id, period); })
+      );
+      setFaturas(fatMap);
+      setReady(true);
+    } catch (err) {
+      setLoadError(getErrorMessage(err));
     }
-    const c = await getCreditCards();
-    setCards(c);
-    const fatMap: Record<string, number> = {};
-    await Promise.all(
-      c.map(async (card) => { fatMap[card.id] = await getCreditCardFatura(card.id, period); })
-    );
-    setFaturas(fatMap);
-    setReady(true);
   }
 
   function openAdd() {
@@ -858,6 +864,21 @@ export default function CartoesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   if (!ready) {
+    if (loadError) {
+      return (
+        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-4xl">😕</p>
+          <p className="text-gray-700 font-medium">{loadError}</p>
+          <button
+            onClick={loadAll}
+            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+          >
+            <Loader2 size={15} className="hidden" />
+            Tentar novamente
+          </button>
+        </main>
+      );
+    }
     return (
       <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
         <div className="skeleton h-7 w-36 rounded-lg mb-2" />

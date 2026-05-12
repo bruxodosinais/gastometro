@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Bell, Check, Info, Loader2, RefreshCw, Star, X } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
+import { ToastContainer, useToast } from '@/components/Toast';
+import { getErrorMessage } from '@/lib/errors';
+import { retryAsync } from '@/lib/retry';
 import {
   getExpenses,
   getBudgets,
@@ -130,17 +133,23 @@ export default function HomePage() {
   const [showLimiteTooltip, setShowLimiteTooltip] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const rafRef = useRef<number>(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { toasts, addToast, removeToast } = useToast();
 
-  useEffect(() => {
+  async function loadData() {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    Promise.all([
-      getExpenses(),
-      getBudgets(),
-      getRecurringExpenses(),
-      checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
-      getAllGoalContributions(),
-      getCreditCards(),
-    ]).then(async ([exp, bud, rec, obs, contrib, cards]) => {
+    setLoadError(null);
+    try {
+      const [exp, bud, rec, obs, contrib, cards] = await retryAsync(() =>
+        Promise.all([
+          getExpenses(),
+          getBudgets(),
+          getRecurringExpenses(),
+          checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
+          getAllGoalContributions(),
+          getCreditCards(),
+        ])
+      );
       setExpenses(exp);
       setBudgets(bud);
       setRecurringExpenses(rec);
@@ -157,7 +166,13 @@ export default function HomePage() {
         setCardFaturas(faturas);
       }
       setReady(true);
-    });
+    } catch (err) {
+      setLoadError(getErrorMessage(err));
+    }
+  }
+
+  useEffect(() => {
+    loadData();
 
     // Carrega usuário e avatar do profile
     async function loadUserAndProfile() {
@@ -338,10 +353,11 @@ export default function HomePage() {
     try {
       const { expense } = await markObligationAsPaid(obligationId, ob, actualAmount);
       setExpenses((prev) => [expense, ...prev]);
-    } catch {
+    } catch (err) {
       setObligations((prev) =>
         prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
       );
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setPayingIds((prev) => { const next = new Set(prev); next.delete(obligationId); return next; });
     }
@@ -360,8 +376,8 @@ export default function HomePage() {
         date,
       }, rec.id);
       setExpenses((prev) => [expense, ...prev]);
-    } catch {
-      // no-op; user can retry
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setReceivingIds((prev) => { const next = new Set(prev); next.delete(rec.id); return next; });
     }
@@ -395,8 +411,9 @@ export default function HomePage() {
         setResumoData(data);
         try { localStorage.setItem(RESUMO_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
       }
-    } catch { /* ignore */ }
-    finally { setResumoLoading(false); }
+    } catch (err) {
+      addToast(getErrorMessage(err), 'error');
+    } finally { setResumoLoading(false); }
   }
 
   const { notifications, unreadCount, readIds, markAsRead, markAllAsRead } = useNotifications({
@@ -409,6 +426,21 @@ export default function HomePage() {
   });
 
   if (!ready) {
+    if (loadError) {
+      return (
+        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-4xl">😕</p>
+          <p className="text-gray-700 font-medium">{loadError}</p>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+          >
+            <RefreshCw size={15} />
+            Tentar novamente
+          </button>
+        </main>
+      );
+    }
     return (
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-10">
         <div className="flex items-start justify-between mb-1">
@@ -1727,6 +1759,7 @@ export default function HomePage() {
         </>
       )}
 
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
   );
 }

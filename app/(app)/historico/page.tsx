@@ -2,12 +2,14 @@
 
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, Search, Trash2, TrendingUp, X } from 'lucide-react';
+import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, RefreshCw, Search, Trash2, TrendingUp, X } from 'lucide-react';
 import { deleteExpense, getCreditCards, getExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ExportModal from '@/components/ExportModal';
 import { ToastContainer, useToast } from '@/components/Toast';
+import { getErrorMessage } from '@/lib/errors';
+import { retryAsync } from '@/lib/retry';
 import {
   calculateTotalByType,
   formatCurrency,
@@ -106,6 +108,7 @@ export default function HistoricoPage() {
   const [cardFilter, setCardFilter] = useState<string | 'all'>('all');
   const [chipsAtEnd, setChipsAtEnd] = useState(false);
   const chipScrollRef = useRef<HTMLDivElement>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToast();
 
   // Apply filter from URL param on mount (e.g. ?filter=prevMonth from monthly close modal)
@@ -150,12 +153,23 @@ export default function HistoricoPage() {
     addToast('Lançamento excluído', 'success');
   };
 
-  useEffect(() => {
-    Promise.all([getExpenses(), getCreditCards()]).then(([data, cards]) => {
+  async function loadData() {
+    setLoadError(null);
+    try {
+      const [data, cards] = await retryAsync(() =>
+        Promise.all([getExpenses(), getCreditCards()])
+      );
       setExpenses(data);
       setCreditCards(cards);
       setReady(true);
-    });
+    } catch (err) {
+      setLoadError(getErrorMessage(err));
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recalculate chip overflow indicator whenever expenses or type filter changes
@@ -258,6 +272,21 @@ export default function HistoricoPage() {
   }, [filteredEntries]);
 
   if (!ready) {
+    if (loadError) {
+      return (
+        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-4xl">😕</p>
+          <p className="text-gray-700 font-medium">{loadError}</p>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+          >
+            <RefreshCw size={15} />
+            Tentar novamente
+          </button>
+        </main>
+      );
+    }
     return (
       <main className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />

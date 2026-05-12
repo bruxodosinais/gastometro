@@ -1,8 +1,10 @@
 'use client';
 
 import { startTransition, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Pencil, Play, RefreshCw, Trash2 } from 'lucide-react';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
+import { getErrorMessage } from '@/lib/errors';
+import { retryAsync } from '@/lib/retry';
 import {
   addObligationForNewRecurring,
   addRecurringExpense,
@@ -63,6 +65,7 @@ export default function RecorrentesPage() {
   const [undoingIds, setUndoingIds] = useState<Set<string>>(new Set());
   const [paidExpenseIds, setPaidExpenseIds] = useState<Map<string, string>>(new Map());
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // form
   const [entryType, setEntryType] = useState<EntryType>('expense');
@@ -117,16 +120,23 @@ export default function RecorrentesPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'pendentes') setActiveTab('pendentes');
 
-    Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()]).then(
-      ([recs, obs, cards]) => {
+    async function loadData() {
+      setLoadError(null);
+      try {
+        const [recs, obs, cards] = await retryAsync(() =>
+          Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()])
+        );
         setRecurrings(recs);
         setObligations(obs);
         setCreditCards(cards);
         if (cards.length > 0) setSelectedCardId(cards[0].id);
         setReady(true);
         isFirstLoad.current = false;
+      } catch (err) {
+        setLoadError(getErrorMessage(err));
       }
-    );
+    }
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -230,7 +240,8 @@ export default function RecorrentesPage() {
       setRecurrings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setEditingRec(null);
     } catch (err) {
-      console.error('handleEditSave:', err);
+      // keep modal open so user sees the error via formError
+      setFormError(getErrorMessage(err));
     } finally {
       setEditSaving(false);
     }
@@ -337,6 +348,34 @@ export default function RecorrentesPage() {
   });
 
   if (!ready) {
+    if (loadError) {
+      return (
+        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-4xl">😕</p>
+          <p className="text-gray-700 font-medium">{loadError}</p>
+          <button
+            onClick={() => {
+              setReady(false);
+              setLoadError(null);
+              retryAsync(() =>
+                Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()])
+              ).then(([recs, obs, cards]) => {
+                setRecurrings(recs);
+                setObligations(obs);
+                setCreditCards(cards);
+                if (cards.length > 0) setSelectedCardId(cards[0].id);
+                setReady(true);
+                isFirstLoad.current = false;
+              }).catch((err) => setLoadError(getErrorMessage(err)));
+            }}
+            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+          >
+            <RefreshCw size={15} />
+            Tentar novamente
+          </button>
+        </main>
+      );
+    }
     return (
       <main className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />

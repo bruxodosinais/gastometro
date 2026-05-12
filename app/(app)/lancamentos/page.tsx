@@ -14,6 +14,7 @@ import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
+import { getErrorMessage } from '@/lib/errors';
 import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
@@ -253,10 +254,14 @@ export default function LancamentosPage() {
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
-    getExpenses().then(setExpenses);
+    getExpenses().then(setExpenses).catch((err) => {
+      setError(getErrorMessage(err));
+    });
     getCreditCards().then((cards) => {
       setCreditCards(cards);
       if (cards.length > 0) setSelectedCardId(cards[0].id);
+    }).catch(() => {
+      // cartões são opcionais; falha silenciosa é aceitável
     });
     amountRef.current?.focus();
   }, []);
@@ -362,7 +367,7 @@ export default function LancamentosPage() {
       );
       getExpenses().then(setExpenses);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.';
+      const msg = getErrorMessage(err);
       setError(msg);
       addToast(msg, 'error');
     } finally {
@@ -371,9 +376,15 @@ export default function LancamentosPage() {
   }
 
   async function handleDelete(id: string) {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    await deleteExpense(id);
-    addToast('Lançamento excluído', 'success');
+    const prev = expenses;
+    setExpenses((list) => list.filter((e) => e.id !== id));
+    try {
+      await deleteExpense(id);
+      addToast('Lançamento excluído', 'success');
+    } catch (err) {
+      setExpenses(prev);
+      addToast(getErrorMessage(err), 'error');
+    }
   }
 
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
+import { getErrorMessage } from '@/lib/errors';
 
 const AVATAR_EMOJIS = [
   '🧑','👨','👩','🧔','👱','🧕','👴','👵','🧒','👦','👧','🧑‍💻',
@@ -86,32 +87,36 @@ export default function PerfilPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/auth/login'); return; }
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { router.push('/auth/login'); return; }
 
-      const meta = user.user_metadata as Record<string, string> | undefined;
-      setUserId(user.id);
-      setDisplayName(
-        meta?.display_name || meta?.full_name?.split(' ')[0] || meta?.name?.split(' ')[0] || ''
-      );
-      setEmail(user.email ?? '');
+        const meta = user.user_metadata as Record<string, string> | undefined;
+        setUserId(user.id);
+        setDisplayName(
+          meta?.display_name || meta?.full_name?.split(' ')[0] || meta?.name?.split(' ')[0] || ''
+        );
+        setEmail(user.email ?? '');
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('avatar_url, avatar_emoji, notification_preferences')
-        .eq('id', user.id)
-        .single();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url, avatar_emoji, notification_preferences')
+          .eq('id', user.id)
+          .single();
 
-      if (profile) {
-        setAvatarUrl(profile.avatar_url ?? null);
-        setAvatarEmoji(profile.avatar_emoji ?? null);
-        if (profile.notification_preferences) {
-          setNotifPrefs(profile.notification_preferences as NotifPrefs);
+        if (profile) {
+          setAvatarUrl(profile.avatar_url ?? null);
+          setAvatarEmoji(profile.avatar_emoji ?? null);
+          if (profile.notification_preferences) {
+            setNotifPrefs(profile.notification_preferences as NotifPrefs);
+          }
         }
+      } catch (err) {
+        setProfileError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
     load();
   }, [router]);

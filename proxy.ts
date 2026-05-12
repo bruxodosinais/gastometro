@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isNetworkErrorMessage } from './lib/errors';
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -23,15 +24,37 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresha a sessão (nunca remover essa chamada)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith('/auth');
   const isOnboarding = pathname === '/onboarding';
   const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
+
+  let user = null;
+  let isNetworkFailure = false;
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      // Erro de rede: não há como validar a sessão, mas isso não significa sessão inválida.
+      if (isNetworkErrorMessage(error)) {
+        isNetworkFailure = true;
+      }
+      // Qualquer outro erro do Supabase que não seja de rede → tratar como sem sessão.
+    } else {
+      user = data.user;
+    }
+  } catch (err) {
+    // getUser() lançou exceção (Edge Runtime pode lançar em vez de retornar erro).
+    if (isNetworkErrorMessage(err)) {
+      isNetworkFailure = true;
+    }
+  }
+
+  // Falha de rede: não sabemos o estado da sessão → deixar passar sem redirecionar.
+  // O banner offline no client-side informará o usuário.
+  if (isNetworkFailure) {
+    return supabaseResponse;
+  }
 
   if (!user && !isAuthRoute && !isPublicPage) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
