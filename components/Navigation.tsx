@@ -8,7 +8,7 @@ import {
   Target, Bot, TrendingUp, UserCircle, X, CreditCard,
 } from 'lucide-react';
 
-const ACTIVE = '#1a9e6e';
+const ACTIVE = 'var(--accent)';
 const INACTIVE = '#9CA3AF';
 
 // Itens expostos no sheet "Mais"
@@ -87,11 +87,11 @@ export default function Navigation() {
                 width: 56,
                 height: 56,
                 borderRadius: '50%',
-                background: '#059669',
+                background: 'var(--accent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(5,150,105,0.4)',
+                boxShadow: '0 4px 12px var(--plus-shadow)',
                 flexShrink: 0,
               }}
             >
