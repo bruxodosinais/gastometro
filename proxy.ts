@@ -1,5 +1,4 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 
@@ -83,15 +82,25 @@ export async function proxy(request: NextRequest) {
     // Verificar acesso à rota /admin (UI apenas — as API routes verificam admin internamente)
     if (pathname.startsWith('/admin') && !pathname.startsWith('/api/')) {
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (serviceRoleKey) {
-        const adminClient = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
-          auth: { autoRefreshToken: false, persistSession: false },
-        });
-        const { data } = await adminClient.from('admins').select('id').eq('user_id', user.id).maybeSingle();
-        if (!data) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!serviceRoleKey || !supabaseUrl) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/admins?user_id=eq.${user.id}&select=id&limit=1`,
+          {
+            headers: {
+              apikey: serviceRoleKey,
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+          }
+        );
+        const rows = await res.json() as unknown[];
+        if (!Array.isArray(rows) || rows.length === 0) {
           return NextResponse.redirect(new URL('/', request.url));
         }
-      } else {
+      } catch {
         return NextResponse.redirect(new URL('/', request.url));
       }
     }
