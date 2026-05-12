@@ -21,6 +21,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlError = searchParams.get('error');
+  const deleted = searchParams.get('deleted') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,6 +58,12 @@ function LoginForm() {
           <h1 className="text-2xl font-bold text-gray-900">GastôMetro</h1>
           <p className="text-gray-500 text-sm mt-1">Entre na sua conta</p>
         </div>
+
+        {deleted && (
+          <p className="text-green-600 text-sm text-center bg-green-500/10 rounded-xl py-2.5 px-4 mb-4">
+            Conta excluída com sucesso.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

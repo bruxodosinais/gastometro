@@ -81,6 +81,8 @@ export default function PerfilPage() {
 
   // Danger zone
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -216,8 +218,26 @@ export default function PerfilPage() {
   }
 
   async function handleDeleteAccount() {
-    setDeleteModalOpen(false);
-    await handleLogout();
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setDeleteError(data.error ?? 'Erro ao excluir conta. Tente novamente.');
+        setDeleting(false);
+        return;
+      }
+      await createClient().auth.signOut();
+      window.location.href = '/auth/login?deleted=1';
+    } catch {
+      setDeleteError('Erro ao excluir conta. Tente novamente.');
+      setDeleting(false);
+    }
   }
 
   function renderAvatar(size = 56) {
@@ -413,11 +433,32 @@ export default function PerfilPage() {
           ))}
         </div>
 
+        {/* Legal */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-3">
+          <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Legal</h2>
+          <a
+            href="/termos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Termos de Uso
+          </a>
+          <a
+            href="/privacidade"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Política de Privacidade
+          </a>
+        </div>
+
         {/* Danger zone */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-red-400">Zona de Perigo</h2>
           <button
-            onClick={() => setDeleteModalOpen(true)}
+            onClick={() => { setDeleteError(''); setDeleteModalOpen(true); }}
             className="w-full py-3 px-4 rounded-xl border border-red-300 text-red-400 text-sm font-medium hover:bg-red-50 transition-colors"
           >
             Excluir minha conta
@@ -567,31 +608,47 @@ export default function PerfilPage() {
 
       {/* Delete account modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setDeleteModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => !deleting && setDeleteModalOpen(false)}>
           <div className="bg-white rounded-2xl p-6 space-y-4" style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', animation: 'fade-in 150ms ease-out both' }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-gray-900 font-semibold">Excluir conta</h3>
-              <button onClick={() => setDeleteModalOpen(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
+              <button
+                onClick={() => !deleting && setDeleteModalOpen(false)}
+                disabled={deleting}
+                className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+              >
                 <X size={16} />
               </button>
             </div>
 
             <p className="text-gray-600 text-sm leading-relaxed">
-              Essa ação é irreversível. Todos os seus dados serão apagados permanentemente.
+              Tem certeza? Todos os seus dados serão excluídos permanentemente. Esta ação não pode ser desfeita.
             </p>
+
+            {deleteError && (
+              <p className="text-red-400 text-sm bg-red-500/10 rounded-xl py-2.5 px-4 text-center">
+                {deleteError}
+              </p>
+            )}
 
             <div className="flex gap-3 pt-1">
               <button
                 onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
+                disabled={deleting}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDeleteAccount}
-                className="flex-1 py-3 rounded-xl border border-red-300 bg-red-50 text-red-500 text-sm font-semibold hover:bg-red-100 transition-colors"
+                disabled={deleting}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
               >
-                Excluir conta
+                {deleting ? (
+                  <><Loader2 size={15} className="animate-spin" /> Excluindo…</>
+                ) : (
+                  'Excluir minha conta'
+                )}
               </button>
             </div>
           </div>

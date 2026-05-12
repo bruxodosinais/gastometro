@@ -31,8 +31,9 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith('/auth');
   const isOnboarding = pathname === '/onboarding';
+  const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isPublicPage) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
@@ -50,7 +51,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
-    if (!isOnboarding && !isAuthRoute && !onboardingCompleted) {
+    if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
     }
   }

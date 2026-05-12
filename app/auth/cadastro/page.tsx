@@ -19,6 +19,7 @@ export default function CadastroPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +33,10 @@ export default function CadastroPage() {
     }
     if (password.length < 6) {
       setError('A senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (!termsAccepted) {
+      setError('Você precisa aceitar os Termos de Uso e a Política de Privacidade.');
       return;
     }
 
@@ -50,6 +55,15 @@ export default function CadastroPage() {
       setError(traduzirErroAuth(authError.message));
       setLoading(false);
       return;
+    }
+
+    const userId = data.user?.id;
+    if (userId) {
+      await supabase.from('profiles').upsert({
+        id: userId,
+        terms_accepted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     }
 
     if (data.session) {
@@ -134,6 +148,35 @@ export default function CadastroPage() {
             />
           </div>
 
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-mint-500 accent-mint-500 flex-shrink-0"
+            />
+            <span className="text-gray-600 text-sm leading-relaxed">
+              Li e aceito os{' '}
+              <Link
+                href="/termos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-mint-500 underline hover:text-mint-700"
+              >
+                Termos de Uso
+              </Link>{' '}
+              e a{' '}
+              <Link
+                href="/privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-mint-500 underline hover:text-mint-700"
+              >
+                Política de Privacidade
+              </Link>
+            </span>
+          </label>
+
           {error && (
             <p className="text-red-400 text-sm text-center bg-red-500/10 rounded-xl py-2.5 px-4">
               {error}
@@ -142,7 +185,7 @@ export default function CadastroPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !termsAccepted}
             className="w-full py-3.5 bg-mint hover:bg-mint-700 disabled:opacity-60 rounded-xl font-semibold text-gray-900 transition-colors"
           >
             {loading ? 'Criando conta...' : 'Criar conta'}
