@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 
@@ -28,6 +29,7 @@ export async function proxy(request: NextRequest) {
   const isAuthRoute = pathname.startsWith('/auth');
   const isOnboarding = pathname === '/onboarding';
   const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
 
   let user = null;
   let isNetworkFailure = false;
@@ -74,8 +76,24 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
-    if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted) {
+    if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted && !isAdminRoute) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
+
+    // Verificar acesso à rota /admin (UI apenas — as API routes verificam admin internamente)
+    if (pathname.startsWith('/admin') && !pathname.startsWith('/api/')) {
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (serviceRoleKey) {
+        const adminClient = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data } = await adminClient.from('admins').select('id').eq('user_id', user.id).maybeSingle();
+        if (!data) {
+          return NextResponse.redirect(new URL('/', request.url));
+        }
+      } else {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
     }
   }
 
