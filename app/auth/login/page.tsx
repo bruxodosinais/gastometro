@@ -1,15 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+function traduzirErroAuth(mensagem: string): string {
+  if (mensagem.includes('Email not confirmed'))
+    return 'Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.';
+  if (mensagem.includes('Invalid login credentials'))
+    return 'E-mail ou senha incorretos.';
+  if (mensagem.includes('User already registered'))
+    return 'Este e-mail já está cadastrado.';
+  if (mensagem.includes('Password should be at least 6 characters'))
+    return 'A senha deve ter no mínimo 6 caracteres.';
+  return 'E-mail ou senha incorretos.';
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get('error');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    urlError === 'link_invalido' ? 'O link é inválido ou expirou. Solicite um novo.' : ''
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -21,7 +38,7 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
-      setError('E-mail ou senha incorretos.');
+      setError(traduzirErroAuth(authError.message));
       setLoading(false);
       return;
     }
@@ -33,7 +50,6 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
             📊
@@ -89,13 +105,27 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-gray-500 text-sm mt-4">
+          <Link href="/auth/recuperar-senha" className="text-mint-500 font-medium hover:underline">
+            Esqueci minha senha
+          </Link>
+        </p>
+
+        <p className="text-center text-gray-500 text-sm mt-4">
           Não tem conta?{' '}
-          <Link href="/auth/cadastro" className="text-mint-500 hover:text-mint-500 font-medium">
+          <Link href="/auth/cadastro" className="text-mint-500 font-medium">
             Criar conta
           </Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

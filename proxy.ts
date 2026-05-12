@@ -37,7 +37,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
+    // /auth/nova-senha precisa ser acessível por usuários autenticados (fluxo de reset de senha)
+    if (!pathname.startsWith('/auth/nova-senha')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
   }
 
   if (user) {

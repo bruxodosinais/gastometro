@@ -5,6 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+function traduzirErroAuth(mensagem: string): string {
+  if (mensagem.includes('User already registered'))
+    return 'Este e-mail já está cadastrado.';
+  if (mensagem.includes('Password should be at least 6 characters'))
+    return 'A senha deve ter no mínimo 6 caracteres.';
+  return mensagem;
+}
+
 export default function CadastroPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -13,7 +21,6 @@ export default function CadastroPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,7 +31,7 @@ export default function CadastroPage() {
       return;
     }
     if (password.length < 6) {
-      setError('A senha precisa ter pelo menos 6 caracteres.');
+      setError('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
@@ -40,51 +47,24 @@ export default function CadastroPage() {
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(traduzirErroAuth(authError.message));
       setLoading(false);
       return;
     }
 
-    // Se a sessão já foi criada (confirmação de e-mail desativada), redireciona
     if (data.session) {
       router.push('/');
       router.refresh();
       return;
     }
 
-    // Caso contrário, pede para verificar o e-mail
-    setEmailSent(true);
-    setLoading(false);
-  }
-
-  if (emailSent) {
-    return (
-      <main className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-green-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
-            ✉️
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Verifique seu e-mail</h2>
-          <p className="text-gray-500 text-sm">
-            Enviamos um link de confirmação para{' '}
-            <span className="text-gray-900 font-medium">{email}</span>. Clique no link para ativar
-            sua conta.
-          </p>
-          <Link
-            href="/auth/login"
-            className="inline-block mt-6 text-mint-500 hover:text-mint-500 text-sm font-medium"
-          >
-            ← Voltar para o login
-          </Link>
-        </div>
-      </main>
-    );
+    localStorage.setItem('pending_confirmation_email', email);
+    router.push(`/auth/confirmar-email?email=${encodeURIComponent(email)}`);
   }
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
             📊
@@ -171,7 +151,7 @@ export default function CadastroPage() {
 
         <p className="text-center text-gray-500 text-sm mt-6">
           Já tem conta?{' '}
-          <Link href="/auth/login" className="text-mint-500 hover:text-mint-500 font-medium">
+          <Link href="/auth/login" className="text-mint-500 font-medium">
             Entrar
           </Link>
         </p>
