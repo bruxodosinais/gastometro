@@ -63,14 +63,6 @@ function normalizeDescription(description: string): string {
   return description.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function formatLabel(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-}
-
 function formatBrand(text: string): string {
   const map: Record<string, string> = {
     ifood: 'iFood',
@@ -111,7 +103,6 @@ export default function HistoricoPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToast();
 
-  // Apply filter from URL param on mount (e.g. ?filter=prevMonth from monthly close modal)
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get('filter');
     if (f === 'prevMonth') {
@@ -126,7 +117,6 @@ export default function HistoricoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When user navigates via PeriodSelector, switch off quick filter and reset category
   useEffect(() => {
     if (prevPeriodRef.current !== period) {
       setQuickFilter(null);
@@ -172,7 +162,6 @@ export default function HistoricoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recalculate chip overflow indicator whenever expenses or type filter changes
   useEffect(() => {
     const el = chipScrollRef.current;
     if (el) setChipsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
@@ -188,7 +177,6 @@ export default function HistoricoPage() {
     };
   }, []);
 
-  // ── Memoized computations (must be before any early return per hooks rules) ──
   const needle = search.trim().toLowerCase();
   const minAmt = minAmount !== '' ? parseFloat(minAmount) : null;
   const maxAmt = maxAmount !== '' ? parseFloat(maxAmount) : null;
@@ -276,10 +264,11 @@ export default function HistoricoPage() {
       return (
         <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
           <p className="text-4xl">😕</p>
-          <p className="text-gray-700 font-medium">{loadError}</p>
+          <p style={{ color: 'var(--text-2)', fontWeight: 500 }}>{loadError}</p>
           <button
             onClick={loadData}
-            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+            style={{ background: 'var(--accent)', color: '#fff' }}
           >
             <RefreshCw size={15} />
             Tentar novamente
@@ -289,18 +278,16 @@ export default function HistoricoPage() {
     }
     return (
       <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
       </main>
     );
   }
 
-  // ── Summary (all entries in range, no search/type filters) ──────────────────
   const todayIso = isoDate(new Date());
   const income = calculateTotalByType(baseEntries, 'income');
   const spent = calculateTotalByType(baseEntries, 'expense');
   const balance = income - spent;
 
-  // ── Breakdown de receitas por fonte ─────────────────────────────────────────
   const incomeEntries = baseEntries.filter((e) => e.type === 'income');
   const totalPeriodIncome = incomeEntries.reduce((s, e) => s + e.amount, 0);
   const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
@@ -309,7 +296,6 @@ export default function HistoricoPage() {
   })).filter((c) => c.total > 0);
   const showIncomeBreakdown = typeFilter !== 'expense' && incomeBySource.length > 0;
 
-  // ── Filtered + sorted list ───────────────────────────────────────────────────
   const activeCategories = [...new Set(
     baseEntries
       .filter((e) => typeFilter === 'all' || e.type === typeFilter)
@@ -322,7 +308,6 @@ export default function HistoricoPage() {
     if (type === 'income' && EXPENSE_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
   }
 
-  // ── Insight hero contextual ──────────────────────────────────────────────────
   const insightGroup = topGastosByCount[0] ?? null;
 
   const diasDeUso = new Set(expenses.map((e) => e.date)).size;
@@ -367,24 +352,47 @@ export default function HistoricoPage() {
     contextualInsight = { icon: 'check', title: 'Nenhum gasto repetitivo preocupante', subtitle: 'Você está mantendo boa consistência!' };
   }
 
+  // Grouped list by day
+  const groupedByDay: Record<string, Expense[]> = {};
+  for (const exp of filteredEntries) {
+    if (!groupedByDay[exp.date]) groupedByDay[exp.date] = [];
+    groupedByDay[exp.date].push(exp);
+  }
+  const sortedDays = Object.keys(groupedByDay).sort((a, b) =>
+    sortOrder === 'oldest' ? a.localeCompare(b) : b.localeCompare(a)
+  );
+
+  const showPeriodSelector = quickFilter === 'thisMonth' || quickFilter === 'prevMonth' || quickFilter === null;
+
   return (
     <>
     <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-bold text-gray-900">Histórico</h1>
+        <h1 style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--text)' }}>
+          Histórico
+        </h1>
         <button
           onClick={() => setExportOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-600 hover:text-gray-900 text-sm font-medium transition-all active:scale-95"
           aria-label="Exportar extrato"
+          className="flex items-center gap-1.5 transition-opacity hover:opacity-75 active:scale-95"
+          style={{
+            fontSize: 12, fontWeight: 700, color: 'var(--accent)',
+            border: '1.5px solid var(--accent-soft)', borderRadius: 20,
+            padding: '6px 14px', background: 'transparent', cursor: 'pointer',
+          }}
         >
-          <Download size={14} />
+          <Download size={12} />
           Exportar
         </button>
       </div>
-      <p className="text-gray-500 text-sm mb-4">{periodLabel}</p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginBottom: 16 }}>
+        {periodLabel}
+      </p>
 
-      {/* Filtros rápidos de período */}
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+      {/* Filtros de período */}
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
         {(Object.entries(QUICK_FILTER_LABELS) as [Exclude<QuickFilter, null>, string][]).map(([key, label]) => (
           <button
             key={key}
@@ -404,107 +412,79 @@ export default function HistoricoPage() {
                 setPeriod(p);
               }
             }}
-            className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-              quickFilter === key
-                ? 'bg-mint text-gray-900'
-                : 'bg-white border border-gray-100 text-gray-500 hover:text-gray-900 hover:border-gray-200'
-            }`}
+            className="flex-shrink-0 transition-opacity hover:opacity-80"
+            style={{
+              padding: '6px 14px', borderRadius: 20,
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              background: quickFilter === key ? 'var(--accent)' : 'var(--surface)',
+              color: quickFilter === key ? '#fff' : 'var(--text-2)',
+              border: quickFilter === key ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+            }}
           >
             {label}
           </button>
         ))}
         {quickFilter === null && (
-          <span className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-mint text-gray-900">
+          <span
+            className="flex-shrink-0"
+            style={{
+              padding: '6px 14px', borderRadius: 20,
+              fontSize: 12, fontWeight: 700,
+              background: 'var(--accent)', color: '#fff',
+              border: '1.5px solid var(--accent)',
+            }}
+          >
             {periodLabel}
           </span>
         )}
       </div>
 
-      {/* Seletor de mês específico */}
-      <div className="mb-4">
-        <PeriodSelector />
-      </div>
+      {/* Navegador de mês */}
+      {showPeriodSelector && (
+        <div className="mb-4">
+          <PeriodSelector />
+        </div>
+      )}
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-3 gap-2 mb-5">
-        <div className="bg-mint/5 border border-green-500/20 rounded-xl p-3">
-          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Ganhos</p>
-          <p className="text-mint-500 font-bold text-sm">{formatCurrency(income)}</p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Ganhos</p>
+          <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)' }}>{formatCurrency(income)}</p>
         </div>
-        <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
-          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Gastos</p>
-          <p className="text-red-400 font-bold text-sm">{formatCurrency(spent)}</p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Gastos</p>
+          <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--red)' }}>{formatCurrency(spent)}</p>
         </div>
-        <div className={`rounded-xl p-3 border ${balance >= 0 ? 'bg-blue-500/5 border-blue-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-          <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Saldo</p>
-          <p className={`font-bold text-sm ${balance >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Saldo</p>
+          <p style={{ fontSize: 14, fontWeight: 800, color: balance >= 0 ? 'var(--green)' : 'var(--red)' }}>
             {balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(balance))}
           </p>
         </div>
       </div>
 
-      {/* Filtro por categoria */}
-      {activeCategories.length > 0 && (
-        <div className="relative mb-3">
-        <div
-          ref={chipScrollRef}
-          onScroll={() => {
-            const el = chipScrollRef.current;
-            if (el) setChipsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
-          }}
-          className="flex gap-2 overflow-x-auto pb-0.5"
-        >
-          <button
-            onClick={() => startTransition(() => setCategoryFilter('all'))}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              categoryFilter === 'all'
-                ? 'bg-mint text-gray-900'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            Todos
-          </button>
-          {activeCategories.map((cat) => {
-            const cfg = CATEGORY_CONFIG[cat];
-            return (
-              <button
-                key={cat}
-                onClick={() => startTransition(() => setCategoryFilter(cat))}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  categoryFilter === cat
-                    ? 'bg-mint text-gray-900'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                <span>{cfg.icon}</span>
-                <span>{cat}</span>
-              </button>
-            );
-          })}
-        </div>
-        {!chipsAtEnd && (
-          <div
-            className="absolute right-0 top-0 bottom-0.5 w-12 pointer-events-none z-10"
-            style={{ background: 'linear-gradient(to right, transparent, #F9FAFB)' }}
-          />
-        )}
-        </div>
-      )}
-
-      {/* Busca */}
+      {/* Input de busca */}
       <div className="relative mb-2">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-3)' }} />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por descrição..."
-          className="w-full bg-white border border-gray-100 rounded-xl pl-9 pr-9 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+          className="w-full focus:outline-none transition-colors"
+          style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-sm)', paddingLeft: 38, paddingRight: 36,
+            paddingTop: 10, paddingBottom: 10,
+            color: 'var(--text)', fontSize: 12, fontWeight: 500,
+          }}
         />
         {search && (
           <button
             onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:opacity-60"
+            style={{ color: 'var(--text-3)' }}
             aria-label="Limpar busca"
           >
             <X size={14} />
@@ -512,38 +492,23 @@ export default function HistoricoPage() {
         )}
       </div>
 
-      {/* Valor mínimo / máximo */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <input
-          type="number"
-          value={minAmount}
-          onChange={(e) => setMinAmount(e.target.value)}
-          placeholder="Valor mínimo"
-          min="0"
-          step="0.01"
-          className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-        />
-        <input
-          type="number"
-          value={maxAmount}
-          onChange={(e) => setMaxAmount(e.target.value)}
-          placeholder="Valor máximo"
-          min="0"
-          step="0.01"
-          className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-        />
-      </div>
-
-      {/* Tipo + Cartão + Ordenação */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        <div className="flex gap-2">
+      {/* Filtros avançados: tipo + cartão + ordenação */}
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <div
+          className="flex"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 2 }}
+        >
           {(['all', 'expense', 'income'] as const).map((t) => (
             <button
               key={t}
               onClick={() => handleTypeFilterChange(t)}
-              className={`px-3 py-1.5 rounded-full text-sm ${
-                typeFilter === t ? 'bg-gray-100 text-gray-900' : 'bg-gray-50 text-gray-500'
-              }`}
+              style={{
+                fontSize: 12, fontWeight: 700,
+                padding: '5px 10px', borderRadius: 8, cursor: 'pointer',
+                background: typeFilter === t ? 'var(--accent)' : 'transparent',
+                color: typeFilter === t ? '#fff' : 'var(--text-2)',
+                transition: 'all 0.15s',
+              }}
             >
               {t === 'all' ? 'Todos' : t === 'expense' ? 'Gastos' : 'Receitas'}
             </button>
@@ -553,7 +518,12 @@ export default function HistoricoPage() {
           <select
             value={cardFilter}
             onChange={(e) => setCardFilter(e.target.value)}
-            className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
+            className="focus:outline-none transition-colors shrink-0"
+            style={{
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r-sm)', padding: '6px 10px',
+              fontSize: 12, fontWeight: 700, color: 'var(--text-2)', cursor: 'pointer',
+            }}
           >
             <option value="all">Todos os cartões</option>
             {creditCards.map((c) => (
@@ -564,7 +534,12 @@ export default function HistoricoPage() {
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-          className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-gray-900 text-xs focus:outline-none focus:border-mint-500 transition-colors shrink-0"
+          className="focus:outline-none transition-colors shrink-0"
+          style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-sm)', padding: '6px 10px',
+            fontSize: 12, fontWeight: 700, color: 'var(--text-2)', cursor: 'pointer',
+          }}
         >
           <option value="recent">Mais recente</option>
           <option value="oldest">Mais antigo</option>
@@ -573,36 +548,148 @@ export default function HistoricoPage() {
         </select>
       </div>
 
-      {/* Insight hero */}
-      <div className="rounded-2xl bg-amber-50/60 border border-amber-200/50 px-4 py-3.5 mb-4 flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0">
-          {contextualInsight.icon === 'lamp'  && <Lightbulb  size={18} className="text-amber-500" />}
-          {contextualInsight.icon === 'chart' && <BarChart2  size={18} className="text-amber-500" />}
-          {contextualInsight.icon === 'trend' && <TrendingUp size={18} className="text-amber-500" />}
-          {contextualInsight.icon === 'check' && <CheckCircle size={18} className="text-emerald-500" />}
+      {/* Filtro por categoria */}
+      {activeCategories.length > 0 && (
+        <div className="relative mb-3">
+          <div
+            ref={chipScrollRef}
+            onScroll={() => {
+              const el = chipScrollRef.current;
+              if (el) setChipsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+            }}
+            className="flex gap-2 overflow-x-auto pb-0.5"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            <button
+              onClick={() => startTransition(() => setCategoryFilter('all'))}
+              className="flex-shrink-0 transition-opacity hover:opacity-80"
+              style={{
+                padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
+                fontSize: 12, fontWeight: 700,
+                background: categoryFilter === 'all' ? 'var(--accent)' : 'var(--surface)',
+                color: categoryFilter === 'all' ? '#fff' : 'var(--text-2)',
+                border: categoryFilter === 'all' ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+              }}
+            >
+              Todos
+            </button>
+            {activeCategories.map((cat) => {
+              const cfg = CATEGORY_CONFIG[cat];
+              const active = categoryFilter === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => startTransition(() => setCategoryFilter(cat))}
+                  className="flex-shrink-0 flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                  style={{
+                    padding: '6px 14px', borderRadius: 20, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700,
+                    background: active ? 'var(--accent)' : 'var(--surface)',
+                    color: active ? '#fff' : 'var(--text-2)',
+                    border: active ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+                  }}
+                >
+                  <span>{cfg.icon}</span>
+                  <span>{cat}</span>
+                </button>
+              );
+            })}
+          </div>
+          {!chipsAtEnd && (
+            <div
+              className="absolute right-0 top-0 bottom-0.5 w-12 pointer-events-none z-10"
+              style={{ background: 'linear-gradient(to right, transparent, var(--bg))' }}
+            />
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 line-clamp-1">{contextualInsight.title}</p>
+      )}
+
+      {/* Valor mínimo / máximo */}
+      <div className="grid grid-cols-2 gap-2 mb-5">
+        <input
+          type="number"
+          value={minAmount}
+          onChange={(e) => setMinAmount(e.target.value)}
+          placeholder="Valor mínimo"
+          min="0"
+          step="0.01"
+          className="focus:outline-none transition-colors"
+          style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-sm)', padding: '8px 12px',
+            color: 'var(--text)', fontSize: 12, fontWeight: 500,
+          }}
+        />
+        <input
+          type="number"
+          value={maxAmount}
+          onChange={(e) => setMaxAmount(e.target.value)}
+          placeholder="Valor máximo"
+          min="0"
+          step="0.01"
+          className="focus:outline-none transition-colors"
+          style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-sm)', padding: '8px 12px',
+            color: 'var(--text)', fontSize: 12, fontWeight: 500,
+          }}
+        />
+      </div>
+
+      {/* Insight de padrão */}
+      <div
+        className="flex items-start gap-2.5 mb-4"
+        style={{
+          background: 'var(--accent-bg)', border: '1px solid var(--accent-soft)',
+          borderRadius: 'var(--r-sm)', padding: '10px 14px',
+        }}
+      >
+        <div style={{ marginTop: 2, flexShrink: 0 }}>
+          {contextualInsight.icon === 'lamp'  && <Lightbulb  size={16} style={{ color: 'var(--accent)' }} />}
+          {contextualInsight.icon === 'chart' && <BarChart2  size={16} style={{ color: 'var(--accent)' }} />}
+          {contextualInsight.icon === 'trend' && <TrendingUp size={16} style={{ color: 'var(--accent)' }} />}
+          {contextualInsight.icon === 'check' && <CheckCircle size={16} style={{ color: 'var(--green)' }} />}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p className="line-clamp-1" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
+            {contextualInsight.title}
+          </p>
           {contextualInsight.action ? (
-            <p className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer mt-0.5 transition-colors" onClick={contextualInsight.action}>
+            <p
+              onClick={contextualInsight.action}
+              style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', marginTop: 2, cursor: 'pointer' }}
+            >
               {contextualInsight.subtitle}
             </p>
           ) : (
-            <p className="text-xs text-gray-500 mt-0.5">{contextualInsight.subtitle}</p>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>
+              {contextualInsight.subtitle}
+            </p>
           )}
         </div>
       </div>
 
       {/* Top gastos */}
       {topGastosByValue.length > 0 && (
-        <div className="rounded-2xl bg-white/80 border border-gray-100 p-4 mb-4">
-          <p className="text-lg font-semibold text-gray-900">Top gastos</p>
-          <p className="text-xs mb-3" style={{ color: '#6b7280', marginTop: '2px' }}>Agrupado por descrição do lançamento</p>
+        <div
+          className="mb-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 16px' }}
+        >
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>Top gastos</p>
+          <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginBottom: 12 }}>Agrupado por descrição do lançamento</p>
           <div>
-            {topGastosByValue.map((g) => (
-              <div key={g.displayName} className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-800 truncate">{formatBrand(g.displayName)}</span>
-                <span className="text-sm font-semibold text-gray-900 flex-shrink-0 ml-3">{formatCurrency(g.total)}</span>
+            {topGastosByValue.map((g, i) => (
+              <div
+                key={g.displayName}
+                className="flex items-center justify-between"
+                style={{ padding: '7px 0', borderTop: i > 0 ? '1px solid var(--border-2)' : 'none' }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }} className="truncate">
+                  {formatBrand(g.displayName)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--red)', flexShrink: 0, marginLeft: 12 }}>
+                  {formatCurrency(g.total)}
+                </span>
               </div>
             ))}
           </div>
@@ -611,13 +698,22 @@ export default function HistoricoPage() {
 
       {/* Padrões de gasto */}
       {topGastosByCount.length > 0 && (
-        <div className="rounded-2xl bg-white/80 border border-gray-100 p-4 mb-4">
-          <p className="text-lg font-semibold text-gray-900 mb-3">Padrões de gasto</p>
+        <div
+          className="mb-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 16px' }}
+        >
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>Padrões de gasto</p>
           <div>
-            {topGastosByCount.map((g) => (
-              <div key={g.displayName} className="flex flex-col py-2">
-                <span className="text-base font-semibold text-gray-900">{formatBrand(g.displayName)}</span>
-                <span className="text-xs text-gray-500 mt-1">{patternContext(g.count)} · {g.count}x</span>
+            {topGastosByCount.map((g, i) => (
+              <div
+                key={g.displayName}
+                className="flex flex-col"
+                style={{ padding: '6px 0', borderTop: i > 0 ? '1px solid var(--border-2)' : 'none' }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{formatBrand(g.displayName)}</span>
+                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>
+                  {patternContext(g.count)} · {g.count}x
+                </span>
               </div>
             ))}
           </div>
@@ -626,36 +722,36 @@ export default function HistoricoPage() {
 
       {/* Receitas do período */}
       {showIncomeBreakdown && (
-        <div className="rounded-2xl bg-white border border-gray-100 p-4 mb-4">
-          <p className="text-sm font-semibold text-gray-900 mb-3">Receitas do período</p>
+        <div
+          className="mb-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 16px' }}
+        >
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>Receitas do período</p>
           <div className="space-y-2.5">
             {incomeBySource.map(({ cat, total }) => {
               const pct = totalPeriodIncome > 0 ? (total / totalPeriodIncome) * 100 : 0;
               return (
                 <div key={cat}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>
                       <span>{INCOME_SOURCE_ICONS[cat]}</span>
                       <span>{cat}</span>
                     </span>
-                    <span className="text-xs font-semibold text-gray-900">
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                       {formatCurrency(total)}{' '}
-                      <span className="text-gray-400 font-normal">({Math.round(pct)}%)</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>({Math.round(pct)}%)</span>
                     </span>
                   </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: INCOME_SOURCE_COLORS[cat] }}
-                    />
+                  <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 4, background: INCOME_SOURCE_COLORS[cat], width: `${pct}%`, transition: 'all 0.3s' }} />
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-between items-center">
-            <span className="text-xs text-gray-500">Total</span>
-            <span className="text-xs font-bold" style={{ color: '#00b87a' }}>{formatCurrency(totalPeriodIncome)}</span>
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Total</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>{formatCurrency(totalPeriodIncome)}</span>
           </div>
         </div>
       )}
@@ -664,71 +760,144 @@ export default function HistoricoPage() {
       {baseEntries.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-5xl mb-3">🧾</p>
-          <p className="text-gray-900 font-semibold text-lg mb-2">Nenhum lançamento aqui</p>
-          <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+          <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Nenhum lançamento aqui</p>
+          <p style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
             Tudo que você gastar ou receber vai aparecer por aqui. Que tal registrar seu primeiro lançamento?
           </p>
           <Link
             href="/lancamentos"
-            className="inline-block px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 text-sm font-semibold transition-all active:scale-95"
+            className="inline-block transition-opacity hover:opacity-80 active:scale-95"
+            style={{
+              background: 'var(--accent)', color: '#fff', borderRadius: 'var(--r-sm)',
+              padding: '10px 20px', fontSize: 14, fontWeight: 700,
+            }}
           >
             Lançar agora
           </Link>
         </div>
       ) : filteredEntries.length === 0 ? (
-        <p className="text-gray-500 text-sm text-center py-8">Nenhum resultado para os filtros aplicados</p>
+        <p style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
+          Nenhum resultado para os filtros aplicados
+        </p>
       ) : (
-        <div className="opacity-[0.78] mb-6">
-          <p className="text-sm font-medium text-gray-500 mb-3">Lançamentos</p>
-          <div className="space-y-2">
-          {filteredEntries.map((exp) => {
-            const cfg = CATEGORY_CONFIG[exp.category];
-            const day = exp.date.slice(8, 10);
-            const month = exp.date.slice(5, 7);
-            const isIncome = exp.type === 'income';
-            const isFuture = exp.date > todayIso;
+        <div className="mb-6">
+          {sortedDays.map((day) => {
+            const [, dayM, dayD] = day.split('-');
+            const isToday = day === todayIso;
+            const dayLabel = isToday ? `Hoje · ${dayD}/${dayM}` : `${dayD}/${dayM}`;
             return (
-              <div key={exp.id} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
-                  {cfg.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <p className="text-gray-900 text-sm font-medium truncate">{formatBrand(exp.description)}</p>
-                    {exp.isCredit && exp.creditCardId && (() => {
-                      const card = creditCards.find((c) => c.id === exp.creditCardId);
-                      return card ? (
-                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe' }}>
-                          {card.nome}
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-                  <p className="text-gray-500 text-xs">{exp.category} · {day}/{month}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="font-semibold text-sm whitespace-nowrap" style={{ color: isFuture ? '#9a9aaa' : isIncome ? '#00b87a' : '#f04e5e' }}>
-                    {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
+              <div key={day} className="mb-3">
+                {/* Label do dia */}
+                <div style={{ padding: '6px 14px', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)' }}>
+                    {dayLabel}
                   </span>
-                  {isFuture && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-500 border border-gray-200">
-                      futuro
-                    </span>
-                  )}
                 </div>
-                <button onClick={() => setEditingExpense(exp)} className="text-gray-500 hover:text-mint-500 transition-colors flex-shrink-0 ml-2" aria-label="Editar">
-                  <Pencil size={15} />
-                </button>
-                <button onClick={() => setDuplicatingExpense(exp)} className="text-gray-500 hover:text-cyan-400 transition-colors flex-shrink-0" aria-label="Duplicar">
-                  <Copy size={15} />
-                </button>
-                <button onClick={() => setDeletingExpense(exp)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" aria-label="Excluir">
-                  <Trash2 size={15} />
-                </button>
+                {/* Itens do dia */}
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
+                  {groupedByDay[day].map((exp, idx) => {
+                    const cfg = CATEGORY_CONFIG[exp.category];
+                    const isIncome = exp.type === 'income';
+                    const isFuture = exp.date > todayIso;
+                    const card = exp.isCredit && exp.creditCardId
+                      ? creditCards.find((c) => c.id === exp.creditCardId)
+                      : null;
+                    return (
+                      <div
+                        key={exp.id}
+                        className="group flex items-center gap-3 px-4 py-3"
+                        style={{ borderTop: idx > 0 ? '1px solid var(--border-2)' : 'none' }}
+                      >
+                        {/* Ícone categoria */}
+                        <div
+                          style={{
+                            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                            background: 'var(--logo-bg)', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                          }}
+                        >
+                          {cfg.icon}
+                        </div>
+                        {/* Informações */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }} className="truncate">
+                              {formatBrand(exp.description)}
+                            </p>
+                            {card && (
+                              <span
+                                style={{
+                                  fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+                                  background: 'var(--logo-bg)', borderRadius: 4,
+                                  padding: '2px 6px', flexShrink: 0,
+                                }}
+                              >
+                                {card.nome}
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', marginTop: 1 }}>
+                            {exp.category} · {dayD}/{dayM}
+                          </p>
+                        </div>
+                        {/* Valor */}
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span
+                            style={{
+                              fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap',
+                              color: isFuture ? 'var(--text-3)' : isIncome ? 'var(--green)' : 'var(--red)',
+                            }}
+                          >
+                            {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
+                          </span>
+                          {isFuture && (
+                            <span
+                              style={{
+                                fontSize: 10, fontWeight: 500, background: 'var(--logo-bg)',
+                                color: 'var(--text-3)', border: '1px solid var(--border)',
+                                borderRadius: 4, padding: '1px 6px',
+                              }}
+                            >
+                              futuro
+                            </span>
+                          )}
+                        </div>
+                        {/* Ações (hover no desktop, sempre visível no mobile) */}
+                        <div className="flex items-center gap-2 flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingExpense(exp)}
+                            aria-label="Editar"
+                            className="hover:opacity-60 transition-opacity"
+                            style={{ color: 'var(--text-3)' }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDuplicatingExpense(exp)}
+                            aria-label="Duplicar"
+                            className="hover:opacity-60 transition-opacity"
+                            style={{ color: 'var(--text-3)' }}
+                          >
+                            <Copy size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeletingExpense(exp)}
+                            aria-label="Excluir"
+                            className="transition-colors"
+                            style={{ color: 'var(--text-3)' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
-          </div>
         </div>
       )}
     </main>
