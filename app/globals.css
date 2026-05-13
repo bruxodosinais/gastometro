@@ -142,6 +142,51 @@ input[type='date']::-webkit-calendar-picker-indicator {
   to { transform: translateX(0); }
 }
 
+/* ── Layout responsivo desktop ────────────────────────────────────────── */
+.desktop-only { display: none; }
+
+@media (min-width: 1024px) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: flex; }
+
+  .home-main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 32px 32px !important;
+  }
+
+  .home-content-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    align-items: start;
+  }
+  .home-left-col,
+  .home-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  /* Reset de margens inline dos blocos da Home em desktop */
+  .home-left-col > *,
+  .home-right-col > * {
+    margin: 0 !important;
+  }
+
+  /* Ícones dos cards Entrou/Saiu maiores em desktop */
+  .eio-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .desktop-only { display: none !important; }
+}
+
 /* ── Auth screens ─────────────────────────────────────────────────────── */
 .auth-input {
   width: 100%;

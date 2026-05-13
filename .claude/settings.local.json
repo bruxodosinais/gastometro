@@ -51,7 +51,8 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(echo \"TypeScript exit: $?\")",
       "Bash(echo \"EXIT_CODE=$?\")",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

@@ -364,6 +364,20 @@ export default function HomePage() {
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
 
+  // Top gastos do período, agrupados por descrição
+  const topExpenses = (() => {
+    const byDesc = new Map<string, number>();
+    for (const e of periodExpenses) {
+      const desc = (e.description || 'Sem descrição').trim();
+      const key = desc.charAt(0).toUpperCase() + desc.slice(1);
+      byDesc.set(key, (byDesc.get(key) ?? 0) + e.amount);
+    }
+    return Array.from(byDesc.entries())
+      .map(([description, total]) => ({ description, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4);
+  })();
+
   // Item só conta como "pendente" para Contas do mês quando o day_of_month
   // do recorrente já chegou (ou está em branco — nesse caso considera-se
   // pendente desde o início do mês).
@@ -541,6 +555,7 @@ export default function HomePage() {
     // Skeleton
     return (
       <main
+        className="home-main"
         style={{
           maxWidth: 440,
           margin: '0 auto',
@@ -619,6 +634,7 @@ export default function HomePage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <main
+      className="home-main"
       style={{
         maxWidth: 440,
         margin: '0 auto',
@@ -627,7 +643,7 @@ export default function HomePage() {
       }}
     >
       {/* ── 1. WORDMARK ────────────────────────────────────────────────────── */}
-      <div style={{ padding: '16px 22px 0', ...(mounted ? anim(0) : hidden) }}>
+      <div className="mobile-only" style={{ padding: '16px 22px 0', ...(mounted ? anim(0) : hidden) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div
             style={{
@@ -652,6 +668,7 @@ export default function HomePage() {
 
       {/* ── 2. HEADER ──────────────────────────────────────────────────────── */}
       <div
+        className="mobile-only"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -793,6 +810,7 @@ export default function HomePage() {
 
       {/* ── 3. MONTH NAVIGATOR ─────────────────────────────────────────────── */}
       <div
+        className="mobile-only"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -838,6 +856,10 @@ export default function HomePage() {
           <ChevronRight size={14} color="var(--text-2)" />
         </button>
       </div>
+
+      {/* ── DESKTOP 2-COL WRAPPER (no-op em mobile) ───────────────────────── */}
+      <div className="home-content-wrap">
+      <div className="home-left-col">
 
       {/* ── 4. SALDO HERO CARD ─────────────────────────────────────────────── */}
       <div
@@ -936,15 +958,69 @@ export default function HomePage() {
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
                 position: 'relative',
               }}
             >
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#FFB3B3' }}>
-                −{formatCurrency(periodCreditTotal)}
-              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.7)',
+                    margin: 0,
+                  }}
+                >
+                  Saldo bancário
+                </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: 'white',
+                    margin: '2px 0 0',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {formatCurrency(debitBalance)}
+                </p>
+              </div>
+              <div
+                style={{
+                  width: 1,
+                  height: 32,
+                  background: 'rgba(255,255,255,0.15)',
+                  margin: '0 14px',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.7)',
+                    margin: 0,
+                  }}
+                >
+                  Fatura atual
+                </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: '#FFB3B3',
+                    margin: '2px 0 0',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  −{formatCurrency(periodCreditTotal)}
+                </p>
+              </div>
             </div>
           </>
         )}
@@ -971,6 +1047,7 @@ export default function HomePage() {
           }}
         >
           <div
+            className="eio-icon"
             style={{
               width: 32,
               height: 32,
@@ -1015,6 +1092,7 @@ export default function HomePage() {
           }}
         >
           <div
+            className="eio-icon"
             style={{
               width: 32,
               height: 32,
@@ -1217,18 +1295,42 @@ export default function HomePage() {
                   />
                 </div>
 
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-                  {isZeroed
-                    ? 'Eita! Orçamento zerado.'
-                    : isCurrentMonth
-                    ? `Tudo certo! Faltam ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}.`
-                    : 'Orçamento do mês.'}
-                </p>
+                {isZeroed ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      background: 'var(--red-bg)',
+                      border: '1.5px solid rgba(255,71,87,0.25)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--red)',
+                        margin: 0,
+                      }}
+                    >
+                      Eita! Orçamento zerado.
+                    </p>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
+                    {isCurrentMonth
+                      ? `Tudo certo! Faltam ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}.`
+                      : 'Orçamento do mês.'}
+                  </p>
+                )}
               </>
             )}
           </div>
         );
       })()}
+
+      </div>{/* /home-left-col */}
+      <div className="home-right-col">
 
       {/* ── 8. CONTAS DO MÊS ────────────────────────────────────────────────── */}
       {isCurrentMonth && (obligations.length > 0 || activeIncomeRecs.length > 0) && (
@@ -1647,6 +1749,98 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ── 8B. TOP GASTOS (desktop only) ───────────────────────────────────── */}
+      {topExpenses.length > 0 && (
+        <div
+          className="hidden lg:block"
+          style={{
+            margin: '16px 16px 0',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r)',
+            overflow: 'hidden',
+            ...(mounted ? anim(375) : hidden),
+          }}
+        >
+          <div style={{ padding: '14px 16px 10px' }}>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+              Top gastos
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+              Maiores valores deste mês
+            </p>
+          </div>
+          <div>
+            {topExpenses.map((e, idx) => {
+              const max = topExpenses[0]?.total || 1;
+              const pct = Math.max(8, Math.round((e.total / max) * 100));
+              return (
+                <div
+                  key={`${e.description}-${idx}`}
+                  style={{
+                    padding: '10px 16px',
+                    borderTop: '1px solid var(--border-2)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: 'var(--text)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                        flex: 1,
+                      }}
+                    >
+                      {e.description}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: 'var(--text)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatCurrency(e.total)}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 4,
+                      background: 'var(--border-2)',
+                      borderRadius: 2,
+                      marginTop: 6,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: mounted ? `${pct}%` : '0%',
+                        background: 'var(--accent)',
+                        borderRadius: 2,
+                        transition: 'width 600ms ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── 9. HINT ──────────────────────────────────────────────────────────── */}
       {hintText && (
         <div
@@ -1683,6 +1877,9 @@ export default function HomePage() {
           </p>
         </div>
       )}
+
+      </div>{/* /home-right-col */}
+      </div>{/* /home-content-wrap */}
 
       {/* ── MODAL: Valor real para despesa variável ──────────────────────────── */}
       {variablePayModal && (

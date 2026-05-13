@@ -21,20 +21,6 @@ const sheetItems = [
   { href: '/perfil',      label: 'Perfil',       Icon: UserCircle  },
 ];
 
-// Todos os itens para a sidebar desktop
-const allTabs = [
-  { href: '/',            label: 'Home',         Icon: Home        },
-  { href: '/lancamentos', label: 'Lançar',       Icon: Plus        },
-  { href: '/categorias',  label: 'Categorias',   Icon: LayoutGrid  },
-  { href: '/historico',   label: 'Histórico',    Icon: Clock       },
-  { href: '/metas',       label: 'Metas',        Icon: Target      },
-  { href: '/cartoes',     label: 'Cartões',      Icon: CreditCard  },
-  { href: '/patrimonio',  label: 'Patrimônio',   Icon: TrendingUp  },
-  { href: '/recorrentes', label: 'Recorrentes',  Icon: RefreshCw   },
-  { href: '/assistente',  label: 'Assistente',   Icon: Bot         },
-  { href: '/perfil',      label: 'Perfil',       Icon: UserCircle  },
-];
-
 export default function Navigation() {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -45,7 +31,7 @@ export default function Navigation() {
     <>
       {/* ── MOBILE: tab bar fixa ─────────────────────────────────────────── */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
         style={{
           background: '#FFFFFF',
           borderTop: '1px solid #F3F4F6',
@@ -131,7 +117,7 @@ export default function Navigation() {
       {/* ── SHEET "MAIS" ─────────────────────────────────────────────────── */}
       {sheetOpen && (
         <div
-          className="fixed inset-0 z-[60] md:hidden flex items-end justify-center"
+          className="fixed inset-0 z-[60] lg:hidden flex items-end justify-center"
           style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setSheetOpen(false)}
         >
@@ -211,33 +197,6 @@ export default function Navigation() {
         </div>
       )}
 
-      {/* ── DESKTOP: sidebar lateral (inalterada) ────────────────────────── */}
-      <nav className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-100 z-50">
-        <div className="px-6 py-6 border-b border-gray-100">
-          <span className="text-xl font-bold text-gray-900">
-            Gastô<span className="text-mint-500">Metro</span>
-          </span>
-        </div>
-        <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {allTabs.map(({ href, label, Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-medium ${
-                  active
-                    ? 'bg-mint-50 text-mint-500 border border-mint-500/20'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <Icon size={19} strokeWidth={active ? 2.5 : 1.8} />
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }
