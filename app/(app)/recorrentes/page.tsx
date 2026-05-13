@@ -29,6 +29,8 @@ import {
   RecurringExpense,
 } from '@/lib/types';
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 function shiftMonth(monthKey: string, delta: number): string {
@@ -39,7 +41,7 @@ function shiftMonth(monthKey: string, delta: number): string {
 
 function findSimilarRecurring(desc: string, recurrings: RecurringExpense[]): RecurringExpense | null {
   const normalize = (s: string) =>
-    s.toLowerCase().trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    s.toLowerCase().trim().replace(/\s+/g, ' ').normalize('NFD').replace(/[̀-ͯ]/g, '');
   const input = normalize(desc);
   if (input.length < 3) return null;
   const active = recurrings.filter((r) => r.active);
@@ -53,6 +55,90 @@ function findSimilarRecurring(desc: string, recurrings: RecurringExpense[]): Rec
   }
   return null;
 }
+
+// ── Style helpers ─────────────────────────────────────────────────────────────
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
+  display: 'block',
+};
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--bg)',
+  border: '1.5px solid var(--border)',
+  borderRadius: 'var(--r-sm)',
+  padding: '12px 15px',
+  fontSize: 13,
+  fontWeight: 700,
+  color: 'var(--text)',
+  fontFamily: 'Nunito, sans-serif',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const menuItemStyle: React.CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 14px',
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--text)',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  fontFamily: 'Nunito, sans-serif',
+  textAlign: 'left',
+};
+
+// ── Switch ────────────────────────────────────────────────────────────────────
+
+function Switch({ on, onToggle, ariaLabel }: { on: boolean; onToggle: () => void; ariaLabel?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
+      style={{
+        position: 'relative',
+        width: 40,
+        height: 22,
+        flexShrink: 0,
+        borderRadius: 11,
+        border: on ? 'none' : '1.5px solid var(--border)',
+        background: on ? 'var(--accent)' : 'var(--bg)',
+        cursor: 'pointer',
+        transition: 'background 0.2s ease',
+        padding: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: on ? 3 : 2,
+          left: on ? 21 : 2,
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          background: on ? 'white' : 'var(--text-3)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+          transition: 'left 0.2s ease, background 0.2s ease',
+        }}
+      />
+    </button>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function RecorrentesPage() {
   const todayMonthKey = new Date().toISOString().slice(0, 7);
@@ -137,7 +223,7 @@ export default function RecorrentesPage() {
       }
     }
     loadData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isFirstLoad.current) return;
@@ -240,7 +326,6 @@ export default function RecorrentesPage() {
       setRecurrings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setEditingRec(null);
     } catch (err) {
-      // keep modal open so user sees the error via formError
       setFormError(getErrorMessage(err));
     } finally {
       setEditSaving(false);
@@ -315,15 +400,7 @@ export default function RecorrentesPage() {
   const selectedMonthLabelCap = selectedMonthLabel.charAt(0).toUpperCase() + selectedMonthLabel.slice(1);
 
   const hasAmount = amount !== '' && amount !== '0';
-  const glowColor = entryType === 'expense'
-    ? 'drop-shadow(0 0 12px rgba(248, 113, 113, 0.3))'
-    : 'drop-shadow(0 0 12px rgba(74, 222, 128, 0.3))';
-  const valueColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400' : 'text-mint-500'
-    : 'text-gray-900';
-  const prefixColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400/50' : 'text-mint-500/50'
-    : 'text-gray-500';
+  const typeColor = entryType === 'income' ? 'var(--green)' : 'var(--red)';
   const todayDay = new Date().getDate();
   const totalMonthlyAmount = recurrings
     .filter((r) => r.active && r.type === 'expense')
@@ -347,12 +424,28 @@ export default function RecorrentesPage() {
     return hasObligation && isPaid;
   });
 
+  const expenseRecs = filteredRecurrings.filter((r) => r.type === 'expense');
+  const incomeRecs = filteredRecurrings.filter((r) => r.type === 'income');
+
+  // ── Loading / error states ────────────────────────────────────────────────
+
   if (!ready) {
     if (loadError) {
       return (
-        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
-          <p className="text-4xl">😕</p>
-          <p className="text-gray-700 font-medium">{loadError}</p>
+        <main
+          style={{
+            maxWidth: 440,
+            margin: '0 auto',
+            padding: '64px 24px 40px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16,
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ fontSize: 48 }}>😕</p>
+          <p style={{ color: 'var(--text-2)', fontWeight: 600 }}>{loadError}</p>
           <button
             onClick={() => {
               setReady(false);
@@ -368,7 +461,19 @@ export default function RecorrentesPage() {
                 isFirstLoad.current = false;
               }).catch((err) => setLoadError(getErrorMessage(err)));
             }}
-            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--accent)',
+              color: 'white',
+              fontSize: 14,
+              fontWeight: 700,
+              padding: '10px 20px',
+              borderRadius: 12,
+              border: 'none',
+              cursor: 'pointer',
+            }}
           >
             <RefreshCw size={15} />
             Tentar novamente
@@ -377,402 +482,531 @@ export default function RecorrentesPage() {
       );
     }
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-mint-500 border-t-transparent animate-spin" />
+      <main style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: '2.5px solid var(--accent)',
+            borderTopColor: 'transparent',
+            animation: 'spin 0.7s linear infinite',
+          }}
+          className="animate-spin"
+        />
       </main>
     );
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Recorrentes</h1>
-      <p className="text-gray-500 text-sm mb-5">Gastos e receitas fixos mensais</p>
+    <main
+      className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6"
+      style={{ background: 'var(--bg)', minHeight: '100vh' }}
+    >
+      {/* ── HEADER ────────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, marginBottom: 4 }}>
+          Recorrentes
+        </h1>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', margin: 0 }}>
+          Gastos e receitas fixas mensais
+        </p>
+      </div>
 
       <div className="md:grid md:grid-cols-[420px_1fr] md:gap-8 md:items-start">
 
-        {/* Formulário de cadastro */}
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 md:mb-0 space-y-4"
-        >
-          <p className="text-gray-700 text-sm font-semibold">Novo recorrente</p>
+        {/* ── FORM COLUMN ─────────────────────────────────────────────────── */}
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
+            Novo recorrente
+          </p>
 
-          {/* Toggle Gasto / Receita */}
-          <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
-            <button
-              type="button"
-              onClick={() => handleTypeChange('expense')}
-              className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                entryType === 'expense'
-                  ? 'text-white'
-                  : 'bg-transparent text-[#6B7280]'
-              }`}
-              style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
-            >
-              Gasto
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTypeChange('income')}
-              className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                entryType === 'income'
-                  ? 'text-white'
-                  : 'bg-transparent text-[#6B7280]'
-              }`}
-              style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
-            >
-              Receita
-            </button>
-          </div>
-
-          {/* Valor */}
-          <div
-            className="flex items-center justify-center gap-2 py-2"
+          <form
+            onSubmit={handleSubmit}
             style={{
-              filter: inputFocused ? glowColor : 'none',
-              transition: 'filter 200ms ease',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r)',
+              padding: 18,
+              marginBottom: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
             }}
           >
-            <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
-              R$
-            </span>
-            <div className="relative w-48">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                  setInputScale(true);
-                  setTimeout(() => setInputScale(false), 100);
-                }}
-                onFocus={(e) => {
-                  setInputFocused(true);
-                  if (e.target.value === '0') setAmount('');
-                }}
-                onBlur={() => setInputFocused(false)}
-                placeholder="0"
-                required
-                className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
+            {/* 1. TOGGLE GASTO / RECEITA */}
+            <div
+              style={{
+                display: 'flex',
+                padding: 4,
+                borderRadius: 'var(--r-sm)',
+                background: 'var(--bg)',
+                gap: 4,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleTypeChange('expense')}
                 style={{
-                  transform: inputScale ? 'scale(1.02)' : 'scale(1)',
-                  transition: 'transform 100ms ease-out, color 200ms ease',
-                  caretColor: '#00b87a',
-                  cursor: inputFocused ? 'text' : 'pointer',
+                  flex: 1,
+                  padding: '9px 0',
+                  borderRadius: 'var(--r-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'Nunito, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  transition: 'all 0.2s ease',
+                  ...(entryType === 'expense'
+                    ? { background: 'var(--red)', color: 'white', boxShadow: '0 1px 4px rgba(255,71,87,0.25)' }
+                    : { background: 'transparent', color: 'var(--text-2)' }),
                 }}
-              />
-              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#00b87a' }} />
-              <div
-                className="absolute bottom-0 left-0 h-[2px]"
-                style={{ backgroundColor: '#00b87a', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
-              />
+              >
+                Gasto
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTypeChange('income')}
+                style={{
+                  flex: 1,
+                  padding: '9px 0',
+                  borderRadius: 'var(--r-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'Nunito, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  transition: 'all 0.2s ease',
+                  ...(entryType === 'income'
+                    ? { background: 'var(--green)', color: 'white', boxShadow: '0 1px 4px rgba(0,195,122,0.25)' }
+                    : { background: 'transparent', color: 'var(--text-2)' }),
+                }}
+              >
+                Receita
+              </button>
             </div>
-          </div>
 
-          {/* Toggle: Valor variável */}
-          <div className="flex items-center justify-between py-1">
-            <div>
-              <p className="text-gray-700 text-sm font-medium">Valor variável</p>
-              <p className="text-gray-400 text-xs">{isVariable ? 'Valor acima é estimado — você define o real ao pagar' : 'Valor fixo todo mês'}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsVariable((v) => !v)}
-              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isVariable ? 'bg-emerald-500' : 'bg-gray-200'}`}
-              aria-label="Valor variável"
+            {/* 2. VALOR HERO */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '12px 0 18px',
+              }}
             >
               <span
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isVariable ? 'left-[22px]' : 'left-0.5'}`}
-              />
-            </button>
-          </div>
-
-          {/* Toggle: Cartão de crédito */}
-          {entryType === 'expense' && (
-            <div>
-              <div className="flex items-center justify-between py-1">
-                <div>
-                  <p className="text-gray-700 text-sm font-medium">Pagar no cartão</p>
-                  <p className="text-gray-400 text-xs">{isCredit ? 'Cobrado na fatura do cartão' : 'Débito / dinheiro'}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCredit((v) => !v)}
-                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
-                  style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
-                  aria-label="Pagar no cartão"
-                >
-                  <span
-                    className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
-                    style={{ left: isCredit ? 22 : 2 }}
-                  />
-                </button>
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: hasAmount ? typeColor : 'var(--text-3)',
+                  opacity: hasAmount ? 0.6 : 1,
+                  transition: 'color 0.2s ease',
+                  userSelect: 'none',
+                }}
+              >
+                R$
+              </span>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
+                    setInputScale(true);
+                    setTimeout(() => setInputScale(false), 100);
+                  }}
+                  onFocus={(e) => {
+                    setInputFocused(true);
+                    if (e.target.value === '0') setAmount('');
+                  }}
+                  onBlur={() => setInputFocused(false)}
+                  placeholder="0"
+                  required
+                  style={{
+                    fontSize: 40,
+                    fontWeight: 900,
+                    fontFamily: 'Nunito, sans-serif',
+                    letterSpacing: '-0.03em',
+                    color: hasAmount ? typeColor : 'var(--text)',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    textAlign: 'center',
+                    width: 200,
+                    paddingBottom: 6,
+                    transition: 'color 200ms ease',
+                    caretColor: typeColor,
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background: typeColor,
+                    borderRadius: 1,
+                    opacity: inputFocused ? 1 : 0.45,
+                    transition: 'opacity 0.2s ease, background 0.2s ease',
+                  }}
+                />
               </div>
-              {isCredit && creditCards.length > 0 && (
-                <select
-                  value={selectedCardId}
-                  onChange={(e) => setSelectedCardId(e.target.value)}
-                  className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
-                >
-                  {creditCards.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
-              )}
-              {isCredit && creditCards.length === 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Nenhum cartão cadastrado.{' '}
-                  <a href="/cartoes" className="text-blue-500 underline">Adicionar →</a>
-                </p>
-              )}
             </div>
-          )}
 
-          {/* Descrição */}
-          <div>
-            <label className="text-gray-500 text-xs font-medium block mb-1.5">
-              Descrição
-            </label>
-            <input
-              id="campo-descricao"
-              type="text"
-              value={description}
-              onChange={(e) => {
-                const val = e.target.value;
-                setDescription(val);
-                if (descricaoError) setDescricaoError('');
-                if (val.trim().length >= 3) {
-                  setDuplicateWarning(findSimilarRecurring(val, recurrings));
-                } else {
-                  setDuplicateWarning(null);
+            {/* 3. TOGGLE VALOR VARIÁVEL */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                  Valor variável
+                </p>
+                <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: 0, marginTop: 1 }}>
+                  {isVariable ? 'Valor acima é estimado — você define o real ao pagar' : 'Valor fixo todo mês'}
+                </p>
+              </div>
+              <Switch on={isVariable} onToggle={() => setIsVariable((v) => !v)} ariaLabel="Valor variável" />
+            </div>
+
+            {/* 4. TOGGLE CARTÃO DE CRÉDITO */}
+            {entryType === 'expense' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                      Pagar no cartão
+                    </p>
+                    <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: 0, marginTop: 1 }}>
+                      {isCredit ? 'Cobrado na fatura do cartão' : 'Débito / dinheiro'}
+                    </p>
+                  </div>
+                  <Switch on={isCredit} onToggle={() => setIsCredit((v) => !v)} ariaLabel="Pagar no cartão" />
+                </div>
+                {isCredit && creditCards.length > 0 && (
+                  <select
+                    value={selectedCardId}
+                    onChange={(e) => setSelectedCardId(e.target.value)}
+                    style={{ ...fieldStyle, marginTop: 8 }}
+                  >
+                    {creditCards.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                  </select>
+                )}
+                {isCredit && creditCards.length === 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6 }}>
+                    Nenhum cartão cadastrado.{' '}
+                    <a href="/cartoes" style={{ color: 'var(--accent)' }}>Adicionar →</a>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 5. DESCRIÇÃO */}
+            <div>
+              <label style={fieldLabelStyle}>Descrição</label>
+              <input
+                id="campo-descricao"
+                type="text"
+                value={description}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDescription(val);
+                  if (descricaoError) setDescricaoError('');
+                  if (val.trim().length >= 3) {
+                    setDuplicateWarning(findSimilarRecurring(val, recurrings));
+                  } else {
+                    setDuplicateWarning(null);
+                  }
+                }}
+                placeholder={
+                  entryType === 'expense'
+                    ? 'Ex: Netflix, Academia, Aluguel...'
+                    : 'Ex: Salário, Freela mensal...'
                 }
-              }}
-              placeholder={
-                entryType === 'expense'
-                  ? 'Ex: Netflix, Academia, Aluguel...'
-                  : 'Ex: Salário, Freela mensal...'
-              }
-              maxLength={80}
-              className={`w-full bg-white border rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none transition-colors ${
-                descricaoError
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-[#E5E7EB] focus:border-[#00b87a]'
-              }`}
-            />
-            {descricaoError && (
-              <p className="text-red-500 text-xs mt-1">{descricaoError}</p>
-            )}
-            {duplicateWarning && (
-              <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                <p className="text-amber-700 text-sm font-medium">
-                  ⚠️ Já existe um recorrente com nome similar:{' '}
-                  <strong>{duplicateWarning.description} ({formatCurrency(duplicateWarning.amount)})</strong>.
-                  {' '}Deseja cadastrar mesmo assim?
-                </p>
-                <div className="flex gap-4 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => { setDescription(''); setDuplicateWarning(null); }}
-                    className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDuplicateWarning(null)}
-                    className="text-xs text-amber-700 underline hover:text-amber-900 transition-colors"
-                  >
-                    Cadastrar mesmo assim
-                  </button>
+                maxLength={80}
+                style={{
+                  ...fieldStyle,
+                  borderColor: descricaoError ? 'var(--red)' : 'var(--border)',
+                }}
+              />
+              {descricaoError && (
+                <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{descricaoError}</p>
+              )}
+              {duplicateWarning && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    background: 'var(--yellow-bg)',
+                    border: '1.5px solid rgba(255,184,0,0.25)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '10px 14px',
+                  }}
+                >
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--yellow-text)', margin: 0 }}>
+                    ⚠️ Já existe um recorrente similar:{' '}
+                    <strong>{duplicateWarning.description} ({formatCurrency(duplicateWarning.amount)})</strong>.
+                    {' '}Deseja cadastrar mesmo assim?
+                  </p>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => { setDescription(''); setDuplicateWarning(null); }}
+                      style={{ fontSize: 11, color: 'var(--yellow-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDuplicateWarning(null)}
+                      style={{ fontSize: 11, color: 'var(--yellow-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                    >
+                      Cadastrar mesmo assim
+                    </button>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* 6. DIA DE LANÇAMENTO + DIA DE VENCIMENTO */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={fieldLabelStyle}>Dia de lançamento</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={31}
+                  value={dayOfMonth}
+                  onChange={(e) => setDayOfMonth(e.target.value)}
+                  placeholder="Ex: 1"
+                  style={{ ...fieldStyle }}
+                />
+                <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
+                  Quando aparece no histórico
+                </p>
+              </div>
+              <div>
+                <label style={fieldLabelStyle}>Dia de vencimento</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={31}
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  placeholder="Ex: 10"
+                  style={{ ...fieldStyle }}
+                />
+                <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
+                  Limite para pagar sem atraso
+                </p>
+              </div>
+            </div>
+
+            {/* 7. CATEGORIA */}
+            <div>
+              <label style={fieldLabelStyle}>Categoria</label>
+              <button
+                type="button"
+                onClick={() => setShowCategoryPicker(true)}
+                style={{
+                  ...fieldStyle,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
+                  {CATEGORY_CONFIG[category].icon}
+                </span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                  {category}
+                </span>
+                <ChevronDown size={15} color="var(--text-3)" style={{ flexShrink: 0 }} />
+              </button>
+            </div>
+
+            {/* ERRO */}
+            {formError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: 'var(--red-bg)',
+                  border: '1.5px solid rgba(255,71,87,0.2)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '11px 14px',
+                  color: 'var(--red)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                {formError}
               </div>
             )}
-          </div>
 
-          {/* Dia do mês + Dia de vencimento — side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                Dia de lançamento
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={31}
-                value={dayOfMonth}
-                onChange={(e) => setDayOfMonth(e.target.value)}
-                placeholder="Ex: 1 (dia do mês)"
-                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
-              />
-              <p className="text-gray-500 text-xs mt-1">Quando aparece no histórico</p>
-            </div>
-            <div>
-              <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                Dia de vencimento
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={31}
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                placeholder="Ex: 10"
-                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#00b87a] transition-colors"
-              />
-              <p className="text-gray-500 text-xs mt-1">Limite para pagar sem atraso</p>
-            </div>
-          </div>
-
-          {/* Categoria */}
-          <div>
-            <label className="text-gray-500 text-xs font-medium block mb-1.5">
-              Categoria
-            </label>
+            {/* CTA */}
             <button
-              type="button"
-              onClick={() => setShowCategoryPicker(true)}
-              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#00b87a]"
+              type="submit"
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: 14,
+                borderRadius: 'var(--r-sm)',
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 800,
+                fontFamily: 'Nunito, sans-serif',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                opacity: saving ? 0.7 : 1,
+                transition: 'opacity 0.2s ease',
+                boxShadow: '0 4px 12px var(--accent-shadow)',
+              }}
             >
-              <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
-              <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
-              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+              {saving ? <Loader2 size={17} className="animate-spin" /> : 'Cadastrar recorrente'}
             </button>
-          </div>
+          </form>
+        </div>
 
-          {formError && (
-            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
-              <AlertCircle size={16} className="flex-shrink-0" />
-              {formError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full mt-6 h-[52px] rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
-            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : 'Cadastrar recorrente'}
-          </button>
-        </form>
-
-        {/* Lista de recorrentes */}
+        {/* ── LIST COLUMN ─────────────────────────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-3 pt-6 md:pt-0 mb-4">
-            <div className="flex-1 h-px bg-gray-100" />
-            <h2 className="text-gray-800 font-semibold text-sm whitespace-nowrap">
+          {/* Section title */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              paddingTop: 0,
+              marginBottom: 14,
+            }}
+            className="pt-6 md:pt-0"
+          >
+            <div style={{ flex: 1, height: 1, background: 'var(--border-2)' }} />
+            <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0, whiteSpace: 'nowrap' }}>
               Cadastrados
               {recurrings.length > 0 && (
-                <span className="ml-1 text-gray-500 font-normal">· {selectedMonthLabel}</span>
+                <span style={{ color: 'var(--text-3)', fontWeight: 500, marginLeft: 6 }}>
+                  · {selectedMonthLabel}
+                </span>
               )}
-            </h2>
-            <div className="flex-1 h-px bg-gray-100" />
+            </p>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-2)' }} />
           </div>
 
           {/* Seletor de mês */}
-          <div className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-1 py-1 mb-4">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r-sm)',
+              padding: '4px 6px',
+              marginBottom: 12,
+            }}
+          >
             <button
               onClick={() => startTransition(() => setSelectedMonth(shiftMonth(selectedMonth, -1)))}
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+              style={{
+                width: 34,
+                height: 34,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-2)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
               aria-label="Mês anterior"
             >
-              <ChevronLeft size={17} />
+              <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => { setPickerYear(parseInt(selectedMonth.split('-')[0])); setPickerOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 10px',
+                borderRadius: 8,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
-              <span className="text-gray-900 font-semibold text-sm">{selectedMonthLabelCap}</span>
-              <ChevronDown size={13} className="text-gray-400" />
-              {loadingMonth && <Loader2 size={12} className="animate-spin text-gray-400" />}
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                {selectedMonthLabelCap}
+              </span>
+              <ChevronDown size={12} color="var(--text-3)" />
+              {loadingMonth && <Loader2 size={12} className="animate-spin" color="var(--text-3)" />}
             </button>
             <button
               onClick={() => startTransition(() => setSelectedMonth(shiftMonth(selectedMonth, 1)))}
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+              style={{
+                width: 34,
+                height: 34,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-2)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
               aria-label="Próximo mês"
             >
-              <ChevronRight size={17} />
+              <ChevronRight size={16} />
             </button>
           </div>
 
-          {/* Popup picker de mês/ano */}
-          {pickerOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-                onClick={() => setPickerOpen(false)}
-              />
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-                <div
-                  className="w-full max-w-xs bg-white border border-gray-200 rounded-2xl p-5 shadow-2xl pointer-events-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Navegação de ano */}
-                  <div className="flex items-center justify-between mb-5">
-                    <button
-                      onClick={() => setPickerYear((y) => y - 1)}
-                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
-                      aria-label="Ano anterior"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <span className="text-gray-900 font-bold text-xl">{pickerYear}</span>
-                    <button
-                      onClick={() => setPickerYear((y) => y + 1)}
-                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-colors"
-                      aria-label="Próximo ano"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </div>
-
-                  {/* Grade de meses */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {MONTHS.map((name, idx) => {
-                      const month = idx + 1;
-                      const key = `${pickerYear}-${String(month).padStart(2, '0')}`;
-                      const isSelected = key === selectedMonth;
-                      const isNow = key === todayMonthKey;
-                      return (
-                        <button
-                          key={month}
-                          onClick={() => { startTransition(() => setSelectedMonth(key)); setPickerOpen(false); }}
-                          className={`py-3 rounded-xl text-sm font-medium transition-all ${
-                            isSelected
-                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                              : isNow
-                              ? 'bg-gray-50 text-emerald-600 ring-1 ring-emerald-400/40'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                          }`}
-                        >
-                          {name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Aviso ao navegar para outro mês */}
+          {/* Aviso mês diferente */}
           {!isCurrentMonth && (
-            <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+            <div
+              style={{
+                marginBottom: 10,
+                padding: '9px 13px',
+                background: 'var(--yellow-bg)',
+                border: '1.5px solid rgba(255,184,0,0.2)',
+                borderRadius: 'var(--r-sm)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--yellow-text)',
+              }}
+            >
               Visualizando {selectedMonthLabel} — volte ao mês atual para gerenciar pagamentos
             </div>
           )}
 
+          {/* Resumo */}
           {recurrings.length > 0 && (
-            <p className="text-gray-400 text-xs mb-3">
+            <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 10 }}>
               {recurrings.filter((r) => r.active).length} recorrentes
               {totalMonthlyAmount > 0 && ` · ${formatCurrency(totalMonthlyAmount)} total`}
             </p>
           )}
 
+          {/* Filter tabs */}
           {recurrings.length > 0 && (
-            <div className="flex items-center gap-4 mb-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
               {(['all', 'pendentes', 'pagas'] as const).map((tab) => {
                 const labels = { all: 'Ver tudo', pendentes: 'Pendentes', pagas: 'Pagas' };
                 const isActive = activeTab === tab;
@@ -780,10 +1014,17 @@ export default function RecorrentesPage() {
                   <button
                     key={tab}
                     onClick={() => startTransition(() => setActiveTab(tab))}
-                    className="pb-1 text-sm font-medium transition-colors"
                     style={{
-                      color: isActive ? '#10b981' : '#9ca3af',
-                      borderBottom: isActive ? '2px solid #10b981' : '2px solid transparent',
+                      paddingBottom: 4,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: 'Nunito, sans-serif',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                      color: isActive ? 'var(--accent)' : 'var(--text-3)',
+                      cursor: 'pointer',
+                      transition: 'color 0.15s ease, border-color 0.15s ease',
                     }}
                   >
                     {labels[tab]}
@@ -793,242 +1034,80 @@ export default function RecorrentesPage() {
             </div>
           )}
 
+          {/* Empty state */}
           {recurrings.length === 0 ? (
-            <div className="py-10 text-center">
-              <p className="text-5xl mb-3">🔄</p>
-              <p className="text-gray-900 font-semibold text-lg mb-2">Nenhuma conta fixa cadastrada</p>
-              <p className="text-gray-500 text-sm mx-auto max-w-[280px]">
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <p style={{ fontSize: 48, marginBottom: 12 }}>🔄</p>
+              <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
+                Nenhuma conta fixa cadastrada
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)', maxWidth: 280, margin: '0 auto' }}>
                 Cadastre contas que se repetem todo mês — aluguel, streaming, academia — e nunca perca um vencimento.
               </p>
             </div>
           ) : filteredRecurrings.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-6">
+            <p style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
               Nenhum item nesta categoria
             </p>
           ) : (
-            <div className="space-y-2">
-              {filteredRecurrings.map((rec) => {
-                const cfg = CATEGORY_CONFIG[rec.category];
-                const isIncome = rec.type === 'income';
-                const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
-                const isPaid = obligation?.status === 'paid';
-                const isPaying = obligation ? payingIds.has(obligation.id) : false;
-                const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {/* Gastos fixos */}
+              {expenseRecs.length > 0 && (
+                <>
+                  {activeTab === 'all' && (
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--text-3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        marginBottom: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0 }} />
+                      Gastos fixos
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: incomeRecs.length > 0 ? 16 : 0 }}>
+                    {expenseRecs.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
+                  </div>
+                </>
+              )}
 
-                // ── Badge & card state per month type ──────────────────────
-                let badgeText = '';
-                let badgeClass = '';
-                let leftBorderColor = 'transparent';
-                let cardBgClass = 'bg-white';
-                let showMarkPaid = false;
-                let showUndo = false;
-
-                if (isCurrentMonth) {
-                  const daysLate = !isPaid && todayDay > effectiveDueDay ? todayDay - effectiveDueDay : 0;
-                  const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
-
-                  leftBorderColor = !hasObligation
-                    ? 'transparent'
-                    : isPaid ? '#10B981'
-                    : daysLate > 0 ? '#EF4444'
-                    : '#F59E0B';
-
-                  cardBgClass = !hasObligation
-                    ? 'bg-white'
-                    : isPaid ? 'bg-[#F0FDF4]'
-                    : daysLate > 0 ? 'bg-[#FEF2F2]'
-                    : 'bg-[#FFFBEB]';
-
-                  if (hasObligation) {
-                    const paidAtLabel = (() => {
-                      if (!obligation?.paidAt) return 'Pago';
-                      const d = new Date(obligation.paidAt);
-                      const dd = String(d.getDate()).padStart(2, '0');
-                      const mm = String(d.getMonth() + 1).padStart(2, '0');
-                      return `Pago · ${dd}/${mm}`;
-                    })();
-                    badgeText = isPaid
-                      ? paidAtLabel
-                      : daysLate > 0 ? `Atrasado ${daysLate}d`
-                      : todayDay === effectiveDueDay ? 'Vence hoje'
-                      : effectiveDueDay === todayDay + 1 ? 'Vence amanhã'
-                      : `Vence dia ${effectiveDueDay}`;
-                    badgeClass = isPaid
-                      ? 'bg-emerald-500 text-white'
-                      : daysLate > 0 ? 'bg-red-500 text-white'
-                      : todayDay === effectiveDueDay ? 'bg-orange-500/20 text-orange-700'
-                      : effectiveDueDay === todayDay + 1 ? 'bg-yellow-400/20 text-yellow-700'
-                      : 'bg-gray-100 text-gray-500';
-                    showMarkPaid = !isPaid;
-                    showUndo = isPaid && paidExpenseIds.has(obligation!.id);
-                  }
-                } else if (isPastMonth) {
-                  if (rec.type === 'expense' && rec.active) {
-                    if (isPaid) {
-                      const paidAtLabel = (() => {
-                        if (!obligation?.paidAt) return 'Pago';
-                        const d = new Date(obligation.paidAt);
-                        const dd = String(d.getDate()).padStart(2, '0');
-                        const mm = String(d.getMonth() + 1).padStart(2, '0');
-                        return `Pago · ${dd}/${mm}`;
-                      })();
-                      badgeText = paidAtLabel;
-                      badgeClass = 'bg-emerald-500 text-white';
-                      leftBorderColor = '#10B981';
-                      cardBgClass = 'bg-[#F0FDF4]';
-                    } else {
-                      badgeText = 'Não pago';
-                      badgeClass = 'bg-red-100 text-red-500';
-                      leftBorderColor = '#FCA5A5';
-                      cardBgClass = 'bg-[#FEF2F2]';
-                    }
-                  }
-                } else {
-                  // future month
-                  if (rec.type === 'expense' && rec.active) {
-                    badgeText = 'Previsto';
-                    badgeClass = 'bg-gray-100 text-gray-500';
-                  }
-                }
-
-                const contentOpacity = isCurrentMonth && isPaid ? 'opacity-60' : '';
-                const isMenuOpen = openMenuId === rec.id;
-                const showBadge = badgeText !== '';
-                const displayName = rec.description?.trim()
-                  ? rec.description.charAt(0).toUpperCase() + rec.description.slice(1)
-                  : rec.category || 'Sem descrição';
-
-                return (
-                  <div
-                    key={rec.id}
-                    className={`border border-[#F3F4F6] rounded-xl transition-all ${cardBgClass} ${!rec.active ? 'opacity-50' : ''}`}
+              {/* Receitas fixas */}
+              {incomeRecs.length > 0 && activeTab === 'all' && (
+                <>
+                  <p
                     style={{
-                      padding: '12px 14px',
-                      borderLeftWidth: '3px',
-                      borderLeftColor: leftBorderColor,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--text-3)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      marginBottom: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
-                    <div className="flex items-start gap-2.5">
-                      {/* Category icon */}
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5 ${cfg.bgClass} ${contentOpacity}`}>
-                        {cfg.icon}
-                      </div>
-
-                      {/* Content — both rows */}
-                      <div className="flex-1 min-w-0">
-                        {/* Row 1: name + value + menu */}
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <p className={`flex-1 min-w-0 text-sm font-medium text-gray-900 truncate ${contentOpacity}`}>
-                            {displayName}
-                          </p>
-                          {rec.isVariable && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 flex-shrink-0">
-                              ~variável
-                            </span>
-                          )}
-                          <span className={`font-bold text-sm flex-shrink-0 ${isIncome ? 'text-mint-500' : 'text-gray-900'} ${contentOpacity}`}>
-                            {isIncome ? '+' : ''}{rec.isVariable ? '~' : ''}{formatCurrency(rec.amount)}
-                          </span>
-
-                          {/* Three-dot menu */}
-                          <div className="relative flex-shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(isMenuOpen ? null : rec.id);
-                              }}
-                              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                              aria-label="Mais opções"
-                            >
-                              <MoreHorizontal size={14} />
-                            </button>
-                            {isMenuOpen && (
-                              <div className="absolute right-0 top-7 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[120px]">
-                                <button
-                                  onClick={() => { openEditModal(rec); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Pencil size={12} />
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => { handleToggle(rec); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  {rec.active ? <Pause size={12} /> : <Play size={12} />}
-                                  {rec.active ? 'Pausar' : 'Ativar'}
-                                </button>
-                                <button
-                                  onClick={() => { handleDelete(rec.id); setOpenMenuId(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
-                                >
-                                  <Trash2 size={12} />
-                                  Excluir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Row 2: meta + badge + mark-paid / desfazer */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-gray-400 text-xs flex-1 min-w-0 truncate">
-                            {rec.category} · Dia {rec.dayOfMonth}
-                          </span>
-                          {rec.isCredit && rec.creditCardId && (() => {
-                            const cardName = creditCards.find((c) => c.id === rec.creditCardId)?.nome;
-                            return cardName ? (
-                              <span className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
-                                {cardName}
-                              </span>
-                            ) : null;
-                          })()}
-                          {showBadge && (
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0 ${badgeClass}`}>
-                              {badgeText}
-                            </span>
-                          )}
-                          {showMarkPaid && obligation && (
-                            <button
-                              onClick={() => {
-                                if (rec.isVariable) {
-                                  setVariablePayModal({ obligationId: obligation.id, estimatedAmount: rec.amount });
-                                  setVariableAmount(String(rec.amount));
-                                } else {
-                                  handleMarkObligationPaid(obligation.id);
-                                }
-                              }}
-                              disabled={isPaying}
-                              className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
-                            >
-                              {isPaying
-                                ? <Loader2 size={10} className="animate-spin" />
-                                : 'Marcar pago'}
-                            </button>
-                          )}
-                          {showUndo && obligation && (
-                            <button
-                              onClick={() => handleUnmarkObligationPaid(obligation.id)}
-                              disabled={undoingIds.has(obligation.id)}
-                              className="flex-shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium transition-colors disabled:opacity-50"
-                            >
-                              {undoingIds.has(obligation.id)
-                                ? <Loader2 size={10} className="animate-spin" />
-                                : 'Desfazer'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
+                    Receitas fixas
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {incomeRecs.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
                   </div>
-                );
-              })}
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
 
+      {/* ── CATEGORY PICKER ─────────────────────────────────────────────────── */}
       <CategoryPickerSheet
         open={showCategoryPicker}
         categories={categories}
@@ -1038,158 +1117,305 @@ export default function RecorrentesPage() {
         columns={entryType === 'expense' ? 4 : 2}
       />
 
-      {/* Modal: valor real para despesa variável */}
+      {/* ── MODAL: Valor variável ────────────────────────────────────────────── */}
       {variablePayModal && (
-        <>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          style={{ padding: 16 }}
+          onClick={() => setVariablePayModal(null)}
+        >
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            style={{ padding: '16px' }}
-            onClick={() => setVariablePayModal(null)}
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 20,
+              width: '90%',
+              maxWidth: 400,
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="bg-white rounded-2xl shadow-2xl"
-              style={{ width: '90%', maxWidth: '400px', padding: '24px' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-gray-900 font-semibold text-base mb-1">Confirmar pagamento</p>
-              <p className="text-gray-400 text-xs mb-4">
-                Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o valor real pago
-              </p>
-              <label className="text-gray-500 text-xs font-medium block mb-1.5">Valor pago (R$)</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                autoFocus
-                value={variableAmount}
-                onChange={(e) => setVariableAmount(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-lg font-semibold focus:outline-none focus:border-emerald-500 transition-colors mb-4"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setVariablePayModal(null)}
-                  className="flex-1 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors border border-gray-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    const parsed = parseFloat(variableAmount.replace(',', '.'));
-                    if (!parsed || parsed <= 0) return;
-                    const id = variablePayModal.obligationId;
-                    setVariablePayModal(null);
-                    handleMarkObligationPaid(id, parsed);
-                  }}
-                  className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
-                >
-                  Confirmar pagamento
-                </button>
-              </div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+              Confirmar pagamento
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
+              Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o valor real pago
+            </p>
+            <label style={fieldLabelStyle}>Valor pago (R$)</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              autoFocus
+              value={variableAmount}
+              onChange={(e) => setVariableAmount(e.target.value)}
+              style={{ ...fieldStyle, fontSize: 18, marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setVariablePayModal(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--bg)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--text-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const parsed = parseFloat(variableAmount.replace(',', '.'));
+                  if (!parsed || parsed <= 0) return;
+                  const id = variablePayModal.obligationId;
+                  setVariablePayModal(null);
+                  handleMarkObligationPaid(id, parsed);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--accent)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Confirmar pagamento
+              </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Modal de edição de recorrente */}
+      {/* ── MODAL: Editar recorrente ─────────────────────────────────────────── */}
       {editingRec && (
-        <>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          style={{ padding: 16 }}
+          onClick={() => setEditingRec(null)}
+        >
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            style={{ padding: '16px' }}
-            onClick={() => setEditingRec(null)}
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 20,
+              width: '100%',
+              maxWidth: 380,
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
-              style={{ padding: '24px' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-gray-900 font-semibold text-base mb-4">Editar recorrente</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
+              Editar recorrente
+            </p>
 
-              <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={fieldLabelStyle}>Descrição</label>
+                <input
+                  type="text"
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="Ex: Netflix, Academia, Aluguel..."
+                  maxLength={80}
+                  autoFocus
+                  style={{ ...fieldStyle }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label className="text-gray-500 text-xs font-medium block mb-1">Descrição</label>
+                  <label style={fieldLabelStyle}>Valor (R$)</label>
                   <input
-                    type="text"
-                    value={editDesc}
-                    onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="Ex: Netflix, Academia, Aluguel..."
-                    maxLength={80}
-                    autoFocus
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    style={{ ...fieldStyle }}
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium block mb-1">Valor (R$)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium block mb-1">Dia de lançamento</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={31}
-                      value={editDayOfMonth}
-                      onChange={(e) => setEditDayOfMonth(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium block mb-1">Dia de vencimento</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={31}
-                      value={editDueDay}
-                      onChange={(e) => setEditDueDay(e.target.value)}
-                      placeholder={editDayOfMonth || '—'}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                    />
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <label className="text-gray-500 text-xs font-medium block mb-1">Valor variável</label>
-                    <button
-                      type="button"
-                      onClick={() => setEditIsVariable((v) => !v)}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${editIsVariable ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                    >
-                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${editIsVariable ? 'left-[22px]' : 'left-0.5'}`} />
-                    </button>
-                  </div>
+                <div>
+                  <label style={fieldLabelStyle}>Dia lançamento</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    value={editDayOfMonth}
+                    onChange={(e) => setEditDayOfMonth(e.target.value)}
+                    style={{ ...fieldStyle }}
+                  />
                 </div>
               </div>
 
-              <div className="flex gap-2 mt-5">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={fieldLabelStyle}>Dia vencimento</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    value={editDueDay}
+                    onChange={(e) => setEditDueDay(e.target.value)}
+                    placeholder={editDayOfMonth || '—'}
+                    style={{ ...fieldStyle }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <label style={{ ...fieldLabelStyle, marginBottom: 10 }}>Valor variável</label>
+                  <Switch
+                    on={editIsVariable}
+                    onToggle={() => setEditIsVariable((v) => !v)}
+                    ariaLabel="Valor variável"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button
+                onClick={() => setEditingRec(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--bg)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--text-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--accent)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: editSaving ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  opacity: editSaving ? 0.7 : 1,
+                }}
+              >
+                {editSaving ? <Loader2 size={15} className="animate-spin" /> : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PICKER MODAL: mês/ano ────────────────────────────────────────────── */}
+      {pickerOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/60"
+            onClick={() => setPickerOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 20,
+                padding: 20,
+                width: '100%',
+                maxWidth: 300,
+                boxShadow: '0 24px 48px rgba(0,0,0,0.12)',
+              }}
+              className="pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Navegação de ano */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                 <button
-                  onClick={() => setEditingRec(null)}
-                  className="flex-1 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors border border-gray-200"
+                  onClick={() => setPickerYear((y) => y - 1)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-2)',
+                    background: 'var(--bg)',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Ano anterior"
                 >
-                  Cancelar
+                  <ChevronLeft size={16} />
                 </button>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{pickerYear}</span>
                 <button
-                  onClick={handleEditSave}
-                  disabled={editSaving}
-                  className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-                  style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                  onClick={() => setPickerYear((y) => y + 1)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-2)',
+                    background: 'var(--bg)',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Próximo ano"
                 >
-                  {editSaving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
+                  <ChevronRight size={16} />
                 </button>
+              </div>
+
+              {/* Grade de meses */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {MONTHS.map((name, idx) => {
+                  const month = idx + 1;
+                  const key = `${pickerYear}-${String(month).padStart(2, '0')}`;
+                  const isSelected = key === selectedMonth;
+                  const isNow = key === todayMonthKey;
+                  return (
+                    <button
+                      key={month}
+                      onClick={() => { startTransition(() => setSelectedMonth(key)); setPickerOpen(false); }}
+                      style={{
+                        padding: '10px 0',
+                        borderRadius: 10,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        fontFamily: 'Nunito, sans-serif',
+                        cursor: 'pointer',
+                        border: isNow && !isSelected ? '1.5px solid var(--accent-soft)' : 'none',
+                        background: isSelected ? 'var(--accent)' : isNow ? 'var(--accent-bg)' : 'var(--bg)',
+                        color: isSelected ? 'white' : isNow ? 'var(--accent)' : 'var(--text-2)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1197,4 +1423,329 @@ export default function RecorrentesPage() {
       )}
     </main>
   );
+
+  // ── RecurringItem sub-render ──────────────────────────────────────────────
+
+  function RecurringItem({ rec }: { rec: RecurringExpense }) {
+    const cfg = CATEGORY_CONFIG[rec.category];
+    const isIncome = rec.type === 'income';
+    const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
+    const isPaid = obligation?.status === 'paid';
+    const isPaying = obligation ? payingIds.has(obligation.id) : false;
+    const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
+    const isMenuOpen = openMenuId === rec.id;
+
+    let leftBorderColor = 'transparent';
+    let cardBg = 'var(--surface)';
+    let badgeText = '';
+    let badgeBg = 'var(--border-2)';
+    let badgeColor = 'var(--text-3)';
+    let showMarkPaid = false;
+    let showUndo = false;
+
+    if (isCurrentMonth) {
+      const daysLate = !isPaid && todayDay > effectiveDueDay ? todayDay - effectiveDueDay : 0;
+      const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
+
+      leftBorderColor = !hasObligation ? 'transparent'
+        : isPaid ? 'var(--green)'
+        : daysLate > 0 ? 'var(--red)'
+        : 'var(--yellow)';
+
+      cardBg = !hasObligation ? 'var(--surface)'
+        : isPaid ? 'var(--green-bg)'
+        : daysLate > 0 ? 'var(--red-bg)'
+        : 'var(--yellow-bg)';
+
+      if (hasObligation) {
+        const paidAtLabel = (() => {
+          if (!obligation?.paidAt) return 'Pago';
+          const d = new Date(obligation.paidAt);
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          return `Pago · ${dd}/${mm}`;
+        })();
+        badgeText = isPaid ? paidAtLabel
+          : daysLate > 0 ? `Atrasado ${daysLate}d`
+          : todayDay === effectiveDueDay ? 'Vence hoje'
+          : effectiveDueDay === todayDay + 1 ? 'Vence amanhã'
+          : `Vence dia ${effectiveDueDay}`;
+        badgeBg = isPaid ? 'var(--green)' : daysLate > 0 ? 'var(--red)'
+          : todayDay === effectiveDueDay ? 'rgba(255,184,0,0.2)'
+          : effectiveDueDay === todayDay + 1 ? 'rgba(255,184,0,0.15)'
+          : 'var(--border-2)';
+        badgeColor = isPaid ? 'white' : daysLate > 0 ? 'white'
+          : todayDay <= effectiveDueDay + 1 && todayDay >= effectiveDueDay - 1 ? 'var(--yellow-text)'
+          : 'var(--text-3)';
+        showMarkPaid = !isPaid;
+        showUndo = isPaid && paidExpenseIds.has(obligation!.id);
+      }
+    } else if (isPastMonth) {
+      if (rec.type === 'expense' && rec.active) {
+        const paidAtLabel = (() => {
+          if (!obligation?.paidAt) return 'Pago';
+          const d = new Date(obligation.paidAt);
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          return `Pago · ${dd}/${mm}`;
+        })();
+        if (isPaid) {
+          badgeText = paidAtLabel;
+          badgeBg = 'var(--green)'; badgeColor = 'white';
+          leftBorderColor = 'var(--green)'; cardBg = 'var(--green-bg)';
+        } else {
+          badgeText = 'Não pago';
+          badgeBg = 'var(--red-bg)'; badgeColor = 'var(--red)';
+          leftBorderColor = 'rgba(255,71,87,0.4)'; cardBg = 'var(--red-bg)';
+        }
+      }
+    } else {
+      if (rec.type === 'expense' && rec.active) {
+        badgeText = 'Previsto';
+        badgeBg = 'var(--border-2)'; badgeColor = 'var(--text-3)';
+      }
+    }
+
+    const contentOpacity = isCurrentMonth && isPaid ? 0.55 : 1;
+    const displayName = rec.description?.trim()
+      ? rec.description.charAt(0).toUpperCase() + rec.description.slice(1)
+      : rec.category || 'Sem descrição';
+    const cardName = rec.isCredit && rec.creditCardId
+      ? creditCards.find((c) => c.id === rec.creditCardId)?.nome
+      : null;
+
+    return (
+      <div
+        style={{
+          background: cardBg,
+          border: '1.5px solid var(--border)',
+          borderRadius: 'var(--r-sm)',
+          borderLeftWidth: 3,
+          borderLeftColor: leftBorderColor,
+          padding: '12px 14px',
+          boxShadow: 'var(--card-shadow)',
+          opacity: rec.active ? 1 : 0.45,
+          transition: 'all 0.2s ease',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          {/* Category icon */}
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: 'var(--logo-bg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              flexShrink: 0,
+              marginTop: 1,
+              opacity: contentOpacity,
+            }}
+          >
+            {cfg.icon}
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Row 1: name + badge variável + valor + menu */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <p
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: 'var(--text)',
+                  margin: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  opacity: contentOpacity,
+                }}
+              >
+                {displayName}
+              </p>
+              {rec.isVariable && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                    background: 'var(--accent-bg)',
+                    color: 'var(--accent)',
+                    flexShrink: 0,
+                  }}
+                >
+                  ~variável
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: isIncome ? 'var(--green)' : 'var(--red)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  opacity: contentOpacity,
+                }}
+              >
+                {isIncome ? '+' : ''}{rec.isVariable ? '~' : ''}{formatCurrency(rec.amount)}
+              </span>
+
+              {/* Menu */}
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuId(isMenuOpen ? null : rec.id);
+                  }}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-3)',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Mais opções"
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+                {isMenuOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 30,
+                      zIndex: 20,
+                      background: 'var(--surface)',
+                      border: '1.5px solid var(--border)',
+                      borderRadius: 12,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                      overflow: 'hidden',
+                      minWidth: 120,
+                    }}
+                  >
+                    <button onClick={() => { openEditModal(rec); setOpenMenuId(null); }} style={menuItemStyle}>
+                      <Pencil size={12} /> Editar
+                    </button>
+                    <button onClick={() => { handleToggle(rec); setOpenMenuId(null); }} style={menuItemStyle}>
+                      {rec.active ? <Pause size={12} /> : <Play size={12} />}
+                      {rec.active ? 'Pausar' : 'Ativar'}
+                    </button>
+                    <button onClick={() => { handleDelete(rec.id); setOpenMenuId(null); }} style={{ ...menuItemStyle, color: 'var(--red)' }}>
+                      <Trash2 size={12} /> Excluir
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: meta + cartão + badge + ações */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {rec.category}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)' }}>
+                · Todo dia {rec.dayOfMonth}
+              </span>
+              {cardName && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                    background: 'var(--accent-bg)',
+                    color: 'var(--accent)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {cardName}
+                </span>
+              )}
+              {badgeText && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    background: badgeBg,
+                    color: badgeColor,
+                    flexShrink: 0,
+                  }}
+                >
+                  {badgeText}
+                </span>
+              )}
+              {showMarkPaid && obligation && (
+                <button
+                  onClick={() => {
+                    if (rec.isVariable) {
+                      setVariablePayModal({ obligationId: obligation.id, estimatedAmount: rec.amount });
+                      setVariableAmount(String(rec.amount));
+                    } else {
+                      handleMarkObligationPaid(obligation.id);
+                    }
+                  }}
+                  disabled={isPaying}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 26,
+                    padding: '0 10px',
+                    borderRadius: 6,
+                    background: 'var(--green)',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: isPaying ? 'not-allowed' : 'pointer',
+                    opacity: isPaying ? 0.6 : 1,
+                  }}
+                >
+                  {isPaying ? <Loader2 size={10} className="animate-spin" /> : 'Marcar pago'}
+                </button>
+              )}
+              {showUndo && obligation && (
+                <button
+                  onClick={() => handleUnmarkObligationPaid(obligation.id)}
+                  disabled={undoingIds.has(obligation.id)}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 26,
+                    padding: '0 10px',
+                    borderRadius: 6,
+                    background: 'var(--bg)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--text-2)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: undoingIds.has(obligation.id) ? 'not-allowed' : 'pointer',
+                    opacity: undoingIds.has(obligation.id) ? 0.6 : 1,
+                  }}
+                >
+                  {undoingIds.has(obligation.id) ? <Loader2 size={10} className="animate-spin" /> : 'Desfazer'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

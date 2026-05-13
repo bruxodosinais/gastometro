@@ -19,6 +19,8 @@ import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calcu
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -65,6 +67,8 @@ function groupByDate(expenses: Expense[]) {
     .map(([date, items]) => ({ date, label: formatGroupLabel(date), items }));
 }
 
+// ── FilterTabs ────────────────────────────────────────────────────────────────
+
 function FilterTabs({
   active,
   onChange,
@@ -78,17 +82,24 @@ function FilterTabs({
     { key: 'income' as const, label: 'Receitas' },
   ];
   return (
-    <div className="flex items-center gap-4 mb-3">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
       {tabs.map((tab) => {
         const isActive = active === tab.key;
         return (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className="pb-1 text-sm font-medium transition-colors"
             style={{
-              color: isActive ? '#10b981' : '#9ca3af',
-              borderBottom: isActive ? '2px solid #10b981' : '2px solid transparent',
+              paddingBottom: 4,
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: 'Nunito, sans-serif',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+              color: isActive ? 'var(--accent)' : 'var(--text-3)',
+              cursor: 'pointer',
+              transition: 'color 0.15s ease, border-color 0.15s ease',
             }}
           >
             {tab.label}
@@ -98,6 +109,8 @@ function FilterTabs({
     </div>
   );
 }
+
+// ── ExpenseList ───────────────────────────────────────────────────────────────
 
 function ExpenseList({
   expenses,
@@ -126,77 +139,121 @@ function ExpenseList({
   }, [openMenuId]);
 
   if (expenses.length === 0) {
-    return <p className="text-gray-500 text-sm text-center py-6">Nenhum lançamento este mês ainda</p>;
+    return (
+      <p style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
+        Nenhum lançamento este mês ainda
+      </p>
+    );
   }
 
   const groups = groupByDate(expenses);
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {groups.map(({ date, label, items }) => (
         <div key={date}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold text-gray-400">{label}</span>
-            <div className="flex-1 h-px bg-gray-100" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {label}
+            </span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-2)' }} />
           </div>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {items.map((exp) => {
               const cfg = CATEGORY_CONFIG[exp.category];
               const isIncome = exp.type === 'income';
               const isNewest = exp.id === newestId;
               const isFlashing = exp.id === flashId;
               const isMenuOpen = openMenuId === exp.id;
+              const cardName = exp.isCredit && exp.creditCardId
+                ? creditCards.find((c) => c.id === exp.creditCardId)?.nome
+                : null;
               return (
                 <div
                   key={exp.id}
-                  className={`border border-[#F3F4F6] rounded-xl px-4 py-3 flex items-center gap-3 transition-colors duration-500 ${
-                    isFlashing ? 'bg-gray-100/60' : 'bg-white'
-                  } ${isNewest ? 'animate-in fade-in slide-in-from-bottom-3 duration-[180ms] ease-out' : ''}`}
-                  style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                  className={isNewest ? 'animate-in fade-in slide-in-from-bottom-3 duration-[180ms] ease-out' : ''}
+                  style={{
+                    background: isFlashing ? 'var(--accent-bg)' : 'var(--surface)',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '11px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    boxShadow: 'var(--card-shadow)',
+                    transition: 'background 0.3s ease',
+                  }}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${cfg.bgClass}`}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: 'var(--logo-bg)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 17,
+                      flexShrink: 0,
+                    }}
+                  >
                     {cfg.icon}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-900 text-sm font-medium truncate">{exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-gray-500 text-xs">{exp.category}</p>
-                      {exp.isCredit && exp.creditCardId
-                        ? creditCards.find((c) => c.id === exp.creditCardId)?.nome
-                          ? <span className="text-[11px] font-medium px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: '#eff6ff', color: '#1d4ed8' }}>{creditCards.find((c) => c.id === exp.creditCardId)!.nome}</span>
-                          : null
-                        : null}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{exp.category}</span>
+                      {cardName && (
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-bg)', color: 'var(--accent)' }}>
+                          {cardName}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <span className="font-semibold text-sm whitespace-nowrap flex-shrink-0" style={{ color: isIncome ? '#10B981' : '#EF4444', minWidth: 'fit-content' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0, color: isIncome ? 'var(--green)' : 'var(--red)' }}>
                     {isIncome ? '+' : ''}{formatCurrency(exp.amount)}
                   </span>
-                  <div className="relative flex-shrink-0">
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : exp.id); }}
-                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--text-3)',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                      }}
                       aria-label="Mais opções"
                     >
                       <MoreHorizontal size={16} />
                     </button>
                     {isMenuOpen && (
-                      <div className="absolute right-0 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[130px]">
-                        <button
-                          onClick={() => { onEdit(exp); setOpenMenuId(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
+                      <div style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 34,
+                        zIndex: 20,
+                        background: 'var(--surface)',
+                        border: '1.5px solid var(--border)',
+                        borderRadius: 12,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                        overflow: 'hidden',
+                        minWidth: 130,
+                      }}>
+                        <button onClick={() => { onEdit(exp); setOpenMenuId(null); }} style={menuItemStyle}>
                           <Pencil size={12} /> Editar
                         </button>
-                        <button
-                          onClick={() => { onDuplicate(exp); setOpenMenuId(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
+                        <button onClick={() => { onDuplicate(exp); setOpenMenuId(null); }} style={menuItemStyle}>
                           <Copy size={12} /> Duplicar
                         </button>
-                        <button
-                          onClick={() => { onDelete(exp); setOpenMenuId(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
-                        >
+                        <button onClick={() => { onDelete(exp); setOpenMenuId(null); }} style={{ ...menuItemStyle, color: 'var(--red)' }}>
                           <Trash2 size={12} /> Excluir
                         </button>
                       </div>
@@ -211,6 +268,50 @@ function ExpenseList({
     </div>
   );
 }
+
+const menuItemStyle: React.CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 14px',
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--text)',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  fontFamily: 'Nunito, sans-serif',
+  textAlign: 'left',
+};
+
+// ── Field label style ─────────────────────────────────────────────────────────
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
+  display: 'block',
+};
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--bg)',
+  border: '1.5px solid var(--border)',
+  borderRadius: 'var(--r-sm)',
+  padding: '12px 15px',
+  fontSize: 13,
+  fontWeight: 700,
+  color: 'var(--text)',
+  fontFamily: 'Nunito, sans-serif',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function LancamentosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -402,65 +503,114 @@ export default function LancamentosPage() {
     : entryType === 'income' ? 'Lançar receita'
     : 'Lançar gasto';
 
-  const ctaBg = entryType === 'income' ? '#10B981' : '#EF4444';
-
-  const glowColor = entryType === 'expense'
-    ? 'drop-shadow(0 0 12px rgba(248, 113, 113, 0.3))'
-    : 'drop-shadow(0 0 12px rgba(74, 222, 128, 0.3))';
-
-  const valueColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400' : 'text-mint-500'
-    : 'text-gray-900';
-
-  const prefixColor = hasAmount
-    ? entryType === 'expense' ? 'text-red-400/50' : 'text-mint-500/50'
-    : 'text-gray-500';
+  const typeColor = entryType === 'income' ? 'var(--green)' : 'var(--red)';
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#F9FAFB] -z-10 pointer-events-none" />
-      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-36 md:pb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Lançar</h1>
-        <p className="text-gray-500 text-sm mb-5">Registre um gasto ou receita</p>
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-36 md:pb-8"
+        style={{ background: 'var(--bg)', minHeight: '100vh' }}
+      >
+        {/* ── HEADER ──────────────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, marginBottom: 4 }}>
+            Lançar
+          </h1>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', margin: 0 }}>
+            Registre um gasto ou receita
+          </p>
+        </div>
+
         <div className="md:grid md:grid-cols-[420px_1fr] md:gap-8 md:items-start">
 
-          {/* FORM COLUMN */}
+          {/* ── FORM COLUMN ─────────────────────────────────────────────────── */}
           <div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 md:mb-0 space-y-4">
-
-              {/* 1. TOGGLE */}
-              <div className="flex p-1 rounded-[10px] h-11" style={{ backgroundColor: '#F3F4F6' }}>
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--r)',
+                padding: 18,
+                marginBottom: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 14,
+              }}
+            >
+              {/* 1. TOGGLE GASTO / RECEITA */}
+              <div
+                style={{
+                  display: 'flex',
+                  padding: 4,
+                  borderRadius: 'var(--r-sm)',
+                  background: 'var(--bg)',
+                  gap: 4,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => handleTypeChange('expense')}
-                  className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                    entryType === 'expense' ? 'text-white' : 'bg-transparent text-[#6B7280]'
-                  }`}
-                  style={entryType === 'expense' ? { backgroundColor: '#EF4444', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    borderRadius: 'var(--r-sm)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'Nunito, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    transition: 'all 0.2s ease',
+                    ...(entryType === 'expense'
+                      ? { background: 'var(--red)', color: 'white', boxShadow: '0 1px 4px rgba(255,71,87,0.25)' }
+                      : { background: 'transparent', color: 'var(--text-2)' }),
+                  }}
                 >
                   Gasto
                 </button>
                 <button
                   type="button"
                   onClick={() => handleTypeChange('income')}
-                  className={`flex-1 rounded-[8px] text-sm font-semibold transition-all duration-200 ease-in-out ${
-                    entryType === 'income' ? 'text-white' : 'bg-transparent text-[#6B7280]'
-                  }`}
-                  style={entryType === 'income' ? { backgroundColor: '#10B981', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' } : {}}
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    borderRadius: 'var(--r-sm)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'Nunito, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    transition: 'all 0.2s ease',
+                    ...(entryType === 'income'
+                      ? { background: 'var(--green)', color: 'white', boxShadow: '0 1px 4px rgba(0,195,122,0.25)' }
+                      : { background: 'transparent', color: 'var(--text-2)' }),
+                  }}
                 >
                   Receita
                 </button>
               </div>
 
-              {/* 2. VALUE DISPLAY */}
+              {/* 2. VALOR HERO */}
               <div
-                className="flex items-center justify-center gap-2 py-2"
-                style={{ filter: inputFocused ? glowColor : 'none', transition: 'filter 200ms ease' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '12px 0 18px',
+                }}
               >
-                <span className={`text-3xl font-semibold select-none transition-colors duration-200 ${prefixColor}`}>
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: hasAmount ? typeColor : 'var(--text-3)',
+                    opacity: hasAmount ? 0.6 : 1,
+                    transition: 'color 0.2s ease',
+                    userSelect: 'none',
+                  }}
+                >
                   R$
                 </span>
-                <div className="relative w-48">
+                <div style={{ position: 'relative' }}>
                   <input
                     ref={amountRef}
                     type="text"
@@ -475,19 +625,35 @@ export default function LancamentosPage() {
                     }}
                     onBlur={() => setInputFocused(false)}
                     placeholder="0"
-                    className={`text-6xl font-bold bg-transparent border-none outline-none text-center w-full pb-1 placeholder:text-slate-700 transition-colors duration-200 ${valueColor}`}
                     style={{
-                      transform: inputScale ? 'scale(1.02)' : 'scale(1)',
+                      fontSize: 40,
+                      fontWeight: 900,
+                      fontFamily: 'Nunito, sans-serif',
+                      letterSpacing: '-0.03em',
+                      color: hasAmount ? typeColor : 'var(--text)',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      textAlign: 'center',
+                      width: 200,
+                      paddingBottom: 6,
                       opacity: valueOpacity,
-                      transition: 'transform 100ms ease-out, opacity 150ms ease, color 200ms ease',
-                      caretColor: '#00b87a',
-                      cursor: inputFocused ? 'text' : 'pointer',
+                      transition: 'opacity 150ms ease, color 200ms ease',
+                      caretColor: typeColor,
                     }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: '#00b87a' }} />
                   <div
-                    className="absolute bottom-0 left-0 h-[2px]"
-                    style={{ backgroundColor: '#00b87a', width: inputFocused ? '100%' : '0%', transition: 'width 200ms ease' }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 2,
+                      background: typeColor,
+                      borderRadius: 1,
+                      opacity: inputFocused ? 1 : 0.45,
+                      transition: 'opacity 0.2s ease, background 0.2s ease',
+                    }}
                   />
                 </div>
               </div>
@@ -495,34 +661,61 @@ export default function LancamentosPage() {
               {/* 2b. CARTÃO DE CRÉDITO */}
               {entryType === 'expense' && (
                 <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-gray-500 text-xs font-medium">Pagar com cartão de crédito</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                        Pagar com cartão de crédito
+                      </p>
+                      <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: 0, marginTop: 1 }}>
+                        Lança na fatura do cartão
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setIsCredit((v) => !v)}
-                      className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-                      style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
+                      style={{
+                        position: 'relative',
+                        width: 40,
+                        height: 22,
+                        flexShrink: 0,
+                        borderRadius: 11,
+                        border: isCredit ? 'none' : '1.5px solid var(--border)',
+                        background: isCredit ? 'var(--accent)' : 'var(--bg)',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s ease, border-color 0.2s ease',
+                        padding: 0,
+                      }}
                       role="switch"
                       aria-checked={isCredit}
                     >
                       <span
-                        className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                        style={{ margin: 2, transform: isCredit ? 'translateX(16px)' : 'translateX(0)' }}
+                        style={{
+                          position: 'absolute',
+                          top: isCredit ? 3 : 2,
+                          left: isCredit ? 21 : 2,
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          background: isCredit ? 'white' : 'var(--text-3)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                          transition: 'left 0.2s ease, background 0.2s ease',
+                        }}
                       />
                     </button>
                   </div>
+
                   {isCredit && (
-                    <div className="mt-2 space-y-2">
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {creditCards.length === 0 ? (
-                        <p className="text-xs text-gray-500">
+                        <p style={{ fontSize: 12, color: 'var(--text-3)' }}>
                           Nenhum cartão cadastrado.{' '}
-                          <a href="/cartoes" className="text-blue-500 underline">Adicionar cartão →</a>
+                          <a href="/cartoes" style={{ color: 'var(--accent)' }}>Adicionar cartão →</a>
                         </p>
                       ) : (
                         <select
                           value={selectedCardId}
                           onChange={(e) => setSelectedCardId(e.target.value)}
-                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                          style={{ ...fieldStyle }}
                         >
                           {creditCards.map((c) => (
                             <option key={c.id} value={c.id}>{c.nome}</option>
@@ -530,11 +723,11 @@ export default function LancamentosPage() {
                         </select>
                       )}
                       <div>
-                        <label className="text-gray-400 text-xs font-medium block mb-1">Mês da fatura</label>
+                        <label style={fieldLabelStyle}>Mês da fatura</label>
                         <select
                           value={billingMonth}
                           onChange={(e) => setBillingMonth(e.target.value)}
-                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                          style={{ ...fieldStyle }}
                         >
                           {getBillingMonthOptions().map(({ value, label }) => (
                             <option key={value} value={value}>{label}</option>
@@ -546,36 +739,50 @@ export default function LancamentosPage() {
                 </div>
               )}
 
-              {/* 3. CATEGORY */}
+              {/* 3. CATEGORIA */}
               <div>
-                <label className="text-gray-500 text-xs font-medium block mb-1.5">Categoria</label>
+                <label style={fieldLabelStyle}>Categoria</label>
                 <button
                   type="button"
                   onClick={() => setShowCategoryPicker(true)}
-                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
+                  style={{
+                    ...fieldStyle,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
                 >
-                  <span className="text-lg leading-none flex-shrink-0">{CATEGORY_CONFIG[category].icon}</span>
-                  <span className="flex-1 text-sm text-gray-900 font-medium">{category}</span>
-                  <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                  <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
+                    {CATEGORY_CONFIG[category].icon}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                    {category}
+                  </span>
+                  <ChevronDown size={15} color="var(--text-3)" style={{ flexShrink: 0 }} />
                 </button>
               </div>
 
-              {/* 4. DESCRIPTION */}
+              {/* 4. DESCRIÇÃO */}
               <div>
-                <label className="text-gray-500 text-xs font-medium block mb-1.5">Descrição</label>
+                <label style={fieldLabelStyle}>Descrição</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
-                  className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                  style={{
+                    ...fieldStyle,
+                    fontWeight: description ? 700 : 400,
+                  }}
                 />
               </div>
 
-              {/* 5. DATE */}
+              {/* 5. DATA */}
               <div>
-                <label className="text-gray-500 text-xs font-medium block mb-1.5">Data</label>
+                <label style={fieldLabelStyle}>Data</label>
                 {showDatePicker ? (
                   <input
                     ref={dateInputRef}
@@ -583,16 +790,24 @@ export default function LancamentosPage() {
                     value={date}
                     onChange={(e) => { setDate(e.target.value); setShowDatePicker(false); }}
                     onBlur={() => setShowDatePicker(false)}
-                    className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED] transition-colors"
+                    style={{ ...fieldStyle }}
                   />
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(true)}
-                    className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 flex items-center gap-2.5 text-left transition-colors hover:border-[#7C3AED]"
+                    style={{
+                      ...fieldStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      cursor: 'pointer',
+                    }}
                   >
-                    <CalendarDays size={16} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1 text-sm text-gray-900">{formatDateDisplay(date)}</span>
+                    <CalendarDays size={15} color="var(--text-3)" style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                      {formatDateDisplay(date)}
+                    </span>
                   </button>
                 )}
               </div>
@@ -602,39 +817,69 @@ export default function LancamentosPage() {
                 <button
                   type="button"
                   onClick={() => setShowMoreOptions((v) => !v)}
-                  className="flex items-center gap-1.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: 'var(--text-2)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'Nunito, sans-serif',
+                    padding: 0,
+                  }}
                 >
-                  <Settings2 size={14} />
+                  <Settings2 size={14} color="var(--text-3)" />
                   Mais opções
-                  <ChevronDown size={14} className={`transition-transform duration-200 ${showMoreOptions ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    size={14}
+                    color="var(--text-3)"
+                    style={{
+                      transform: showMoreOptions ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                    }}
+                  />
                 </button>
 
                 {showMoreOptions && (
-                  <div className="mt-3 space-y-4">
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div>
-                      <label className="text-gray-500 text-xs font-medium block mb-2">Tipo de lançamento</label>
-                      <div className="flex gap-2">
-                        {(['single', 'recurring', 'installments'] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => setLaunchMode(mode)}
-                            className="flex-1 py-2 px-3 rounded-[8px] text-xs font-semibold transition-all duration-200"
-                            style={
-                              launchMode === mode
-                                ? { backgroundColor: '#7C3AED', color: '#FFFFFF' }
-                                : { backgroundColor: '#F3F4F6', color: '#6B7280' }
-                            }
-                          >
-                            {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
-                          </button>
-                        ))}
+                      <label style={fieldLabelStyle}>Tipo de lançamento</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {(['single', 'recurring', 'installments'] as const).map((mode) => {
+                          const isActive = launchMode === mode;
+                          return (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setLaunchMode(mode)}
+                              style={{
+                                flex: 1,
+                                padding: '8px 6px',
+                                borderRadius: 'var(--r-sm)',
+                                border: isActive ? 'none' : '1.5px solid var(--border)',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                fontFamily: 'Nunito, sans-serif',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                ...(isActive
+                                  ? { background: 'var(--accent)', color: 'white' }
+                                  : { background: 'var(--bg)', color: 'var(--text-2)' }),
+                              }}
+                            >
+                              {mode === 'single' ? 'Único' : mode === 'installments' ? 'Parcelado' : 'Recorrente'}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {launchMode === 'installments' && (
                       <div>
-                        <label className="text-gray-500 text-xs font-medium block mb-1.5">Número de parcelas</label>
+                        <label style={fieldLabelStyle}>Número de parcelas</label>
                         <input
                           type="number"
                           inputMode="numeric"
@@ -642,9 +887,9 @@ export default function LancamentosPage() {
                           max={48}
                           value={installments}
                           onChange={(e) => setInstallments(Math.min(48, Math.max(2, parseInt(e.target.value) || 2)))}
-                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-[#7C3AED] transition-colors"
+                          style={{ ...fieldStyle }}
                         />
-                        <p className="text-gray-500 text-xs mt-1">
+                        <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
                           {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
                         </p>
                       </div>
@@ -652,7 +897,7 @@ export default function LancamentosPage() {
 
                     {launchMode === 'recurring' && (
                       <div>
-                        <label className="text-gray-500 text-xs font-medium block mb-1.5">Dia do mês para lançar automaticamente</label>
+                        <label style={fieldLabelStyle}>Dia do mês para lançar automaticamente</label>
                         <input
                           type="number"
                           inputMode="numeric"
@@ -661,18 +906,34 @@ export default function LancamentosPage() {
                           value={recurringDay}
                           onChange={(e) => setRecurringDay(e.target.value)}
                           placeholder="Ex: 5"
-                          className="w-full bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 text-gray-900 text-sm placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#7C3AED] transition-colors"
+                          style={{ ...fieldStyle }}
                         />
-                        <p className="text-gray-500 text-xs mt-1">Este lançamento será repetido todo mês nessa data</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                          Este lançamento será repetido todo mês nessa data
+                        </p>
                       </div>
                     )}
                   </div>
                 )}
               </div>
 
+              {/* ERRO */}
               {error && (
-                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
-                  <AlertCircle size={16} className="flex-shrink-0" />
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'var(--red-bg)',
+                    border: '1.5px solid rgba(255,71,87,0.2)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '11px 14px',
+                    color: 'var(--red)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
                   {error}
                 </div>
               )}
@@ -682,21 +943,38 @@ export default function LancamentosPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isValid || saving}
-                className="flex w-full h-[52px] rounded-xl font-semibold text-white transition-all items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                style={{ backgroundColor: isValid ? ctaBg : '#D1D5DB' }}
+                style={{
+                  width: '100%',
+                  padding: 14,
+                  borderRadius: 'var(--r-sm)',
+                  border: 'none',
+                  background: isValid ? typeColor : 'var(--text-3)',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  fontFamily: 'Nunito, sans-serif',
+                  cursor: isValid && !saving ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'background 0.2s ease, opacity 0.2s ease',
+                  opacity: isValid ? 1 : 0.65,
+                }}
               >
-                {saving ? <Loader2 size={18} className="animate-spin" /> : ctaLabel}
+                {saving ? <Loader2 size={17} className="animate-spin" /> : ctaLabel}
               </button>
-
             </div>
           </div>
 
-          {/* LIST COLUMN — desktop */}
+          {/* ── LIST COLUMN (desktop) ────────────────────────────────────────── */}
           <div
             className="hidden md:block"
-            style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
+            style={{ opacity: hasAmount ? 0.55 : 1, transition: 'opacity 300ms ease' }}
           >
-            <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
+            <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
+              Este mês
+            </p>
             <FilterTabs active={filterTab} onChange={setFilterTab} />
             <ExpenseList
               expenses={currentExpenses}
@@ -710,12 +988,14 @@ export default function LancamentosPage() {
           </div>
         </div>
 
-        {/* LIST — mobile */}
+        {/* ── LIST (mobile) ────────────────────────────────────────────────── */}
         <div
-          className="md:hidden mt-6"
-          style={{ opacity: hasAmount ? 0.58 : 1, transition: 'opacity 300ms ease' }}
+          className="md:hidden"
+          style={{ marginTop: 24, opacity: hasAmount ? 0.55 : 1, transition: 'opacity 300ms ease' }}
         >
-          <h2 className="text-gray-800 font-semibold text-sm mb-3">Este mês</h2>
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
+            Este mês
+          </p>
           <FilterTabs active={filterTab} onChange={setFilterTab} />
           <ExpenseList
             expenses={currentExpenses}
@@ -728,13 +1008,34 @@ export default function LancamentosPage() {
         </div>
       </main>
 
-{topToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pointer-events-none">
+      {/* ── TOP TOAST ────────────────────────────────────────────────────────── */}
+      {topToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            padding: '0 16px',
+            width: '100%',
+            maxWidth: 360,
+            pointerEvents: 'none',
+          }}
+        >
           <div
-            className="bg-gray-50 border border-green-500/40 text-gray-900 text-sm font-medium px-4 py-3 rounded-xl shadow-lg text-center"
             style={{
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              color: 'var(--text)',
+              fontSize: 13,
+              fontWeight: 700,
+              padding: '12px 18px',
+              borderRadius: 'var(--r-sm)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+              textAlign: 'center',
               opacity: toastVisible ? 1 : 0,
-              transform: toastVisible ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.98)',
+              transform: toastVisible ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
               transition: toastVisible
                 ? 'opacity 200ms ease-out, transform 200ms ease-out'
                 : 'opacity 150ms ease',
@@ -745,6 +1046,7 @@ export default function LancamentosPage() {
         </div>
       )}
 
+      {/* ── MODALS ───────────────────────────────────────────────────────────── */}
       {editingExpense && (
         <EditExpenseModal
           expense={editingExpense}
