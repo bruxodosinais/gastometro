@@ -958,69 +958,15 @@ export default function HomePage() {
             <div
               style={{
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 position: 'relative',
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.7)',
-                    margin: 0,
-                  }}
-                >
-                  Saldo bancário
-                </p>
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: 'white',
-                    margin: '2px 0 0',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {formatCurrency(debitBalance)}
-                </p>
-              </div>
-              <div
-                style={{
-                  width: 1,
-                  height: 32,
-                  background: 'rgba(255,255,255,0.15)',
-                  margin: '0 14px',
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.7)',
-                    margin: 0,
-                  }}
-                >
-                  Fatura atual
-                </p>
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: '#FFB3B3',
-                    margin: '2px 0 0',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  −{formatCurrency(periodCreditTotal)}
-                </p>
-              </div>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#FFB3B3' }}>
+                −{formatCurrency(periodCreditTotal)}
+              </span>
             </div>
           </>
         )}
