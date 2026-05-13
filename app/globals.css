@@ -141,3 +141,54 @@ input[type='date']::-webkit-calendar-picker-indicator {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
+
+/* ── Auth screens ─────────────────────────────────────────────────────── */
+.auth-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 15px 44px 15px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.auth-input::placeholder {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.auth-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.auth-input.field-error {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-bg);
+}
+.auth-btn {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 17px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.auth-btn:not(:disabled):active {
+  opacity: 0.9;
+  transform: scale(0.99);
+}
+.auth-btn:disabled {
+  cursor: default;
+}
+.auth-hero {
+  animation: up 0.35s ease 0s both;
+}
+.auth-form {
+  animation: up 0.35s ease 0.08s both;
+}

@@ -4,6 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
+function EnvelopeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <rect x="2" y="4.5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M2 7.5l7 4.5 7-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function RecuperarSenhaPage() {
   const [email, setEmail] = useState('');
   const [mensagem, setMensagem] = useState('');
@@ -29,65 +38,184 @@ export default function RecuperarSenhaPage() {
     setLoading(false);
   }
 
+  const isDisabled = loading || !email;
+
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
-            🔑
+    <main
+      style={{
+        background: 'var(--bg)',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '0 16px 40px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '390px',
+          paddingTop: '44px',
+        }}
+      >
+        {/* Hero */}
+        <div className="auth-hero" style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: '24px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '38px',
+              margin: '0 auto 16px',
+            }}
+          >
+            ✅
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Recuperar senha</h1>
-          <p className="text-gray-500 text-sm mt-1">Informe seu e-mail para receber o link</p>
+          <h1
+            style={{
+              fontWeight: 900,
+              fontSize: '28px',
+              letterSpacing: '-0.03em',
+              margin: '0 0 6px',
+              color: 'var(--text)',
+            }}
+          >
+            Tô<span style={{ color: 'var(--accent)' }}>Organizado</span>
+          </h1>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-3)', margin: 0 }}>
+            Vamos recuperar sua conta
+          </p>
         </div>
 
         {mensagem ? (
-          <div className="text-center">
-            <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl py-3 px-4">
+          <div className="auth-form" style={{ textAlign: 'center' }}>
+            <p
+              style={{
+                fontSize: '14px',
+                color: 'var(--green-text)',
+                background: 'var(--green-bg)',
+                border: '1px solid var(--green)',
+                borderRadius: '12px',
+                padding: '12px 16px',
+              }}
+            >
               {mensagem}
             </p>
             <Link
               href="/auth/login"
-              className="inline-block mt-6 text-mint-500 text-sm font-medium"
+              style={{
+                display: 'inline-block',
+                marginTop: '24px',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--accent)',
+                textDecoration: 'none',
+              }}
             >
               ← Voltar para o login
             </Link>
           </div>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form
+              className="auth-form"
+              onSubmit={handleSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              {/* E-mail */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    color: 'var(--text-3)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.09em',
+                    marginBottom: '7px',
+                  }}
+                >
                   E-mail
                 </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  required
-                  autoComplete="email"
-                  className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    required
+                    autoComplete="email"
+                    className={`auth-input${erro ? ' field-error' : ''}`}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-3)',
+                      display: 'flex',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <EnvelopeIcon />
+                  </span>
+                </div>
               </div>
 
+              {/* Erro */}
               {erro && (
-                <p className="text-red-400 text-sm text-center bg-red-500/10 rounded-xl py-2.5 px-4">
+                <p
+                  style={{
+                    fontSize: '13px',
+                    textAlign: 'center',
+                    color: 'var(--red)',
+                    background: 'var(--red-bg)',
+                    borderRadius: '12px',
+                    padding: '10px 16px',
+                    margin: 0,
+                  }}
+                >
                   {erro}
                 </p>
               )}
 
+              {/* Botão */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3.5 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors"
-                style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                disabled={isDisabled}
+                className="auth-btn"
+                style={{
+                  background: isDisabled ? '#D1D1F0' : 'var(--accent)',
+                  color: isDisabled ? '#8888CC' : '#ffffff',
+                  boxShadow: isDisabled
+                    ? 'none'
+                    : '0 4px 20px rgba(91,91,214,0.38), 0 1px 4px rgba(91,91,214,0.2)',
+                }}
               >
-                {loading ? 'Enviando...' : 'Enviar link'}
+                {loading ? 'Enviando...' : 'Enviar link de recuperação'}
               </button>
             </form>
 
-            <p className="text-center text-gray-500 text-sm mt-6">
-              <Link href="/auth/login" className="text-mint-500 font-medium">
+            <p
+              style={{
+                textAlign: 'center',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--text-2)',
+                marginTop: '20px',
+              }}
+            >
+              <Link
+                href="/auth/login"
+                style={{ color: 'var(--accent)', fontWeight: 800, textDecoration: 'none' }}
+              >
                 ← Voltar para o login
               </Link>
             </p>

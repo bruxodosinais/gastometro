@@ -13,12 +13,81 @@ function traduzirErroAuth(mensagem: string): string {
   return mensagem;
 }
 
+function EnvelopeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <rect x="2" y="4.5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M2 7.5l7 4.5 7-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PersonIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 15c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EyeIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M1.5 9s3-5.25 7.5-5.25S16.5 9 16.5 9s-3 5.25-7.5 5.25S1.5 9 1.5 9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9" cy="9" r="2.25" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path d="M10.94 10.94A2.25 2.25 0 0 1 7.06 7.06M1.5 1.5l15 15M7.64 3.87A8.37 8.37 0 0 1 9 3.75c4.5 0 7.5 5.25 7.5 5.25a14.94 14.94 0 0 1-2.01 2.81M6.3 6.3A14.94 14.94 0 0 0 1.5 9s3 5.25 7.5 5.25a8.37 8.37 0 0 0 3.95-.93" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const LABEL: React.CSSProperties = {
+  display: 'block',
+  fontSize: '10px',
+  fontWeight: 800,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.09em',
+  marginBottom: '7px',
+};
+
+const ICON_WRAP: React.CSSProperties = {
+  position: 'absolute',
+  right: '14px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: 'var(--text-3)',
+  display: 'flex',
+  pointerEvents: 'none',
+};
+
+const EYE_BTN: React.CSSProperties = {
+  position: 'absolute',
+  right: '14px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: 'var(--text-3)',
+  display: 'flex',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  padding: 0,
+};
+
 export default function CadastroPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,92 +145,189 @@ export default function CadastroPage() {
     router.push(`/auth/confirmar-email?email=${encodeURIComponent(email)}`);
   }
 
+  const isDisabled = loading || !termsAccepted || !name || !email || !password || !confirm;
+
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-500/30 flex items-center justify-center text-3xl mx-auto mb-4">
-            📊
+    <main
+      style={{
+        background: 'var(--bg)',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '0 16px 40px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '390px',
+          paddingTop: '44px',
+        }}
+      >
+        {/* Hero */}
+        <div className="auth-hero" style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: '24px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '38px',
+              margin: '0 auto 16px',
+            }}
+          >
+            ✅
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">GastôMetro</h1>
-          <p className="text-gray-500 text-sm mt-1">Crie sua conta gratuita</p>
+          <h1
+            style={{
+              fontWeight: 900,
+              fontSize: '28px',
+              letterSpacing: '-0.03em',
+              margin: '0 0 6px',
+              color: 'var(--text)',
+            }}
+          >
+            Tô<span style={{ color: 'var(--accent)' }}>Organizado</span>
+          </h1>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-3)', margin: 0 }}>
+            Crie sua conta gratuita
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form
+          className="auth-form"
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+        >
+          {/* Nome */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              Nome
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu primeiro nome"
-              required
-              autoComplete="given-name"
-              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-            />
+            <label style={LABEL}>Nome</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu primeiro nome"
+                required
+                autoComplete="given-name"
+                className="auth-input"
+              />
+              <span style={ICON_WRAP}>
+                <PersonIcon />
+              </span>
+            </div>
           </div>
 
+          {/* E-mail */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              E-mail
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              required
-              autoComplete="email"
-              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-            />
+            <label style={LABEL}>E-mail</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
+                required
+                autoComplete="email"
+                className="auth-input"
+              />
+              <span style={ICON_WRAP}>
+                <EnvelopeIcon />
+              </span>
+            </div>
           </div>
 
+          {/* Senha */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              Senha
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              required
-              autoComplete="new-password"
-              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-            />
+            <label style={LABEL}>Senha</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                required
+                autoComplete="new-password"
+                className="auth-input"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                style={EYE_BTN}
+              >
+                <EyeIcon open={showPassword} />
+              </button>
+            </div>
           </div>
 
+          {/* Confirmar senha */}
           <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-              Confirmar senha
-            </label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="new-password"
-              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-            />
+            <label style={LABEL}>Confirmar senha</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+                className="auth-input"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
+                style={EYE_BTN}
+              >
+                <EyeIcon open={showConfirm} />
+              </button>
+            </div>
           </div>
 
-          <label className="flex items-start gap-3 cursor-pointer">
+          {/* Checkbox termos */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-mint-500 accent-mint-500 flex-shrink-0"
+              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
             />
-            <span className="text-gray-600 text-sm leading-relaxed">
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                flexShrink: 0,
+                marginTop: '1px',
+                background: termsAccepted ? 'var(--accent)' : 'var(--surface)',
+                border: `1.5px solid ${termsAccepted ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.15s, border-color 0.15s',
+              }}
+            >
+              {termsAccepted && (
+                <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true">
+                  <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-2)', lineHeight: '1.6' }}>
               Li e aceito os{' '}
               <Link
                 href="/termos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-mint-500 underline hover:text-mint-700"
+                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
               >
                 Termos de Uso
               </Link>{' '}
@@ -170,31 +336,62 @@ export default function CadastroPage() {
                 href="/privacidade"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-mint-500 underline hover:text-mint-700"
+                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
               >
                 Política de Privacidade
               </Link>
             </span>
           </label>
 
+          {/* Erro */}
           {error && (
-            <p className="text-red-400 text-sm text-center bg-red-500/10 rounded-xl py-2.5 px-4">
+            <p
+              style={{
+                fontSize: '13px',
+                textAlign: 'center',
+                color: 'var(--red)',
+                background: 'var(--red-bg)',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                margin: 0,
+              }}
+            >
               {error}
             </p>
           )}
 
+          {/* Botão */}
           <button
             type="submit"
-            disabled={loading || !termsAccepted}
-            className="w-full py-3.5 bg-mint hover:bg-mint-700 disabled:opacity-60 rounded-xl font-semibold text-gray-900 transition-colors"
+            disabled={isDisabled}
+            className="auth-btn"
+            style={{
+              background: isDisabled ? '#D1D1F0' : 'var(--accent)',
+              color: isDisabled ? '#8888CC' : '#ffffff',
+              boxShadow: isDisabled
+                ? 'none'
+                : '0 4px 20px rgba(91,91,214,0.38), 0 1px 4px rgba(91,91,214,0.2)',
+            }}
           >
             {loading ? 'Criando conta...' : 'Criar conta'}
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
+        {/* Footer */}
+        <p
+          style={{
+            textAlign: 'center',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'var(--text-2)',
+            marginTop: '20px',
+          }}
+        >
           Já tem conta?{' '}
-          <Link href="/auth/login" className="text-mint-500 font-medium">
+          <Link
+            href="/auth/login"
+            style={{ color: 'var(--accent)', fontWeight: 800, textDecoration: 'none' }}
+          >
             Entrar
           </Link>
         </p>
