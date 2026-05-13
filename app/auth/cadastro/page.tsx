@@ -133,6 +133,10 @@ export default function CadastroPage() {
         terms_accepted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
+      await supabase.from('subscriptions').upsert(
+        { user_id: userId, plan: 'free', status: 'active' },
+        { onConflict: 'user_id' },
+      );
     }
 
     if (data.session) {

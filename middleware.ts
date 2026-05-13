@@ -29,6 +29,11 @@ export default async function middleware(request: NextRequest) {
   const isOnboarding = pathname === '/onboarding';
   const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
+  const isPublicWebhook = pathname.startsWith('/api/webhooks/');
+
+  if (isPublicWebhook) {
+    return supabaseResponse;
+  }
 
   let user = null;
   let isNetworkFailure = false;

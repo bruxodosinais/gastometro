@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Check, ChevronRight, Eye, EyeOff, Loader2, X } from 'lucide-react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const AVATAR_EMOJIS = [
   '🧑','👨','👩','🧔','👱','🧕','👴','👵','🧒','👦','👧','🧑‍💻',
@@ -46,6 +48,7 @@ function resizeImage(file: File): Promise<Blob> {
 export default function PerfilPage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
+  const { isPro, billingCycle, currentPeriodEnd, loading: subLoading } = useSubscription();
 
   // Basic profile
   const [userId, setUserId] = useState('');
@@ -336,8 +339,70 @@ export default function PerfilPage() {
             <div>
               <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{displayName || email.split('@')[0]}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>{email}</p>
+              {!subLoading && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginTop: 6,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    background: isPro ? 'var(--accent)' : 'var(--accent-bg)',
+                    color: isPro ? '#fff' : 'var(--accent)',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {isPro ? 'PRO ✓' : 'FREE'}
+                </span>
+              )}
             </div>
           </div>
+
+          {!subLoading && (
+            <Link
+              href="/upgrade"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                padding: '12px 14px',
+                marginBottom: 16,
+                borderRadius: 'var(--r-sm)',
+                background: isPro ? 'var(--accent-bg)' : 'var(--bg)',
+                border: `1.5px solid ${isPro ? 'rgba(91,91,214,0.25)' : 'var(--border)'}`,
+                textDecoration: 'none',
+              }}
+            >
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+                  {isPro ? 'TôOrganizado Pro' : 'Plano gratuito'}
+                </p>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', margin: 0, marginTop: 2 }}>
+                  {isPro
+                    ? `${billingCycle === 'annual' ? 'Anual' : billingCycle === 'monthly' ? 'Mensal' : 'Ativa'}${currentPeriodEnd ? ` • Renova em ${currentPeriodEnd.toLocaleDateString('pt-BR')}` : ''}`
+                    : 'Lançamentos limitados • Sem metas, patrimônio ou cartões'}
+                </p>
+              </div>
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isPro ? 'Gerenciar' : 'Fazer upgrade'}
+              </span>
+            </Link>
+          )}
 
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
 

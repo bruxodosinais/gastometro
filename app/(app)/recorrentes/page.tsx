@@ -31,6 +31,9 @@ import {
   MonthlyObligation,
   RecurringExpense,
 } from '@/lib/types';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PLAN_LIMITS } from '@/lib/planLimits';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -146,6 +149,7 @@ function Switch({ on, onToggle, ariaLabel }: { on: boolean; onToggle: () => void
 
 export default function RecorrentesPage() {
   const todayMonthKey = new Date().toISOString().slice(0, 7);
+  const subscription = useSubscription();
 
   const [recurrings, setRecurrings] = useState<RecurringExpense[]>([]);
   const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
@@ -260,6 +264,17 @@ export default function RecorrentesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (subscription.isFree) {
+      const limit = PLAN_LIMITS.free.recurringExpenses;
+      const activeCount = recurrings.filter((r) => r.active !== false).length;
+      if (activeCount >= limit) {
+        setFormError(
+          `Você já tem ${limit} recorrentes cadastrados. Limite do plano gratuito.`,
+        );
+        return;
+      }
+    }
 
     if (!description.trim()) {
       setDescricaoError('Descrição é obrigatória');
@@ -639,6 +654,14 @@ export default function RecorrentesPage() {
             }}
           >
             <div style={{ overflow: 'hidden', minHeight: 0 }}>
+
+          {subscription.isFree && recurrings.filter((r) => r.active !== false).length >= PLAN_LIMITS.free.recurringExpenses && (
+            <UpgradeBanner
+              variant="inline"
+              feature="recorrentes"
+              message={`Você já tem ${PLAN_LIMITS.free.recurringExpenses} recorrentes cadastrados. Limite do plano gratuito.`}
+            />
+          )}
 
           <form
             onSubmit={handleSubmit}

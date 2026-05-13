@@ -45,6 +45,7 @@ import {
 } from '@/lib/types';
 import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ function AutoValue({
 export default function HomePage() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
+  const { isFree, loading: subLoading } = useSubscription();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -1898,6 +1900,62 @@ export default function HomePage() {
             )}
           </div>
         </div>
+      )}
+
+      {!subLoading && isFree && (
+        <Link
+          href="/upgrade"
+          style={{
+            marginTop: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: 'var(--accent-bg)',
+            border: '1px solid var(--accent)',
+            borderRadius: 12,
+            padding: '14px 16px',
+            textDecoration: 'none',
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            🚀
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+              Desbloqueie tudo com o Pro
+            </p>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-2)', margin: 0, marginTop: 2, lineHeight: 1.4 }}>
+              Lançamentos ilimitados, GastôBot, Metas e mais.
+            </p>
+          </div>
+          <span
+            style={{
+              flexShrink: 0,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 800,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Ver planos
+          </span>
+        </Link>
       )}
 
       </div>{/* /home-right-col */}

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { calculateStreak } from '@/lib/streak';
+import { PLAN_LIMITS } from '@/lib/planLimits';
 
 const EXPENSE_CATEGORIES = ['Delivery', 'Alimentação', 'Transporte', 'Assinaturas', 'Saúde', 'Lazer', 'Outros'];
 const INCOME_CATEGORIES = ['Salário', 'Freela', 'Renda passiva', 'Outros'];
@@ -15,6 +16,38 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Plano e limites do GastôBot
+    const { data: subRow } = await supabase
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const isPro = subRow?.plan === 'pro' && subRow?.status === 'active';
+    const monthKey = new Date().toISOString().slice(0, 7);
+
+    if (!isPro) {
+      const { data: usageRow } = await supabase
+        .from('gastobot_usage')
+        .select('count')
+        .eq('user_id', user.id)
+        .eq('month', monthKey)
+        .maybeSingle();
+      const used = usageRow?.count ?? 0;
+      const limit = PLAN_LIMITS.free.gastoBotRequests;
+      if (used >= limit) {
+        return Response.json(
+          {
+            error: 'limit_reached',
+            type: 'upgrade_required',
+            message: `Você usou sua ${limit === 1 ? '1 consulta gratuita' : `${limit} consultas gratuitas`} do GastôBot este mês. Assine o Pro para acesso ilimitado.`,
+            used,
+            limit,
+          },
+          { status: 402 },
+        );
+      }
     }
 
     // Use the date sent by the browser so it reflects the user's local timezone,
@@ -245,6 +278,30 @@ O campo amount deve ser número puro (ex: 45.90).`;
 
     const raw =
       response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+
+    // Incrementa contador de uso do mês (apenas Free; Pro é ilimitado).
+    if (!isPro) {
+      try {
+        const { data: existing } = await supabase
+          .from('gastobot_usage')
+          .select('id, count')
+          .eq('user_id', user.id)
+          .eq('month', monthKey)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from('gastobot_usage')
+            .update({ count: (existing.count ?? 0) + 1 })
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('gastobot_usage')
+            .insert({ user_id: user.id, month: monthKey, count: 1 });
+        }
+      } catch (e) {
+        console.warn('[assistente] falha ao registrar uso:', e);
+      }
+    }
 
     try {
       const clean = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();

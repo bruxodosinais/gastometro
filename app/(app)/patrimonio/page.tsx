@@ -15,6 +15,8 @@ import {
 } from '@/lib/storage';
 import { formatCurrency, calculateTotalByType } from '@/lib/calculations';
 import { Asset, AssetType, Expense, Liability } from '@/lib/types';
+import { useSubscription } from '@/hooks/useSubscription';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 // ─── Configurações de bolso ──────────────────────────────────────────────────
 
@@ -108,6 +110,7 @@ const EMPTY_FORM: FormState = { name: '', type: '', value: '' };
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function PatrimonioPage() {
+  const subscription = useSubscription();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [liabilities, setLiabilities] = useState<Liability[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -286,6 +289,18 @@ export default function PatrimonioPage() {
   }
 
   const netPositive = netWorth >= 0;
+
+  if (!subscription.loading && subscription.isFree) {
+    return (
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-8">
+        <UpgradeBanner
+          variant="fullpage"
+          feature="patrimonio"
+          message="Controle de patrimônio é exclusivo do plano Pro. Acompanhe ativos, dívidas e evolução do seu patrimônio líquido."
+        />
+      </main>
+    );
+  }
 
   return (
     <>

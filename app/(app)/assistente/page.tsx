@@ -7,6 +7,10 @@ import { addExpense } from '@/lib/storage';
 import { Category, EntryType } from '@/lib/types';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { ToastContainer, useToast } from '@/components/Toast';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PLAN_LIMITS } from '@/lib/planLimits';
+import UpgradeBanner from '@/components/UpgradeBanner';
+import { createClient } from '@/lib/supabase/client';
 
 function localDateStr() {
   const d = new Date();
@@ -174,16 +178,50 @@ const STORAGE_KEY = 'gastometro_chat_history';
 export default function AssistentePage() {
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
+  const subscription = useSubscription();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [usageCount, setUsageCount] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const freeLimit = PLAN_LIMITS.free.gastoBotRequests;
+  const isBlocked =
+    subscription.isFree && usageCount !== null && usageCount >= freeLimit;
 
   // Clear any stale history so the assistant always opens with a clean state
   useEffect(() => {
     sessionStorage.removeItem(STORAGE_KEY);
   }, []);
+
+  // Fetch usage do mês para Free
+  useEffect(() => {
+    if (subscription.loading) return;
+    if (!subscription.isFree) {
+      setUsageCount(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        const monthKey = new Date().toISOString().slice(0, 7);
+        const { data } = await supabase
+          .from('gastobot_usage')
+          .select('count')
+          .eq('user_id', user.id)
+          .eq('month', monthKey)
+          .maybeSingle();
+        if (!cancelled) setUsageCount(data?.count ?? 0);
+      } catch {
+        if (!cancelled) setUsageCount(0);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [subscription.loading, subscription.isFree]);
 
   // Persist to sessionStorage whenever messages change
   const persistMessages = useCallback((msgs: Message[]) => {
@@ -205,6 +243,7 @@ export default function AssistentePage() {
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
+    if (isBlocked) return;
 
     const history = messages.map((m) => ({ role: m.role, content: m.text }));
     const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: text.trim() };
@@ -226,6 +265,21 @@ export default function AssistentePage() {
 
       const data = await res.json();
 
+      if (res.status === 402 && data?.type === 'upgrade_required') {
+        setUsageCount(freeLimit);
+        const blockedMsg: Message = {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: data.message || 'Limite gratuito atingido. Assine o Pro para acesso ilimitado.',
+        };
+        setMessages((prev) => {
+          const next = [...prev, blockedMsg];
+          persistMessages(next);
+          return next;
+        });
+        return;
+      }
+
       const assistantMsg: Message = {
         id: `a-${Date.now()}`,
         role: 'assistant',
@@ -240,6 +294,10 @@ export default function AssistentePage() {
         persistMessages(next);
         return next;
       });
+
+      if (subscription.isFree) {
+        setUsageCount((c) => (c ?? 0) + 1);
+      }
     } catch {
       setMessages((prev) => {
         const next = [
@@ -391,34 +449,42 @@ export default function AssistentePage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Input ou Upgrade Banner */}
       <div className="px-4 py-3 border-t border-gray-100 bg-white flex-shrink-0">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ex: Gastei R$ 50 no iFood hoje…"
-            className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-gray-200 transition-colors"
-            style={{ borderColor: undefined }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
-            disabled={loading}
-            autoComplete="off"
+        {isBlocked ? (
+          <UpgradeBanner
+            variant="inline"
+            feature="gastobot"
+            message={`Você usou sua ${freeLimit === 1 ? '1 consulta gratuita' : `${freeLimit} consultas gratuitas`} do GastôBot este mês.`}
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-opacity hover:opacity-90 flex-shrink-0"
-            style={{ background: 'var(--accent)' }}
-          >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" color="#fff" />
-            ) : (
-              <Send size={16} color="#fff" />
-            )}
-          </button>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ex: Gastei R$ 50 no iFood hoje…"
+              className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-gray-200 transition-colors"
+              style={{ borderColor: undefined }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
+              disabled={loading}
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="w-10 h-10 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-opacity hover:opacity-90 flex-shrink-0"
+              style={{ background: 'var(--accent)' }}
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" color="#fff" />
+              ) : (
+                <Send size={16} color="#fff" />
+              )}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

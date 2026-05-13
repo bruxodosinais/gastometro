@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, LayoutGrid,
-  Target, Bot, TrendingUp, UserCircle, X, CreditCard,
+  Target, Bot, TrendingUp, UserCircle, X, CreditCard, Sparkles,
 } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const ACTIVE = 'var(--accent)';
 const INACTIVE = '#9CA3AF';
@@ -24,6 +25,7 @@ const sheetItems = [
 export default function Navigation() {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { isFree, loading: subLoading } = useSubscription();
 
   const maisActive = sheetItems.some((i) => i.href === pathname);
 
@@ -192,6 +194,46 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+
+              {!subLoading && isFree && (
+                <Link
+                  href="/upgrade"
+                  onClick={() => setSheetOpen(false)}
+                  style={{
+                    gridColumn: 'span 2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    background: 'var(--accent)',
+                    border: '1.5px solid var(--accent)',
+                    borderRadius: 14,
+                    padding: '16px 18px',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 6px 18px rgba(91,91,214,0.30)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44, height: 44,
+                      background: 'rgba(255,255,255,0.18)',
+                      borderRadius: 12,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Sparkles size={22} color="#fff" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 15, fontWeight: 900, color: '#fff', margin: 0 }}>
+                      Seja Pro 🚀
+                    </p>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', margin: 0, marginTop: 2 }}>
+                      A partir de R$ 19,90/mês
+                    </p>
+                  </div>
+                </Link>
+              )}
             </div>
           </div>
         </div>

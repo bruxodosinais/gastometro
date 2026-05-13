@@ -18,6 +18,9 @@ import { getErrorMessage } from '@/lib/errors';
 import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PLAN_LIMITS } from '@/lib/planLimits';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -343,6 +346,7 @@ const fieldStyle: React.CSSProperties = {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LancamentosPage() {
+  const subscription = useSubscription();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [entryType, setEntryType] = useState<EntryType>('expense');
@@ -434,6 +438,19 @@ export default function LancamentosPage() {
       return;
     }
     if (!hasAmount || !category) return;
+
+    if (subscription.isFree && entryType === 'expense') {
+      const limit = PLAN_LIMITS.free.expensesPerMonth;
+      const monthKey = getMonthKey(new Date());
+      const monthExpenseCount = expenses.filter(
+        (e) => e.type === 'expense' && e.date.slice(0, 7) === monthKey,
+      ).length;
+      if (monthExpenseCount >= limit) {
+        setError(`Você atingiu o limite de ${limit} lançamentos no plano gratuito.`);
+        return;
+      }
+    }
+
     setDescricaoError(false);
     const savedAmount = numAmount;
     const savedType = entryType;
@@ -572,6 +589,22 @@ export default function LancamentosPage() {
 
           {/* ── FORM COLUMN ─────────────────────────────────────────────────── */}
           <div>
+            {subscription.isFree && (() => {
+              const monthKey = getMonthKey(new Date());
+              const count = expenses.filter(
+                (e) => e.type === 'expense' && e.date.slice(0, 7) === monthKey,
+              ).length;
+              if (count >= PLAN_LIMITS.free.expensesPerMonth) {
+                return (
+                  <UpgradeBanner
+                    variant="inline"
+                    feature="lancamentos"
+                    message={`Você atingiu o limite de ${PLAN_LIMITS.free.expensesPerMonth} lançamentos no plano gratuito.`}
+                  />
+                );
+              }
+              return null;
+            })()}
             <div
               style={{
                 background: 'var(--surface)',

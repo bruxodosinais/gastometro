@@ -27,6 +27,8 @@ import { ToastContainer, useToast } from '@/components/Toast';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { createClient } from '@/lib/supabase/client';
 import { getErrorMessage } from '@/lib/errors';
+import { useSubscription } from '@/hooks/useSubscription';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -333,6 +335,7 @@ function mapToAppCategory(nubankCat: string): ExpenseCategory {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CartoesPage() {
+  const subscription = useSubscription();
   const [cards, setCards] = useState<CreditCardType[]>([]);
   const [faturas, setFaturas] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
@@ -883,6 +886,18 @@ export default function CartoesPage() {
         <div className="skeleton h-7 w-36 rounded-lg mb-2" />
         <div className="skeleton h-4 w-52 rounded mb-6" />
         {[0, 1].map((i) => <div key={i} className="skeleton h-32 rounded-2xl mb-3" />)}
+      </main>
+    );
+  }
+
+  if (!subscription.loading && subscription.isFree) {
+    return (
+      <main style={{ maxWidth: 440, margin: '0 auto', paddingTop: 24, paddingBottom: 112 }}>
+        <UpgradeBanner
+          variant="fullpage"
+          feature="cartoes"
+          message="Cartões de crédito são exclusivos do plano Pro. Gerencie limites, faturas e parcelas com facilidade."
+        />
       </main>
     );
   }

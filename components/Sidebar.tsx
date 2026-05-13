@@ -14,6 +14,7 @@ import {
   getExpenses,
   checkAndGenerateObligations,
 } from '@/lib/storage';
+import { useSubscription } from '@/hooks/useSubscription';
 
 type Section = {
   title: string;
@@ -56,6 +57,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [userName, setUserName] = useState('');
   const [recurringPending, setRecurringPending] = useState(0);
+  const { isPro, loading: subLoading } = useSubscription();
 
   useEffect(() => {
     let mounted = true;
@@ -262,22 +264,63 @@ export default function Sidebar() {
           >
             {userName || 'Você'}
           </p>
-          <span
-            style={{
-              display: 'inline-block',
-              marginTop: 2,
-              padding: '1px 7px',
-              borderRadius: 999,
-              background: 'var(--accent-bg)',
-              color: 'var(--accent)',
-              fontSize: 10,
-              fontWeight: 800,
-            }}
-          >
-            Plano gratuito
-          </span>
+          {!subLoading && (
+            isPro ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  marginTop: 2,
+                  padding: '1px 7px',
+                  borderRadius: 999,
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                PRO ✓
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginTop: 2,
+                  padding: '1px 7px',
+                  borderRadius: 999,
+                  background: 'var(--accent-bg)',
+                  color: 'var(--accent)',
+                  fontSize: 10,
+                  fontWeight: 800,
+                }}
+              >
+                Plano gratuito
+              </span>
+            )
+          )}
         </div>
       </Link>
+      {!subLoading && !isPro && (
+        <Link
+          href="/upgrade"
+          style={{
+            margin: '0 12px 8px',
+            padding: '8px 12px',
+            borderRadius: 10,
+            background: 'var(--accent-bg)',
+            border: '1px solid rgba(91,91,214,0.25)',
+            color: 'var(--accent)',
+            fontSize: 11,
+            fontWeight: 800,
+            textDecoration: 'none',
+            textAlign: 'center',
+          }}
+        >
+          ✨ Fazer upgrade
+        </Link>
+      )}
 
       {/* Nav scrollable */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>

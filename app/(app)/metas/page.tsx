@@ -13,6 +13,8 @@ import {
 } from '@/lib/storage';
 import { calculateTotalByType, formatCurrency, getMonthKey } from '@/lib/calculations';
 import { Goal, GoalContribution, GoalTerm, GoalType } from '@/lib/types';
+import { useSubscription } from '@/hooks/useSubscription';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 // ─── Configurações de tipo e cor ─────────────────────────────────────────────
 
@@ -158,6 +160,7 @@ const EMPTY_FORM = {
 const TODAY = new Date().toISOString().slice(0, 10);
 
 export default function MetasPage() {
+  const subscription = useSubscription();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [contributions, setContributions] = useState<GoalContribution[]>([]);
   const [avgMonthlySpent, setAvgMonthlySpent] = useState(0);
@@ -392,6 +395,18 @@ export default function MetasPage() {
   });
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (!subscription.loading && subscription.isFree) {
+    return (
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
+        <UpgradeBanner
+          variant="fullpage"
+          feature="metas"
+          message="Metas financeiras são exclusivas do plano Pro. Desbloqueie reservas, viagens, imóveis e muito mais."
+        />
+      </main>
+    );
+  }
 
   return (
     <>
