@@ -112,6 +112,23 @@ function FilterTabs({
 
 // ── ExpenseList ───────────────────────────────────────────────────────────────
 
+function ExpenseListSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="skeleton"
+          style={{
+            height: 56,
+            borderRadius: 'var(--r-sm)',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ExpenseList({
   expenses,
   newestId,
@@ -120,6 +137,7 @@ function ExpenseList({
   onDuplicate,
   onDelete,
   creditCards = [],
+  loading = false,
 }: {
   expenses: Expense[];
   newestId: string | null;
@@ -128,6 +146,7 @@ function ExpenseList({
   onDuplicate: (e: Expense) => void;
   onDelete: (e: Expense) => void;
   creditCards?: CreditCardType[];
+  loading?: boolean;
 }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -137,6 +156,10 @@ function ExpenseList({
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, [openMenuId]);
+
+  if (loading) {
+    return <ExpenseListSkeleton />;
+  }
 
   if (expenses.length === 0) {
     return (
@@ -200,9 +223,15 @@ function ExpenseList({
                     {cfg.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}
-                    </p>
+                    {exp.description?.trim() ? (
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic' }}>
+                        Sem descrição
+                      </p>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{exp.category}</span>
                       {cardName && (
@@ -315,6 +344,7 @@ const fieldStyle: React.CSSProperties = {
 
 export default function LancamentosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [entryType, setEntryType] = useState<EntryType>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('Alimentação');
@@ -355,9 +385,12 @@ export default function LancamentosPage() {
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
-    getExpenses().then(setExpenses).catch((err) => {
-      setError(getErrorMessage(err));
-    });
+    getExpenses()
+      .then(setExpenses)
+      .catch((err) => {
+        setError(getErrorMessage(err));
+      })
+      .finally(() => setLoadingExpenses(false));
     getCreditCards().then((cards) => {
       setCreditCards(cards);
       if (cards.length > 0) setSelectedCardId(cards[0].id);
@@ -388,18 +421,26 @@ export default function LancamentosPage() {
     if (type === 'income') setIsCredit(false);
   }
 
+  const [descricaoError, setDescricaoError] = useState(false);
   const numAmount = parseFloat(amount.replace(',', '.'));
   const hasAmount = numAmount > 0;
-  const isValid = hasAmount && !!category;
+  const hasDescription = description.trim().length > 0;
+  const isValid = hasAmount && !!category && hasDescription;
 
   async function handleSubmit() {
-    if (!isValid || saving) return;
+    if (saving) return;
+    if (!description.trim()) {
+      setDescricaoError(true);
+      return;
+    }
+    if (!hasAmount || !category) return;
+    setDescricaoError(false);
     const savedAmount = numAmount;
     const savedType = entryType;
     const base = {
       type: entryType,
       amount: numAmount,
-      description: description.trim() || category,
+      description: description.trim(),
       category,
       date,
       ...(isCredit && selectedCardId
@@ -770,14 +811,23 @@ export default function LancamentosPage() {
                 <input
                   type="text"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (descricaoError && e.target.value.trim()) setDescricaoError(false);
+                  }}
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
                   style={{
                     ...fieldStyle,
                     fontWeight: description ? 700 : 400,
+                    borderColor: descricaoError ? 'var(--red)' : 'var(--border)',
                   }}
                 />
+                {descricaoError && (
+                  <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
+                    Descrição é obrigatória
+                  </p>
+                )}
               </div>
 
               {/* 5. DATA */}
@@ -942,24 +992,24 @@ export default function LancamentosPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!isValid || saving}
+                disabled={saving}
                 style={{
                   width: '100%',
                   padding: 14,
                   borderRadius: 'var(--r-sm)',
                   border: 'none',
-                  background: isValid ? typeColor : 'var(--text-3)',
+                  background: typeColor,
                   color: 'white',
                   fontSize: 14,
                   fontWeight: 800,
                   fontFamily: 'Nunito, sans-serif',
-                  cursor: isValid && !saving ? 'pointer' : 'not-allowed',
+                  cursor: saving ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
                   transition: 'background 0.2s ease, opacity 0.2s ease',
-                  opacity: isValid ? 1 : 0.65,
+                  opacity: saving ? 0.7 : 1,
                 }}
               >
                 {saving ? <Loader2 size={17} className="animate-spin" /> : ctaLabel}
@@ -984,6 +1034,7 @@ export default function LancamentosPage() {
               onDuplicate={setDuplicatingExpense}
               onDelete={setDeletingExpense}
               creditCards={creditCards}
+              loading={loadingExpenses}
             />
           </div>
         </div>
@@ -1004,6 +1055,7 @@ export default function LancamentosPage() {
             onEdit={setEditingExpense}
             onDuplicate={setDuplicatingExpense}
             onDelete={setDeletingExpense}
+            loading={loadingExpenses}
           />
         </div>
       </main>

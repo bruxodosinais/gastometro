@@ -133,14 +133,23 @@ export async function deleteExpense(id: string): Promise<void> {
 // ─── Recorrentes ─────────────────────────────────────────────────────────────
 
 function toRecurring(row: Record<string, unknown>): RecurringExpense {
+  // day_of_month e due_day podem ser NULL no banco (itens antigos criados antes
+  // dessas colunas existirem). Manter como undefined — NUNCA aplicar fallback
+  // para 1 ou qualquer valor padrão aqui.
+  const rawDay = row.day_of_month;
+  const dayOfMonth =
+    typeof rawDay === 'number' && rawDay >= 1 && rawDay <= 31 ? rawDay : undefined;
+  const rawDue = row.due_day;
+  const dueDay =
+    typeof rawDue === 'number' && rawDue >= 1 && rawDue <= 31 ? rawDue : undefined;
   return {
     id: row.id as string,
     description: row.description as string,
     amount: row.amount as number,
     category: row.category as Category,
     type: (row.type as string) as EntryType,
-    dayOfMonth: row.day_of_month as number,
-    dueDay: (row.due_day as number | null) ?? undefined,
+    dayOfMonth,
+    dueDay,
     active: row.active as boolean,
     isVariable: (row.is_variable as boolean | null) ?? false,
     isCredit: (row.is_credit as boolean | null) ?? undefined,
@@ -176,8 +185,11 @@ export async function addRecurringExpense(
       amount: data.amount,
       category: data.category,
       type: data.type,
-      day_of_month: data.dayOfMonth,
-      due_day: data.dueDay ?? data.dayOfMonth,
+      // day_of_month e due_day são salvos de forma independente. due_day NUNCA
+      // herda de day_of_month — campos com semânticas distintas (lançamento vs
+      // vencimento).
+      day_of_month: data.dayOfMonth ?? null,
+      due_day: data.dueDay ?? null,
       active: data.active,
       is_variable: data.isVariable ?? false,
       is_credit: data.isCredit ?? false,
@@ -216,9 +228,23 @@ export async function deleteRecurringExpense(id: string): Promise<void> {
     .eq('user_id', user.id);
 }
 
+export type UpdateRecurringPayload = {
+  description?: string;
+  amount?: number;
+  category?: Category;
+  type?: EntryType;
+  // null limpa o campo no banco; undefined deixa intocado.
+  dayOfMonth?: number | null;
+  dueDay?: number | null;
+  isVariable?: boolean;
+  active?: boolean;
+  isCredit?: boolean;
+  creditCardId?: string | null;
+};
+
 export async function updateRecurringExpense(
   id: string,
-  data: Partial<Omit<RecurringExpense, 'id' | 'createdAt'>>
+  data: UpdateRecurringPayload
 ): Promise<RecurringExpense> {
   const supabase = createClient();
   const {
@@ -294,6 +320,12 @@ export async function checkAndLaunchRecurring(): Promise<void> {
   if (!recurring?.length) return;
 
   for (const rec of recurring) {
+    // Sem day_of_month, não há gatilho de lançamento automático — pula.
+    if (
+      typeof rec.day_of_month !== 'number' ||
+      rec.day_of_month < 1 ||
+      rec.day_of_month > 31
+    ) continue;
     // Só lança se o dia já chegou e ainda não foi lançado este mês
     if (rec.day_of_month > todayDay) continue;
     if (launchedIds.has(rec.id)) continue;
@@ -642,6 +674,7 @@ export async function deleteLiability(id: string): Promise<void> {
 // ─── Obrigações Mensais ───────────────────────────────────────────────────────
 
 function toMonthlyObligation(row: Record<string, unknown>): MonthlyObligation {
+  const rawDue = row.due_day;
   return {
     id: row.id as string,
     recurringExpenseId: row.recurring_expense_id as string,
@@ -649,7 +682,8 @@ function toMonthlyObligation(row: Record<string, unknown>): MonthlyObligation {
     amount: row.amount as number,
     description: row.description as string,
     category: row.category as Category,
-    dueDay: row.due_day as number,
+    dueDay:
+      typeof rawDue === 'number' && rawDue >= 1 && rawDue <= 31 ? rawDue : undefined,
     status: row.status as 'pending' | 'paid',
     paidAt: (row.paid_at as string | null) ?? undefined,
     createdAt: row.created_at as string,
@@ -707,16 +741,26 @@ export async function checkAndGenerateObligations(): Promise<void> {
     return;
   }
 
-  const obligations = recurring.map((rec) => ({
-    user_id: user.id,
-    recurring_expense_id: rec.id,
-    month: currentMonth,
-    amount: rec.amount,
-    description: rec.description,
-    category: rec.category,
-    due_day: (rec.due_day as number | null) ?? rec.day_of_month,
-    status: 'pending',
-  }));
+  const obligations = recurring.map((rec) => {
+    // Obrigação herda APENAS due_day do recorrente. due_day e day_of_month têm
+    // significados distintos — não fazer fallback cruzado. Quando ambos são
+    // null, a obrigação fica sem prazo (due_day null) e nenhum badge de
+    // atraso/vencimento é mostrado nas telas.
+    const due =
+      typeof rec.due_day === 'number' && rec.due_day >= 1 && rec.due_day <= 31
+        ? rec.due_day
+        : null;
+    return {
+      user_id: user.id,
+      recurring_expense_id: rec.id,
+      month: currentMonth,
+      amount: rec.amount,
+      description: rec.description,
+      category: rec.category,
+      due_day: due,
+      status: 'pending',
+    };
+  });
 
   const { error: insertError } = await supabase.from('monthly_obligations').insert(obligations);
   if (!insertError && typeof sessionStorage !== 'undefined') {
@@ -843,6 +887,11 @@ export async function addObligationForNewRecurring(
   if (!user) return null;
 
   const currentMonth = new Date().toISOString().slice(0, 7);
+  // Obrigação herda apenas due_day. Sem due_day válido, fica null (sem prazo).
+  const due =
+    typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+      ? rec.dueDay
+      : null;
   const { data, error } = await supabase
     .from('monthly_obligations')
     .insert({
@@ -852,7 +901,7 @@ export async function addObligationForNewRecurring(
       amount: rec.amount,
       description: rec.description,
       category: rec.category,
-      due_day: rec.dueDay ?? rec.dayOfMonth,
+      due_day: due,
       status: 'pending',
     })
     .select()

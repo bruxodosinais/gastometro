@@ -29,7 +29,29 @@
       "Bash(xargs ls *)",
       "Bash(ssh *)",
       "Read(//home/bruxo/**)",
-      "Read(//home/bruxo/.ssh/**)"
+      "Read(//home/bruxo/.ssh/**)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx playwright *)",
+      "Bash(node *)",
+      "Bash(npm uninstall *)",
+      "Bash(supabase --version)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/lancamentos)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/recorrentes)",
+      "Bash(curl -s -L -o /dev/null -w \"%{http_code}\" http://localhost:3000/lancamentos)",
+      "Bash(curl -s -L -o /dev/null -w \"%{http_code}\" http://localhost:3000/recorrentes)",
+      "Bash(vercel ls *)",
+      "Bash(grep -n \"}>$\\\\|}\\)}\\\\|</>$\\\\|\\)}\" \"app/\\(app\\)/categorias/page.tsx\")",
+      "Bash(curl *)",
+      "Bash(python3 *)",
+      "Bash(grep -rn \"R\\\\$\\\\|toLocaleString\\\\|formatCurrency\\\\|painel\\\\|sidebar\\\\|panel\" /Users/anderson/gastometro/app/\\\\\\(app\\\\\\)/home/page.tsx)",
+      "Bash(npx vercel *)",
+      "Bash(sed -n '250,260p' \"/Users/anderson/gastometro/app/\\(app\\)/assistente/page.tsx\")",
+      "Bash(sed -n '350,370p' \"/Users/anderson/gastometro/app/\\(app\\)/page.tsx\")",
+      "Bash(sed -n '460,475p' \"/Users/anderson/gastometro/app/\\(app\\)/page.tsx\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"TypeScript exit: $?\")",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

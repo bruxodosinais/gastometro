@@ -8,8 +8,10 @@ import { retryAsync } from '@/lib/retry';
 import {
   addObligationForNewRecurring,
   addRecurringExpense,
+  checkAndGenerateObligations,
   deleteRecurringExpense,
   getCreditCards,
+  getExpenses,
   getMonthlyObligations,
   getRecurringExpenses,
   markObligationAsPaid,
@@ -23,6 +25,7 @@ import {
   Category,
   CreditCard as CreditCardType,
   EntryType,
+  Expense,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   MonthlyObligation,
@@ -38,6 +41,7 @@ function shiftMonth(monthKey: string, delta: number): string {
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
+
 
 function findSimilarRecurring(desc: string, recurrings: RecurringExpense[]): RecurringExpense | null {
   const normalize = (s: string) =>
@@ -145,6 +149,7 @@ export default function RecorrentesPage() {
 
   const [recurrings, setRecurrings] = useState<RecurringExpense[]>([]);
   const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(todayMonthKey);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
@@ -209,12 +214,18 @@ export default function RecorrentesPage() {
     async function loadData() {
       setLoadError(null);
       try {
-        const [recs, obs, cards] = await retryAsync(() =>
-          Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()])
+        const [recs, obs, cards, exps] = await retryAsync(() =>
+          Promise.all([
+            getRecurringExpenses(),
+            checkAndGenerateObligations().then(() => getMonthlyObligations(todayMonthKey)),
+            getCreditCards(),
+            getExpenses(),
+          ])
         );
         setRecurrings(recs);
         setObligations(obs);
         setCreditCards(cards);
+        setExpenses(exps);
         if (cards.length > 0) setSelectedCardId(cards[0].id);
         setReady(true);
         isFirstLoad.current = false;
@@ -251,9 +262,14 @@ export default function RecorrentesPage() {
 
     const num = parseFloat(amount.replace(',', '.'));
     const day = parseInt(dayOfMonth, 10);
-    const due = dueDay ? parseInt(dueDay, 10) : day;
     if (!num || num <= 0 || !day || day < 1 || day > 31) return;
-    if (dueDay && (due < 1 || due > 31)) return;
+    // dueDay é INDEPENDENTE de dayOfMonth: se vazio fica undefined (não herda).
+    let due: number | undefined;
+    if (dueDay.trim()) {
+      const parsedDue = parseInt(dueDay, 10);
+      if (!Number.isFinite(parsedDue) || parsedDue < 1 || parsedDue > 31) return;
+      due = parsedDue;
+    }
 
     setSaving(true);
     setFormError(null);
@@ -277,7 +293,10 @@ export default function RecorrentesPage() {
 
       if (saved.type === 'expense') {
         const ob = await addObligationForNewRecurring(saved);
-        if (ob) setObligations((prev) => [...prev, ob].sort((a, b) => a.dueDay - b.dueDay));
+        if (ob)
+          setObligations((prev) =>
+            [...prev, ob].sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99))
+          );
       }
 
       setAmount('');
@@ -298,8 +317,16 @@ export default function RecorrentesPage() {
     setEditingRec(rec);
     setEditDesc(rec.description ?? '');
     setEditAmount(String(rec.amount));
-    setEditDayOfMonth(String(rec.dayOfMonth));
-    setEditDueDay(rec.dueDay ? String(rec.dueDay) : '');
+    setEditDayOfMonth(
+      typeof rec.dayOfMonth === 'number' && rec.dayOfMonth >= 1 && rec.dayOfMonth <= 31
+        ? String(rec.dayOfMonth)
+        : ''
+    );
+    setEditDueDay(
+      typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+        ? String(rec.dueDay)
+        : ''
+    );
     setEditIsVariable(rec.isVariable);
     setEditCategory(rec.category);
   }
@@ -307,9 +334,21 @@ export default function RecorrentesPage() {
   async function handleEditSave() {
     if (!editingRec) return;
     const num = parseFloat(editAmount.replace(',', '.'));
-    const day = parseInt(editDayOfMonth, 10);
-    if (!num || num <= 0 || !day || day < 1 || day > 31) return;
-    const due = editDueDay ? parseInt(editDueDay, 10) : day;
+    if (!num || num <= 0) return;
+
+    // dayOfMonth e dueDay são salvos de forma independente. Vazio → null
+    // (limpa o campo no banco). Um não preenche/sobrescreve o outro.
+    const parseDay = (raw: string): number | null => {
+      if (!raw.trim()) return null;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null;
+    };
+    const dayOfMonthValue = parseDay(editDayOfMonth);
+    const dueDayValue = parseDay(editDueDay);
+    // Se o usuário digitou algo inválido (não vazio mas fora do range), aborta.
+    if (editDayOfMonth.trim() && dayOfMonthValue === null) return;
+    if (editDueDay.trim() && dueDayValue === null) return;
+
     const trimmed = editDesc.trim();
     const normalizedDesc = trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase() : '';
 
@@ -319,8 +358,8 @@ export default function RecorrentesPage() {
         description: normalizedDesc,
         amount: num,
         category: editCategory,
-        dayOfMonth: day,
-        dueDay: due,
+        dayOfMonth: dayOfMonthValue,
+        dueDay: dueDayValue,
         isVariable: editIsVariable,
       });
       setRecurrings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -406,22 +445,42 @@ export default function RecorrentesPage() {
     .filter((r) => r.active && r.type === 'expense')
     .reduce((sum, r) => sum + r.amount, 0);
 
+  // Verifica se um recorrente foi "pago" em um determinado mês olhando os expenses.
+  // Defensivo: não depende da tabela monthly_obligations.
+  const isPaidInMonth = (rec: RecurringExpense, monthKey: string): boolean => {
+    return expenses.some(
+      (e) =>
+        e.recurringExpenseId === rec.id &&
+        typeof e.date === 'string' &&
+        e.date.slice(0, 7) === monthKey
+    );
+  };
+
   const filteredRecurrings = recurrings.filter((rec) => {
     if (activeTab === 'all') return true;
-    const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
-    const isPaid = obligation?.status === 'paid';
+    if (!rec.active) return false;
+
+    const paidThisSelectedMonth = isPaidInMonth(rec, selectedMonth);
+
     if (isPastMonth) {
-      if (activeTab === 'pendentes') return rec.type === 'expense' && rec.active && !isPaid;
-      return rec.type === 'expense' && rec.active && isPaid;
+      return activeTab === 'pendentes' ? !paidThisSelectedMonth : paidThisSelectedMonth;
     }
+
     if (isFutureMonth) {
-      if (activeTab === 'pendentes') return rec.type === 'expense' && rec.active;
-      return false;
+      // Mês futuro: tudo ativo aparece como "previsto" na aba Pendentes
+      return activeTab === 'pendentes';
     }
-    // current month
-    const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
-    if (activeTab === 'pendentes') return hasObligation && !isPaid;
-    return hasObligation && isPaid;
+
+    // Mês corrente
+    if (activeTab === 'pagas') return paidThisSelectedMonth;
+
+    // Pendentes: não foi pago neste mês + dia de referência já passou
+    if (paidThisSelectedMonth) return false;
+    const diaRef =
+      typeof rec.dayOfMonth === 'number' && rec.dayOfMonth >= 1 && rec.dayOfMonth <= 31
+        ? rec.dayOfMonth
+        : 1;
+    return diaRef <= todayDay;
   });
 
   const expenseRecs = filteredRecurrings.filter((r) => r.type === 'expense');
@@ -451,11 +510,17 @@ export default function RecorrentesPage() {
               setReady(false);
               setLoadError(null);
               retryAsync(() =>
-                Promise.all([getRecurringExpenses(), getMonthlyObligations(todayMonthKey), getCreditCards()])
-              ).then(([recs, obs, cards]) => {
+                Promise.all([
+                  getRecurringExpenses(),
+                  checkAndGenerateObligations().then(() => getMonthlyObligations(todayMonthKey)),
+                  getCreditCards(),
+                  getExpenses(),
+                ])
+              ).then(([recs, obs, cards, exps]) => {
                 setRecurrings(recs);
                 setObligations(obs);
                 setCreditCards(cards);
+                setExpenses(exps);
                 if (cards.length > 0) setSelectedCardId(cards[0].id);
                 setReady(true);
                 isFirstLoad.current = false;
@@ -1432,7 +1497,14 @@ export default function RecorrentesPage() {
     const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
     const isPaid = obligation?.status === 'paid';
     const isPaying = obligation ? payingIds.has(obligation.id) : false;
-    const effectiveDueDay = rec.dueDay ?? rec.dayOfMonth;
+    // Atraso/vencimento: usa EXCLUSIVAMENTE rec.dueDay. Não faz fallback para
+    // dayOfMonth — esses são campos com semânticas distintas (dia de lançamento
+    // vs. prazo para pagar sem atraso). Sem dueDay válido → sem badge de atraso.
+    const effectiveDueDay: number | undefined =
+      typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+        ? rec.dueDay
+        : undefined;
+    const hasValidDueDay = effectiveDueDay !== undefined;
     const isMenuOpen = openMenuId === rec.id;
 
     let leftBorderColor = 'transparent';
@@ -1444,7 +1516,10 @@ export default function RecorrentesPage() {
     let showUndo = false;
 
     if (isCurrentMonth) {
-      const daysLate = !isPaid && todayDay > effectiveDueDay ? todayDay - effectiveDueDay : 0;
+      const daysLate =
+        !isPaid && hasValidDueDay && todayDay > effectiveDueDay!
+          ? todayDay - effectiveDueDay!
+          : 0;
       const hasObligation = rec.type === 'expense' && rec.active && !!obligation;
 
       leftBorderColor = !hasObligation ? 'transparent'
@@ -1465,21 +1540,38 @@ export default function RecorrentesPage() {
           const mm = String(d.getMonth() + 1).padStart(2, '0');
           return `Pago · ${dd}/${mm}`;
         })();
-        badgeText = isPaid ? paidAtLabel
-          : daysLate > 0 ? `Atrasado ${daysLate}d`
-          : todayDay === effectiveDueDay ? 'Vence hoje'
-          : effectiveDueDay === todayDay + 1 ? 'Vence amanhã'
-          : `Vence dia ${effectiveDueDay}`;
-        badgeBg = isPaid ? 'var(--green)' : daysLate > 0 ? 'var(--red)'
-          : todayDay === effectiveDueDay ? 'rgba(255,184,0,0.2)'
-          : effectiveDueDay === todayDay + 1 ? 'rgba(255,184,0,0.15)'
-          : 'var(--border-2)';
-        badgeColor = isPaid ? 'white' : daysLate > 0 ? 'white'
-          : todayDay <= effectiveDueDay + 1 && todayDay >= effectiveDueDay - 1 ? 'var(--yellow-text)'
-          : 'var(--text-3)';
-        showMarkPaid = !isPaid;
+        if (isPaid) {
+          badgeText = paidAtLabel;
+          badgeBg = 'var(--green)';
+          badgeColor = 'white';
+        } else if (!hasValidDueDay) {
+          // Sem dia de vencimento/lançamento definido — não exibe badge "Atrasado/Vence"
+          badgeText = '';
+        } else if (daysLate > 0) {
+          badgeText = `Atrasado ${daysLate}d`;
+          badgeBg = 'var(--red)';
+          badgeColor = 'white';
+        } else if (todayDay === effectiveDueDay) {
+          badgeText = 'Vence hoje';
+          badgeBg = 'rgba(255,184,0,0.2)';
+          badgeColor = 'var(--yellow-text)';
+        } else if (effectiveDueDay === todayDay + 1) {
+          badgeText = 'Vence amanhã';
+          badgeBg = 'rgba(255,184,0,0.15)';
+          badgeColor = 'var(--yellow-text)';
+        } else {
+          badgeText = `Vence dia ${effectiveDueDay}`;
+          badgeBg = 'var(--border-2)';
+          badgeColor = 'var(--text-3)';
+        }
         showUndo = isPaid && paidExpenseIds.has(obligation!.id);
       }
+      // Botão "Marcar pago" aparece SEMPRE que: mês atual + despesa ativa + não
+      // paga — independente de ter obligation criada e de ter due_day. Quando
+      // falta obligation o handler cria uma sob demanda antes de marcar paga.
+      const paidThisMonth = isPaidInMonth(rec, selectedMonth);
+      showMarkPaid =
+        rec.type === 'expense' && rec.active && !isPaid && !paidThisMonth;
     } else if (isPastMonth) {
       if (rec.type === 'expense' && rec.active) {
         const paidAtLabel = (() => {
@@ -1654,9 +1746,15 @@ export default function RecorrentesPage() {
               <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {rec.category}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)' }}>
-                · Todo dia {rec.dayOfMonth}
-              </span>
+              {typeof rec.dayOfMonth === 'number' && rec.dayOfMonth >= 1 && rec.dayOfMonth <= 31 ? (
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)' }}>
+                  · Todo dia {rec.dayOfMonth}
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', fontStyle: 'italic' }}>
+                  · Dia não definido
+                </span>
+              )}
               {cardName && (
                 <span
                   style={{
@@ -1687,14 +1785,25 @@ export default function RecorrentesPage() {
                   {badgeText}
                 </span>
               )}
-              {showMarkPaid && obligation && (
+              {showMarkPaid && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    let ob = obligation;
+                    if (!ob) {
+                      const created = await addObligationForNewRecurring(rec);
+                      if (!created) return;
+                      ob = created;
+                      setObligations((prev) =>
+                        [...prev, created].sort(
+                          (a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99)
+                        )
+                      );
+                    }
                     if (rec.isVariable) {
-                      setVariablePayModal({ obligationId: obligation.id, estimatedAmount: rec.amount });
+                      setVariablePayModal({ obligationId: ob.id, estimatedAmount: rec.amount });
                       setVariableAmount(String(rec.amount));
                     } else {
-                      handleMarkObligationPaid(obligation.id);
+                      handleMarkObligationPaid(ob.id);
                     }
                   }}
                   disabled={isPaying}
@@ -1743,6 +1852,46 @@ export default function RecorrentesPage() {
                 </button>
               )}
             </div>
+
+            {/* Row 3: status de vencimento (abaixo da categoria) */}
+            {isCurrentMonth && rec.type === 'expense' && rec.active && !isPaid && (() => {
+              if (!hasValidDueDay) {
+                return (
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: 'var(--text-3)',
+                      fontStyle: 'italic',
+                      margin: '4px 0 0',
+                    }}
+                  >
+                    · Vencimento não definido
+                  </p>
+                );
+              }
+              const diff = effectiveDueDay! - todayDay;
+              if (diff < 0) {
+                const n = -diff;
+                return (
+                  <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--red)', margin: '4px 0 0' }}>
+                    Venceu há {n} dia{n > 1 ? 's' : ''}
+                  </p>
+                );
+              }
+              if (diff === 0) {
+                return (
+                  <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--yellow-text)', margin: '4px 0 0' }}>
+                    Vence hoje
+                  </p>
+                );
+              }
+              return (
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--yellow-text)', margin: '4px 0 0' }}>
+                  Vence em {diff} dia{diff > 1 ? 's' : ''}
+                </p>
+              );
+            })()}
           </div>
         </div>
       </div>

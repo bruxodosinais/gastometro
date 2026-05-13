@@ -364,7 +364,18 @@ export default function HomePage() {
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
 
-  const pendingObligations = obligations.filter((o) => o.status === 'pending');
+  // Item só conta como "pendente" para Contas do mês quando o day_of_month
+  // do recorrente já chegou (ou está em branco — nesse caso considera-se
+  // pendente desde o início do mês).
+  const isDayReachedForRec = (dom: number | undefined): boolean =>
+    dom == null || dom <= todayDay;
+
+  const pendingObligations = obligations
+    .filter((o) => o.status === 'pending')
+    .filter((o) => {
+      const rec = recurringExpenses.find((r) => r.id === o.recurringExpenseId);
+      return rec ? isDayReachedForRec(rec.dayOfMonth) : true;
+    });
   const pendingTotal = pendingObligations.reduce((s, o) => s + o.amount, 0);
 
   const fixedCosts = recurringExpenses
@@ -381,12 +392,15 @@ export default function HomePage() {
       .map((e) => e.recurringExpenseId as string)
   );
   const pendingIncomeCount = activeIncomeRecs.filter(
-    (r) => !receivedIncomeRecIds.has(r.id)
+    (r) => !receivedIncomeRecIds.has(r.id) && isDayReachedForRec(r.dayOfMonth)
   ).length;
 
-  const firstIncomeDay = activeIncomeRecs.length > 0
-    ? Math.min(...activeIncomeRecs.map((r) => r.dayOfMonth))
-    : null;
+  const firstIncomeDay = (() => {
+    const days = activeIncomeRecs
+      .map((r) => r.dayOfMonth)
+      .filter((d): d is number => typeof d === 'number');
+    return days.length > 0 ? Math.min(...days) : null;
+  })();
 
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
@@ -875,7 +889,7 @@ export default function HomePage() {
             position: 'relative',
           }}
         >
-          SALDO DISPONÍVEL
+          SALDO EM CONTA
         </p>
         <p
           style={{
@@ -884,51 +898,55 @@ export default function HomePage() {
             color: 'white',
             letterSpacing: '-0.03em',
             lineHeight: 1.1,
-            marginBottom: 16,
+            marginBottom: 6,
             position: 'relative',
           }}
         >
           {formatCurrency(debitBalance)}
         </p>
 
-        <div
-          style={{
-            height: 1,
-            background: 'rgba(255,255,255,0.15)',
-            marginBottom: 12,
-            position: 'relative',
-          }}
-        />
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            position: 'relative',
-          }}
-        >
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Saldo em conta</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-            {formatCurrency(debitBalance)}
-          </span>
-        </div>
+        {(() => {
+          const monthResult = income - spent;
+          const positive = monthResult >= 0;
+          return (
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: positive ? '#A6F5D5' : '#FFB3B3',
+                marginBottom: 14,
+                position: 'relative',
+              }}
+            >
+              resultado do mês: {positive ? '' : '−'}{formatCurrency(Math.abs(monthResult))}
+            </p>
+          );
+        })()}
 
         {periodCreditTotal > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: 8,
-              position: 'relative',
-            }}
-          >
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#FFB3B3' }}>
-              −{formatCurrency(periodCreditTotal)}
-            </span>
-          </div>
+          <>
+            <div
+              style={{
+                height: 1,
+                background: 'rgba(255,255,255,0.15)',
+                marginBottom: 12,
+                position: 'relative',
+              }}
+            />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                position: 'relative',
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#FFB3B3' }}>
+                −{formatCurrency(periodCreditTotal)}
+              </span>
+            </div>
+          </>
         )}
       </div>
 
@@ -1088,87 +1106,129 @@ export default function HomePage() {
       )}
 
       {/* ── 7. ORÇAMENTO CARD ───────────────────────────────────────────────── */}
-      <div
-        style={{
-          margin: '10px 16px 0',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r)',
-          padding: '18px 20px',
-          boxShadow: 'var(--card-shadow)',
-          ...(mounted ? anim(300) : hidden),
-        }}
-      >
-        <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
-        >
-          <div>
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--text-3)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: 4,
-              }}
-            >
-              ORÇAMENTO LIVRE
-            </p>
-            <p
-              style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: orcamentoRestante <= 0 ? 'var(--red)' : 'var(--green)',
-                margin: 0,
-              }}
-            >
-              {formatCurrency(Math.max(orcamentoRestante, 0))}
-            </p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p
-              style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-2)', margin: 0 }}
-            >
-              {Math.round(Math.min(budgetPct, 100))}%
-            </p>
-            {isCurrentMonth && (
-              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-                {daysRemaining} dia{daysRemaining !== 1 ? 's' : ''} restante
-                {daysRemaining !== 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
-        </div>
+      {(() => {
+        const hasBudget = valorLivreParaGastarPlanejado > 0;
+        const isZeroed = hasBudget ? orcamentoRestante <= 0 : debitSpent > 0;
+        const showNeutral = !hasBudget && debitSpent === 0;
+        const barColor = isZeroed ? 'var(--red)' : 'var(--green)';
+        const availableValue = Math.max(orcamentoRestante, 0);
 
-        <div
-          style={{
-            height: 6,
-            background: 'var(--border-2)',
-            borderRadius: 3,
-            marginTop: 14,
-            overflow: 'hidden',
-          }}
-        >
+        return (
           <div
             style={{
-              height: '100%',
-              borderRadius: 3,
-              width: mounted ? `${Math.min(budgetPct, 100)}%` : '0%',
-              background: orcamentoRestante <= 0 ? 'var(--red)' : 'var(--green)',
-              transition: 'width 600ms ease',
+              margin: '10px 16px 0',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r)',
+              padding: '18px 20px',
+              boxShadow: 'var(--card-shadow)',
+              ...(mounted ? anim(300) : hidden),
             }}
-          />
-        </div>
+          >
+            {showNeutral ? (
+              <>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--text-3)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: 4,
+                  }}
+                >
+                  ORÇAMENTO LIVRE
+                </p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', margin: '8px 0 4px' }}>
+                  Defina um orçamento
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
+                  Informe sua renda esperada no planejamento mensal para acompanhar seus gastos do mês.
+                </p>
+              </>
+            ) : (
+              <>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+                >
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--text-3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        marginBottom: 4,
+                      }}
+                    >
+                      ORÇAMENTO LIVRE
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 26,
+                        fontWeight: 900,
+                        color: isZeroed ? 'var(--red)' : 'var(--green)',
+                        margin: 0,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {formatCurrency(availableValue)}
+                    </p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
+                      disponível
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p
+                      style={{ fontSize: 20, fontWeight: 800, color: isZeroed ? 'var(--red)' : 'var(--text-2)', margin: 0, lineHeight: 1.1 }}
+                    >
+                      {Math.round(Math.min(budgetPct, 100))}%
+                    </p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
+                      usado
+                    </p>
+                    {isCurrentMonth && (
+                      <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                        {daysRemaining} dia{daysRemaining !== 1 ? 's' : ''} restante
+                        {daysRemaining !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-        <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-          {orcamentoRestante <= 0
-            ? 'Eita! Orçamento zerado.'
-            : isCurrentMonth
-            ? `Tudo certo! Faltam ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}.`
-            : 'Orçamento do mês.'}
-        </p>
-      </div>
+                <div
+                  style={{
+                    height: 6,
+                    background: 'var(--border-2)',
+                    borderRadius: 3,
+                    marginTop: 14,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: 3,
+                      width: mounted ? `${Math.min(budgetPct, 100)}%` : '0%',
+                      background: barColor,
+                      transition: 'width 600ms ease',
+                    }}
+                  />
+                </div>
+
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
+                  {isZeroed
+                    ? 'Eita! Orçamento zerado.'
+                    : isCurrentMonth
+                    ? `Tudo certo! Faltam ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}.`
+                    : 'Orçamento do mês.'}
+                </p>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── 8. CONTAS DO MÊS ────────────────────────────────────────────────── */}
       {isCurrentMonth && (obligations.length > 0 || activeIncomeRecs.length > 0) && (
@@ -1219,22 +1279,28 @@ export default function HomePage() {
                 | { kind: 'obligation'; ob: MonthlyObligation }
                 | { kind: 'income'; rec: RecurringExpense; received: boolean };
 
+              const sortByDay = (a: RecurringExpense, b: RecurringExpense) =>
+                (a.dayOfMonth ?? 99) - (b.dayOfMonth ?? 99);
+              const sortObByDue = (a: MonthlyObligation, b: MonthlyObligation) =>
+                (a.dueDay ?? 99) - (b.dueDay ?? 99);
+
+              const pendingObligationsRows = pendingObligations.slice().sort(sortObByDue);
+
+              const pendingIncomeRows = activeIncomeRecs
+                .filter((r) => !receivedIncomeRecIds.has(r.id))
+                .filter((r) => isDayReachedForRec(r.dayOfMonth))
+                .sort(sortByDay);
+
               const rows: RowItem[] = [
-                ...activeIncomeRecs
-                  .filter((r) => !receivedIncomeRecIds.has(r.id))
-                  .sort((a, b) => a.dayOfMonth - b.dayOfMonth)
-                  .map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
-                ...obligations
-                  .filter((o) => o.status === 'pending')
-                  .sort((a, b) => a.dueDay - b.dueDay)
-                  .map((o): RowItem => ({ kind: 'obligation', ob: o })),
+                ...pendingIncomeRows.map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
+                ...pendingObligationsRows.map((o): RowItem => ({ kind: 'obligation', ob: o })),
                 ...activeIncomeRecs
                   .filter((r) => receivedIncomeRecIds.has(r.id))
-                  .sort((a, b) => a.dayOfMonth - b.dayOfMonth)
+                  .sort(sortByDay)
                   .map((r): RowItem => ({ kind: 'income', rec: r, received: true })),
                 ...obligations
                   .filter((o) => o.status === 'paid')
-                  .sort((a, b) => a.dueDay - b.dueDay)
+                  .sort(sortObByDue)
                   .map((o): RowItem => ({ kind: 'obligation', ob: o })),
               ];
               const visible = rows.slice(0, 5);
@@ -1306,7 +1372,11 @@ export default function HomePage() {
                                     marginTop: 2,
                                   }}
                                 >
-                                  Recebimento dia {rec.dayOfMonth}
+                                  {typeof rec.dayOfMonth === 'number' &&
+                                  rec.dayOfMonth >= 1 &&
+                                  rec.dayOfMonth <= 31
+                                    ? `Recebimento dia ${rec.dayOfMonth}`
+                                    : 'Recebimento mensal'}
                                 </p>
                               )}
                             </div>
@@ -1367,11 +1437,18 @@ export default function HomePage() {
                       const cfg = CATEGORY_CONFIG[ob.category as Category];
                       const isPaid = ob.status === 'paid';
                       const isPaying = payingIds.has(ob.id);
-                      const daysLate = !isPaid && todayDay > ob.dueDay ? todayDay - ob.dueDay : 0;
-                      const dueToday = !isPaid && todayDay === ob.dueDay;
-                      const dueTomorrow = !isPaid && ob.dueDay === todayDay + 1;
+                      const hasDueDay =
+                        typeof ob.dueDay === 'number' && ob.dueDay >= 1 && ob.dueDay <= 31;
+                      const daysLate =
+                        !isPaid && hasDueDay && todayDay > ob.dueDay!
+                          ? todayDay - ob.dueDay!
+                          : 0;
+                      const dueToday = !isPaid && hasDueDay && todayDay === ob.dueDay;
+                      const dueTomorrow = !isPaid && hasDueDay && ob.dueDay === todayDay + 1;
                       const dueLabelText = isPaid
                         ? ''
+                        : !hasDueDay
+                        ? '' // sem prazo definido — não mostra "Vence dia X"
                         : daysLate > 0
                         ? `Venceu há ${daysLate} dia${daysLate > 1 ? 's' : ''}`
                         : dueToday

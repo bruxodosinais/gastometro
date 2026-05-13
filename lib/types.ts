@@ -92,7 +92,7 @@ export interface RecurringExpense {
   amount: number;
   category: Category;
   type: EntryType;
-  dayOfMonth: number;
+  dayOfMonth?: number;
   dueDay?: number;
   active: boolean;
   isVariable: boolean;
@@ -177,7 +177,9 @@ export interface MonthlyObligation {
   amount: number;
   description: string;
   category: Category;
-  dueDay: number;
+  // dueDay pode ser undefined: recorrentes antigos ou cadastrados sem
+  // due_day E sem day_of_month geram obrigação sem prazo definido.
+  dueDay?: number;
   status: 'pending' | 'paid';
   paidAt?: string;
   createdAt: string;

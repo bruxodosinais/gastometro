@@ -125,7 +125,14 @@ export async function POST(request: Request) {
     const recurringSection =
       (recurring ?? []).length > 0
         ? (recurring ?? [])
-            .map((r) => `• ${r.description}: ${fmt(Number(r.amount))} todo dia ${r.day_of_month}`)
+            .map((r) => {
+              const dom = r.day_of_month;
+              const diaTxt =
+                typeof dom === 'number' && dom >= 1 && dom <= 31
+                  ? `todo dia ${dom}`
+                  : 'dia não definido';
+              return `• ${r.description}: ${fmt(Number(r.amount))} ${diaTxt}`;
+            })
             .join('\n')
         : 'Nenhum recorrente ativo';
 

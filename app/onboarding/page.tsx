@@ -205,7 +205,13 @@ export default function OnboardingPage() {
     const amount = parseAmount(income);
     if (amount > 0) {
       const parsedDay = parseInt(incomeDay, 10);
-      const day = parsedDay >= 1 && parsedDay <= 31 ? parsedDay : 1;
+      // Não preencher dayOfMonth com 1 quando o usuário não informa — manter
+      // undefined para que o item apareça como "Dia não definido" e não como
+      // "Todo dia 1" enganoso.
+      const day =
+        Number.isFinite(parsedDay) && parsedDay >= 1 && parsedDay <= 31
+          ? parsedDay
+          : undefined;
       try {
         await addRecurringExpense({
           description: 'Salário',

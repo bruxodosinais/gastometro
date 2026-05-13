@@ -74,7 +74,11 @@ export function useNotifications({
       );
       if (paid) continue;
 
-      const dueDay = rec.dueDay ?? rec.dayOfMonth;
+      // Notificações de atraso/vencimento usam EXCLUSIVAMENTE rec.dueDay.
+      // Sem due_day cadastrado, não há prazo de pagamento — então não gera
+      // alerta de atraso/vencimento (apesar de poder existir day_of_month).
+      if (typeof rec.dueDay !== 'number' || rec.dueDay < 1 || rec.dueDay > 31) continue;
+      const dueDay = rec.dueDay;
       const diff = dueDay - today;
 
       if (diff < 0) {
