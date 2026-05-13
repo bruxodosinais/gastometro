@@ -292,46 +292,46 @@ export default function PatrimonioPage() {
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28 md:pb-8">
 
         {/* Cabeçalho */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Patrimônio</h1>
-          <p className="text-gray-500 text-sm">Ativos, dívidas e evolução</p>
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Patrimônio</h1>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>Ativos, dívidas e evolução</p>
         </div>
 
-        {/* Card principal — patrimônio líquido */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-6">
-          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Patrimônio Líquido</p>
-          <p className={`text-4xl font-bold mb-4 ${netPositive ? 'text-gray-900' : 'text-red-400'}`}>
+        {/* Card patrimônio líquido */}
+        <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 20, marginBottom: 12, boxShadow: 'var(--card-shadow)' }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>PATRIMÔNIO LÍQUIDO</p>
+          <p style={{ fontSize: 32, fontWeight: 900, color: netPositive ? 'var(--text)' : 'var(--red)', letterSpacing: '-0.03em', marginBottom: 16 }}>
             {formatCurrency(netWorth)}
           </p>
-          <div className="flex gap-4">
-            <div className="flex-1 bg-mint-50 border border-emerald-500/20 rounded-xl px-4 py-3">
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Total ativos</p>
-              <p className="text-mint-500 font-bold text-lg">{formatCurrency(totalAssets)}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ background: 'var(--green-bg)', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--green-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>TOTAL ATIVOS</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', margin: 0 }}>{formatCurrency(totalAssets)}</p>
             </div>
-            <div className="flex-1 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Total dívidas</p>
-              <p className="text-red-400 font-bold text-lg">{formatCurrency(totalLiabilities)}</p>
+            <div style={{ background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '12px 14px' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, opacity: 0.8 }}>TOTAL DÍVIDAS</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--red)', margin: 0 }}>{formatCurrency(totalLiabilities)}</p>
             </div>
           </div>
         </div>
 
-        {/* Bolsos patrimoniais */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {/* Grid de categorias */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }} className="md:grid-cols-4">
           {(Object.keys(BOLSOS) as BolsoKey[]).map((key) => {
             const cfg = BOLSOS[key];
             const total = bolsoTotals[key];
             const pct = totalAssets > 0 ? (total / totalAssets) * 100 : 0;
             return (
-              <div key={key} className={`bg-white border ${cfg.border} rounded-2xl p-4`}>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${cfg.bg} ${cfg.color}`}>
-                  {cfg.icon}
+              <div key={key} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 14, boxShadow: 'var(--card-shadow)' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, background: 'var(--accent-bg)' }}>
+                  <span style={{ color: 'var(--accent)', display: 'flex' }}>{cfg.icon}</span>
                 </div>
-                <p className="text-gray-500 text-xs font-medium mb-0.5">{BOLSO_EMOJIS[key]} {cfg.label}</p>
-                <p className={`font-bold text-base ${total > 0 ? cfg.color : 'text-gray-500'}`}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>{BOLSO_EMOJIS[key]} {cfg.label}</p>
+                <p style={{ fontSize: 16, fontWeight: 800, color: total > 0 ? 'var(--green)' : 'var(--text-3)', margin: 0 }}>
                   {formatCurrency(total)}
                 </p>
                 {totalAssets > 0 && (
-                  <p className="text-gray-500 text-[10px] mt-0.5">{pct.toFixed(0)}% do total</p>
+                  <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>{pct.toFixed(0)}% do total</p>
                 )}
               </div>
             );
@@ -340,23 +340,17 @@ export default function PatrimonioPage() {
 
         {/* Listas */}
         {assets.length === 0 && liabilities.length === 0 ? (
-          <div className="py-10 text-center mb-6">
-            <p className="text-5xl mb-3">🏦</p>
-            <p className="text-gray-900 font-semibold text-lg mb-2">Seu patrimônio começa aqui</p>
-            <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
+          <div style={{ padding: '40px 16px', textAlign: 'center', marginBottom: 20 }}>
+            <p style={{ fontSize: 48, marginBottom: 12 }}>🏦</p>
+            <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>Seu patrimônio começa aqui</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
               Cadastre seus bens e dívidas para acompanhar seu patrimônio líquido ao longo do tempo.
             </p>
-            <div className="flex gap-3 justify-center flex-wrap">
-              <button
-                onClick={openAddAsset}
-                className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 text-sm font-semibold transition-all active:scale-95"
-              >
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={openAddAsset} style={{ background: 'var(--green)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 18px', cursor: 'pointer' }}>
                 + Adicionar ativo
               </button>
-              <button
-                onClick={openAddLiability}
-                className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all active:scale-95"
-              >
+              <button onClick={openAddLiability} style={{ background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', padding: '10px 18px', cursor: 'pointer' }}>
                 + Adicionar dívida
               </button>
             </div>
@@ -365,102 +359,85 @@ export default function PatrimonioPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
           {/* Ativos */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-gray-900 font-semibold text-sm">Ativos</h2>
+          <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, boxShadow: 'var(--card-shadow)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Ativos</p>
               <button
                 onClick={openAddAsset}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mint-50 border border-emerald-500/20 text-mint-500 text-xs font-semibold hover:bg-mint-50 transition-colors"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green-bg)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--green)', cursor: 'pointer' }}
               >
-                <Plus size={13} /> Adicionar
+                <Plus size={12} /> Adicionar
               </button>
             </div>
 
             {assets.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-500 text-sm">Nenhum ativo cadastrado</p>
-                <button onClick={openAddAsset} className="mt-3 text-xs text-mint-500 hover:text-mint-500">
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Nenhum ativo cadastrado</p>
+                <button onClick={openAddAsset} style={{ marginTop: 8, fontSize: 12, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer' }}>
                   + Adicionar primeiro ativo
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {assets.map((a) => {
-                  const cfg = BOLSOS[a.type];
-                  return (
-                    <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gray-50/60 hover:bg-gray-50 transition-colors group">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-base">{BOLSO_EMOJIS[a.type]}</span>
-                        <div className="min-w-0">
-                          <p className="text-gray-900 text-sm font-medium truncate">{a.name}</p>
-                          <p className={`text-[10px] font-medium ${cfg.color}`}>{cfg.label}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <p className="text-mint-500 font-semibold text-sm">{formatCurrency(a.value)}</p>
-                        <button
-                          onClick={() => openEditAsset(a)}
-                          className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAsset(a.id)}
-                          disabled={deletingId === a.id}
-                          className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          {deletingId === a.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                        </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {assets.map((a) => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--r-sm)', background: 'var(--bg)' }} className="group">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span style={{ fontSize: 16 }}>{BOLSO_EMOJIS[a.type]}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>{BOLSOS[a.type].label}</p>
                       </div>
                     </div>
-                  );
-                })}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)', margin: 0 }}>{formatCurrency(a.value)}</p>
+                      <button onClick={() => openEditAsset(a)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Pencil size={11} color="var(--text-2)" />
+                      </button>
+                      <button onClick={() => handleDeleteAsset(a.id)} disabled={deletingId === a.id} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        {deletingId === a.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} color="var(--red)" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
           {/* Dívidas */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-gray-900 font-semibold text-sm">Dívidas</h2>
+          <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, boxShadow: 'var(--card-shadow)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Dívidas</p>
               <button
                 onClick={openAddLiability}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/15 transition-colors"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--red-bg)', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--red)', cursor: 'pointer' }}
               >
-                <Plus size={13} /> Adicionar
+                <Plus size={12} /> Adicionar
               </button>
             </div>
 
             {liabilities.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-500 text-sm">Nenhuma dívida cadastrada</p>
-                <p className="text-slate-700 text-xs mt-1">Ótimo sinal! 🎉</p>
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Nenhuma dívida cadastrada</p>
+                <p style={{ fontSize: 12, color: 'var(--green)', marginTop: 4 }}>Ótimo sinal! 🎉</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {liabilities.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gray-50/60 hover:bg-gray-50 transition-colors group">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-gray-900 text-sm font-medium truncate">{l.name}</p>
-                        <p className="text-[10px] font-medium text-red-400/70">{l.type}</p>
+                  <div key={l.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderRadius: 'var(--r-sm)', background: 'var(--bg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <AlertCircle size={15} color="var(--red)" style={{ flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--red)', marginTop: 2, opacity: 0.7 }}>{l.type}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <p className="text-red-400 font-semibold text-sm">{formatCurrency(l.value)}</p>
-                      <button
-                        onClick={() => openEditLiability(l)}
-                        className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Pencil size={12} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--red)', margin: 0 }}>{formatCurrency(l.value)}</p>
+                      <button onClick={() => openEditLiability(l)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Pencil size={11} color="var(--text-2)" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteLiability(l.id)}
-                        disabled={deletingId === l.id}
-                        className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        {deletingId === l.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                      <button onClick={() => handleDeleteLiability(l.id)} disabled={deletingId === l.id} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        {deletingId === l.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} color="var(--red)" />}
                       </button>
                     </div>
                   </div>
@@ -473,39 +450,39 @@ export default function PatrimonioPage() {
 
         {/* Cards de aportes e evolução */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Aporte deste mês */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Saldo deste mês</p>
-            <p className={`text-2xl font-bold mb-2 ${currentBalance >= 0 ? 'text-mint-500' : 'text-red-400'}`}>
+          {/* Saldo deste mês */}
+          <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, boxShadow: 'var(--card-shadow)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Saldo deste mês</p>
+            <p style={{ fontSize: 24, fontWeight: 800, color: currentBalance >= 0 ? 'var(--green)' : 'var(--red)', marginBottom: 8 }}>
               {formatCurrency(currentBalance)}
             </p>
-            <div className="flex items-center gap-1.5">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {balanceDiff >= 0 ? (
-                <TrendingUp size={13} className="text-mint-500" />
+                <TrendingUp size={13} color="var(--green)" />
               ) : (
-                <TrendingDown size={13} className="text-red-400" />
+                <TrendingDown size={13} color="var(--red)" />
               )}
-              <p className={`text-xs font-medium ${balanceDiff >= 0 ? 'text-mint-500' : 'text-red-400'}`}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: balanceDiff >= 0 ? 'var(--green)' : 'var(--red)', margin: 0 }}>
                 {balanceDiff >= 0 ? '+' : ''}{formatCurrency(balanceDiff)} vs mês anterior
               </p>
             </div>
           </div>
 
           {/* Evolução — gráfico */}
-          <div className="md:col-span-2 bg-white border border-gray-100 rounded-2xl p-5">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-4">Saldo líquido mensal (12 meses)</p>
+          <div className="md:col-span-2" style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, boxShadow: 'var(--card-shadow)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>Saldo líquido mensal (12 meses)</p>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyChart} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-2)" />
                   <XAxis
                     dataKey="month"
-                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    tick={{ fill: 'var(--text-3)', fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: '#64748b', fontSize: 10 }}
+                    tick={{ fill: 'var(--text-3)', fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v: number) =>
@@ -516,10 +493,10 @@ export default function PatrimonioPage() {
                   <Line
                     type="monotone"
                     dataKey="saldo"
-                    stroke="#8b5cf6"
+                    stroke="var(--accent)"
                     strokeWidth={2}
-                    dot={{ fill: '#8b5cf6', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#a78bfa' }}
+                    dot={{ fill: 'var(--accent)', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: 'var(--accent)' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -532,28 +509,29 @@ export default function PatrimonioPage() {
       {/* Modal de formulário */}
       {modalMode && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-gray-900 font-semibold text-sm">
+          <div style={{ width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: '20px 20px 0 0', padding: 24 }} className="md:rounded-2xl">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                 {modalMode === 'asset'
                   ? editingAsset ? 'Editar ativo' : 'Novo ativo'
                   : editingLiability ? 'Editar dívida' : 'Nova dívida'}
               </p>
               <button
                 onClick={closeModal}
-                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
+                style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <X size={15} />
+                <X size={15} color="var(--text-2)" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Nome */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
                   Nome
                 </label>
                 <input
@@ -562,39 +540,40 @@ export default function PatrimonioPage() {
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder={modalMode === 'asset' ? 'Ex: Nubank, FGTS, Apartamento…' : 'Ex: Financiamento carro, Cartão…'}
                   autoFocus
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
                 />
               </div>
 
               {/* Tipo */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
                   Tipo / Bolso
                 </label>
                 {modalMode === 'asset' ? (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {(Object.keys(BOLSOS) as BolsoKey[]).map((key) => {
-                      const cfg = BOLSOS[key];
                       const active = form.type === key;
                       return (
                         <button
                           key={key}
                           type="button"
                           onClick={() => setForm((f) => ({ ...f, type: key }))}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                            active
-                              ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600'
-                          }`}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '10px 12px', borderRadius: 'var(--r-sm)',
+                            border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                            background: active ? 'var(--accent-bg)' : 'var(--bg)',
+                            cursor: 'pointer',
+                          }}
                         >
                           <span>{BOLSO_EMOJIS[key]}</span>
-                          <span className="text-xs font-medium">{cfg.label}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--accent)' : 'var(--text-2)' }}>{BOLSOS[key].label}</span>
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {LIABILITY_TYPES.map((t) => {
                       const active = form.type === t;
                       return (
@@ -602,11 +581,14 @@ export default function PatrimonioPage() {
                           key={t}
                           type="button"
                           onClick={() => setForm((f) => ({ ...f, type: t }))}
-                          className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-                            active
-                              ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600'
-                          }`}
+                          style={{
+                            padding: '7px 14px', borderRadius: 'var(--r-sm)',
+                            border: `1.5px solid ${active ? 'var(--red)' : 'var(--border)'}`,
+                            background: active ? 'var(--red-bg)' : 'var(--bg)',
+                            fontSize: 12, fontWeight: 600,
+                            color: active ? 'var(--red)' : 'var(--text-2)',
+                            cursor: 'pointer',
+                          }}
                         >
                           {t}
                         </button>
@@ -618,11 +600,11 @@ export default function PatrimonioPage() {
 
               {/* Valor */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
                   Valor (R$)
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--text-3)' }}>R$</span>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -631,23 +613,23 @@ export default function PatrimonioPage() {
                     value={form.value}
                     onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
                     placeholder="0,00"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px 12px 42px', fontSize: 16, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
                   />
                 </div>
               </div>
             </div>
 
             {formError && (
-              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mt-4">
+              <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 12 }}>
                 {formError}
               </p>
             )}
 
-            <div className="flex gap-2 mt-4">
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim() || !form.value}
-                className="flex-1 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.value) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Salvar</>}
               </button>
@@ -655,16 +637,16 @@ export default function PatrimonioPage() {
                 <button
                   onClick={() => editingAsset ? handleDeleteAsset(editingAsset.id) : editingLiability && handleDeleteLiability(editingLiability.id)}
                   disabled={!!deletingId}
-                  className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-red-500/10 hover:border-red-500/30 border border-gray-200 text-gray-500 hover:text-red-400 transition-colors"
+                  style={{ padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--red-bg)', border: '1.5px solid var(--red)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  {deletingId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deletingId ? <Loader2 size={16} color="var(--red)" className="animate-spin" /> : <Trash2 size={16} color="var(--red)" />}
                 </button>
               )}
               <button
                 onClick={closeModal}
-                className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors"
+                style={{ padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--bg)', border: '1.5px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <X size={16} />
+                <X size={16} color="var(--text-2)" />
               </button>
             </div>
           </div>

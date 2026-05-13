@@ -131,25 +131,45 @@ export default function Navigation() {
       {/* ── SHEET "MAIS" ─────────────────────────────────────────────────── */}
       {sheetOpen && (
         <div
-          className="fixed inset-0 z-[60] md:hidden flex items-center justify-center"
+          className="fixed inset-0 z-[60] md:hidden flex items-end justify-center"
           style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setSheetOpen(false)}
         >
           <div
-            style={{ width: '90%', maxWidth: 380, borderRadius: 16, background: '#FFFFFF', padding: 24 }}
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              borderRadius: '20px 20px 0 0',
+              background: 'var(--surface)',
+              padding: '20px 16px',
+              paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-900 font-semibold text-sm">Mais opções</span>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0, lineHeight: 1.2 }}>Mais</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
+                  Ferramentas e configurações
+                </p>
+              </div>
               <button
                 onClick={() => setSheetOpen(false)}
-                className="text-gray-400 p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
               >
-                <X size={20} />
+                <X size={16} color="var(--text-2)" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Grid 2 colunas */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {sheetItems.map(({ href, label, Icon }) => {
                 const active = pathname === href;
                 return (
@@ -157,15 +177,30 @@ export default function Navigation() {
                     key={href}
                     href={href}
                     onClick={() => setSheetOpen(false)}
-                    className="flex flex-col items-center gap-2 rounded-xl border transition-colors"
                     style={{
-                      padding: 16,
-                      background: active ? '#f0fdf8' : '#FFFFFF',
-                      borderColor: active ? 'rgba(26,158,110,0.3)' : '#F3F4F6',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      background: 'var(--surface)',
+                      border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: 'var(--r)',
+                      padding: '20px 16px',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                      transition: 'border-color 150ms',
                     }}
                   >
-                    <Icon size={24} color={active ? ACTIVE : INACTIVE} strokeWidth={active ? 2.5 : 1.8} />
-                    <span className="text-sm font-medium" style={{ color: active ? ACTIVE : '#374151' }}>
+                    <div
+                      style={{
+                        width: 40, height: 40,
+                        background: 'var(--accent-bg)',
+                        borderRadius: 12,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Icon size={20} color="var(--accent)" />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 10, textAlign: 'center' }}>
                       {label}
                     </span>
                   </Link>

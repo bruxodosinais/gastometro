@@ -866,21 +866,20 @@ export default function CartoesPage() {
   if (!ready) {
     if (loadError) {
       return (
-        <main className="max-w-lg mx-auto px-4 pt-16 pb-10 flex flex-col items-center gap-4 text-center">
-          <p className="text-4xl">😕</p>
-          <p className="text-gray-700 font-medium">{loadError}</p>
+        <main style={{ maxWidth: 440, margin: '0 auto', padding: '64px 16px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 48 }}>😕</p>
+          <p style={{ color: 'var(--text-2)', fontWeight: 600 }}>{loadError}</p>
           <button
             onClick={loadAll}
-            className="flex items-center gap-2 bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-colors"
+            style={{ background: 'var(--green)', color: 'white', fontSize: 14, fontWeight: 700, padding: '10px 20px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
           >
-            <Loader2 size={15} className="hidden" />
             Tentar novamente
           </button>
         </main>
       );
     }
     return (
-      <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
+      <main style={{ maxWidth: 440, margin: '0 auto', padding: '24px 16px 112px' }}>
         <div className="skeleton h-7 w-36 rounded-lg mb-2" />
         <div className="skeleton h-4 w-52 rounded mb-6" />
         {[0, 1].map((i) => <div key={i} className="skeleton h-32 rounded-2xl mb-3" />)}
@@ -890,39 +889,47 @@ export default function CartoesPage() {
 
   return (
     <>
-      <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-bold text-gray-900">Cartões</h1>
+      <main style={{ maxWidth: 440, margin: '0 auto', paddingTop: 24, paddingBottom: 112 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '0 16px', marginBottom: 20 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Cartões</h1>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>Gerencie seus cartões de crédito</p>
+          </div>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'var(--green)', color: 'white',
+              fontSize: 12, fontWeight: 700,
+              borderRadius: 20, border: 'none',
+              padding: '6px 14px', cursor: 'pointer',
+              flexShrink: 0,
+            }}
           >
-            <Plus size={16} />
+            <Plus size={14} />
             Adicionar
           </button>
         </div>
-        <p className="text-gray-500 text-sm mb-6">Gerencie seus cartões de crédito</p>
 
         {cards.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-5xl mb-3">💳</p>
-            <p className="text-gray-900 font-semibold text-lg mb-2">Nenhum cartão cadastrado</p>
-            <p className="text-gray-500 text-sm mb-5 max-w-[260px] mx-auto">
+          <div style={{ padding: '48px 16px', textAlign: 'center' }}>
+            <p style={{ fontSize: 48, marginBottom: 12 }}>💳</p>
+            <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>Nenhum cartão cadastrado</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginBottom: 20, maxWidth: 260, margin: '0 auto 20px' }}>
               Adicione seus cartões de crédito para controlar as faturas mensais.
             </p>
             <button
               onClick={openAdd}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white active:scale-95 transition-all"
-              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--green)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 20px', cursor: 'pointer' }}
             >
-              <Plus size={16} />
+              <Plus size={15} />
               Adicionar cartão
             </button>
           </div>
         ) : (
           <>
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {cards.map((card) => {
                 const fatura = faturas[card.id] ?? 0;
                 const fatPct = card.limite > 0 ? Math.min((fatura / card.limite) * 100, 100) : 0;
@@ -931,50 +938,54 @@ export default function CartoesPage() {
                 return (
                   <div
                     key={card.id}
-                    className="bg-white border border-gray-100 rounded-2xl p-4 relative cursor-pointer transition-shadow hover:shadow-md"
-                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1.5px solid var(--border)',
+                      borderRadius: 'var(--r)',
+                      padding: '16px 18px',
+                      margin: '0 16px',
+                      position: 'relative',
+                      boxShadow: 'var(--card-shadow)',
+                    }}
                   >
                     <Link
                       href={`/cartoes/${card.id}`}
-                      className="absolute inset-0 rounded-2xl z-0"
+                      style={{ position: 'absolute', inset: 0, borderRadius: 'var(--r)', zIndex: 0 }}
                       aria-label={`Ver fatura ${card.nome}`}
                     />
 
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                          <CreditCard size={18} color="#3b82f6" />
+                    {/* Card header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, background: 'var(--accent-bg)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <CreditCard size={16} color="var(--accent)" />
                         </div>
                         <div>
-                          <p className="text-gray-900 font-semibold text-sm">{card.nome}</p>
-                          <p className="text-gray-500 text-xs">Limite {formatCurrency(card.limite)}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{card.nome}</p>
+                          {(card.diaFechamento || card.diaVencimento) && (
+                            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 1 }}>
+                              {card.diaFechamento ? `Fecha dia ${card.diaFechamento}` : ''}
+                              {card.diaFechamento && card.diaVencimento ? ' · ' : ''}
+                              {card.diaVencimento ? `Vence dia ${card.diaVencimento}` : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
-
-                      <div className="relative flex-shrink-0 z-10 flex items-center gap-0.5">
-                        <ChevronRight size={15} className="text-gray-300" aria-hidden="true" />
+                      <div style={{ position: 'relative', flexShrink: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <ChevronRight size={15} color="var(--border)" aria-hidden="true" />
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(isMenuOpen ? null : card.id);
-                          }}
-                          className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : card.id); }}
+                          style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', background: 'none', border: 'none', borderRadius: 6, cursor: 'pointer' }}
                           aria-label="Opções"
                         >
-                          <MoreVertical size={16} />
+                          <MoreVertical size={15} />
                         </button>
                         {isMenuOpen && (
-                          <div className="absolute right-0 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[120px]">
-                            <button
-                              onClick={() => { openEdit(card); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
+                          <div style={{ position: 'absolute', right: 0, top: 32, zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', overflow: 'hidden', minWidth: 120 }}>
+                            <button onClick={() => { openEdit(card); setOpenMenuId(null); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', fontSize: 12, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer' }}>
                               <Pencil size={12} /> Editar
                             </button>
-                            <button
-                              onClick={() => { setDeletingCard(card); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
-                            >
+                            <button onClick={() => { setDeletingCard(card); setOpenMenuId(null); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', borderTop: '1px solid var(--border-2)' }}>
                               <Trash2 size={12} /> Excluir
                             </button>
                           </div>
@@ -982,48 +993,47 @@ export default function CartoesPage() {
                       </div>
                     </div>
 
-                    {(card.diaFechamento || card.diaVencimento) && (
-                      <div className="flex gap-4 mb-3 text-xs text-gray-500">
-                        {card.diaFechamento && <span>Fecha dia {card.diaFechamento}</span>}
-                        {card.diaVencimento && <span>Vence dia {card.diaVencimento}</span>}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-gray-500">
+                    {/* Fatura */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
                         Fatura {period.slice(5, 7)}/{period.slice(0, 4)}
                       </span>
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: fatura > 0 ? '#f04e5e' : '#9ca3af' }}
-                      >
+                      <span style={{ fontSize: 15, fontWeight: 800, color: fatura > 0 ? 'var(--red)' : 'var(--text)' }}>
                         {formatCurrency(fatura)}
                       </span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${fatPct}%`,
-                          background:
-                            fatPct >= 90 ? '#ef4444' : fatPct >= 70 ? '#f97316' : '#3b82f6',
-                        }}
-                      />
+
+                    {/* Barra de limite */}
+                    <div style={{ height: 4, background: 'var(--red-bg)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 2, width: `${fatPct}%`, background: 'var(--red)', transition: 'width 400ms ease' }} />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      {Math.round(fatPct)}% do limite utilizado
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Ver lançamentos →</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                      <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)' }}>
+                        {Math.round(fatPct)}% do limite utilizado
+                      </p>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>Ver lançamentos →</p>
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* ── Global import button (Mudança 1) ────────────────────────── */}
+            {/* Importar fatura CSV */}
             <button
               onClick={() => importRef.current?.click()}
               disabled={importFlow !== 'idle'}
-              className="w-full mt-4 py-3 rounded-xl text-sm font-medium text-blue-600 border border-blue-200 bg-white flex items-center justify-center gap-2 transition-colors hover:bg-blue-50 active:scale-95 disabled:opacity-50"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: 'calc(100% - 32px)',
+                margin: '12px 16px 0',
+                padding: 14,
+                background: 'var(--surface)',
+                border: '1.5px solid var(--accent-soft)',
+                borderRadius: 'var(--r)',
+                fontSize: 13, fontWeight: 700, color: 'var(--accent)',
+                cursor: 'pointer',
+                opacity: importFlow !== 'idle' ? 0.5 : 1,
+              }}
             >
               {importFlow === 'parsing' ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -1047,13 +1057,12 @@ export default function CartoesPage() {
 
       {/* Parsing overlay (AI phase) */}
       {importFlow === 'parsing' && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div
-            className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 mx-4"
-            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.16)' }}
+            style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, margin: '0 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.16)' }}
           >
-            <Loader2 size={32} className="animate-spin text-blue-500" />
-            <p className="text-gray-700 font-semibold text-sm text-center">
+            <Loader2 size={32} className="animate-spin" color="var(--accent)" />
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center', margin: 0 }}>
               Analisando transações com IA...
             </p>
           </div>
@@ -1062,18 +1071,17 @@ export default function CartoesPage() {
 
       {/* ── Card picker sheet (Nubank + stale mapping) ───────────────────────── */}
       {showCardPickerSheet && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div
-            className="bg-white rounded-t-2xl w-full max-w-lg flex flex-col"
-            style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
+            style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 512, display: 'flex', flexDirection: 'column', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
           >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 
-            <div className="px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="text-gray-900 font-bold text-lg">Importar fatura</h2>
-              <p className="text-gray-500 text-sm mt-1">
+            <div style={{ padding: '8px 20px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Importar fatura</h2>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
                 Selecione o cartão para vincular as transações
               </p>
             </div>
@@ -1083,7 +1091,7 @@ export default function CartoesPage() {
                 Vincular ao cartão
               </label>
               {showNewCardInline ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5">
+                <div style={{ background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <input
                     type="text"
                     value={newCardName}
@@ -1091,7 +1099,7 @@ export default function CartoesPage() {
                     placeholder="Nome do cartão (ex: XP, Inter, Itaú...)"
                     maxLength={40}
                     autoFocus
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                   />
                   <input
                     type="number"
@@ -1101,7 +1109,7 @@ export default function CartoesPage() {
                     value={newCardLimit}
                     onChange={(e) => setNewCardLimit(e.target.value)}
                     placeholder="Limite em R$ (opcional)"
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -1112,7 +1120,7 @@ export default function CartoesPage() {
                       value={newCardClosingDay}
                       onChange={(e) => setNewCardClosingDay(e.target.value)}
                       placeholder="Fecha dia (opcional)"
-                      className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                     />
                     <input
                       type="number"
@@ -1122,7 +1130,7 @@ export default function CartoesPage() {
                       value={newCardDueDay}
                       onChange={(e) => setNewCardDueDay(e.target.value)}
                       placeholder="Vence dia (opcional)"
-                      className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                     />
                   </div>
                   <div className="flex items-center gap-3 pt-0.5">
@@ -1130,7 +1138,7 @@ export default function CartoesPage() {
                       onClick={handleCreateAndLink}
                       disabled={!newCardName.trim() || creatingNewCard}
                       className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                      style={{ background: 'var(--green)' }}
                     >
                       {creatingNewCard && <Loader2 size={13} className="animate-spin" />}
                       Criar e vincular
@@ -1164,7 +1172,7 @@ export default function CartoesPage() {
               )}
             </div>
 
-            <div className="px-5 pb-6 flex gap-3 flex-shrink-0">
+            <div style={{ padding: '0 20px 24px', display: 'flex', gap: 10, flexShrink: 0 }}>
               <button
                 onClick={() => {
                   setShowCardPickerSheet(false);
@@ -1172,15 +1180,14 @@ export default function CartoesPage() {
                   pendingNubankTransactionsRef.current = [];
                   pendingMappingAfterCardPickRef.current = null;
                 }}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+                style={{ flex: 1, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text-2)', border: '1.5px solid var(--border)', background: 'var(--bg)', cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCardPickerConfirm}
                 disabled={!cardPickerSelectedId || showNewCardInline}
-                className="py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-60"
-                style={{ flex: 2, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', opacity: (!cardPickerSelectedId || showNewCardInline) ? 0.6 : 1 }}
               >
                 Continuar →
               </button>
@@ -1191,18 +1198,17 @@ export default function CartoesPage() {
 
       {/* ── Raw data preview modal ───────────────────────────────────────────── */}
       {showRawPreview && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div
-            className="bg-white rounded-t-2xl w-full max-w-lg flex flex-col"
-            style={{ maxHeight: '85vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
+            style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 512, display: 'flex', flexDirection: 'column', maxHeight: '85vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
           >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 
-            <div className="px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="text-gray-900 font-bold text-lg">Verifique os dados do arquivo</h2>
-              <p className="text-gray-500 text-sm mt-1">
+            <div style={{ padding: '8px 20px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Verifique os dados do arquivo</h2>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
                 {csvRawData.rows.length} linha{csvRawData.rows.length !== 1 ? 's' : ''} encontrada
                 {csvRawData.rows.length !== 1 ? 's' : ''} — os dados abaixo estão corretos?
               </p>
@@ -1242,20 +1248,19 @@ export default function CartoesPage() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 flex gap-3">
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', gap: 10 }}>
               <button
                 onClick={() => {
                   setShowRawPreview(false);
                   importRef.current?.click();
                 }}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+                style={{ flex: 1, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text-2)', border: '1.5px solid var(--border)', background: 'var(--bg)', cursor: 'pointer' }}
               >
                 Arquivo errado
               </button>
               <button
                 onClick={handleRawPreviewConfirm}
-                className="py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-                style={{ flex: 2, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer' }}
               >
                 Está correto, continuar →
               </button>
@@ -1266,26 +1271,25 @@ export default function CartoesPage() {
 
       {/* ── Mapping modal ────────────────────────────────────────────────────── */}
       {showMappingModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div
-            className="bg-white rounded-t-2xl w-full max-w-lg flex flex-col"
-            style={{ maxHeight: '90vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
+            style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 512, display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
           >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 
-            <div className="px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <h2 className="text-gray-900 font-bold text-lg">Formato não reconhecido</h2>
+            <div style={{ padding: '8px 20px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Formato não reconhecido</h2>
                 <button
                   onClick={closeMappingModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-3)' }}
                 >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-gray-500 text-sm mt-1">
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
                 Configure uma vez e o app vai lembrar para próximas importações
               </p>
             </div>
@@ -1297,7 +1301,7 @@ export default function CartoesPage() {
                   Vincular ao cartão
                 </label>
                 {showNewCardInline ? (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5">
+                  <div style={{ background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <input
                       type="text"
                       value={newCardName}
@@ -1305,7 +1309,7 @@ export default function CartoesPage() {
                       placeholder="Nome do cartão (ex: XP, Inter, Itaú...)"
                       maxLength={40}
                       autoFocus
-                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                     />
                     <input
                       type="number"
@@ -1315,7 +1319,7 @@ export default function CartoesPage() {
                       value={newCardLimit}
                       onChange={(e) => setNewCardLimit(e.target.value)}
                       placeholder="Limite em R$ (opcional)"
-                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                      style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -1326,7 +1330,7 @@ export default function CartoesPage() {
                         value={newCardClosingDay}
                         onChange={(e) => setNewCardClosingDay(e.target.value)}
                         placeholder="Fecha dia (opcional)"
-                        className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                        style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                       />
                       <input
                         type="number"
@@ -1336,7 +1340,7 @@ export default function CartoesPage() {
                         value={newCardDueDay}
                         onChange={(e) => setNewCardDueDay(e.target.value)}
                         placeholder="Vence dia (opcional)"
-                        className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+                        style={{ width: '100%', boxSizing: 'border-box' as const, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text)', outline: 'none' }}
                       />
                     </div>
                     <div className="flex items-center gap-3 pt-0.5">
@@ -1515,18 +1519,17 @@ export default function CartoesPage() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 flex gap-3">
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', gap: 10 }}>
               <button
                 onClick={closeMappingModal}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+                style={{ flex: 1, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text-2)', border: '1.5px solid var(--border)', background: 'var(--bg)', cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleMappingConfirm}
                 disabled={!isMappingValid()}
-                className="py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60"
-                style={{ flex: 2, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: !isMappingValid() ? 0.6 : 1 }}
               >
                 Continuar →
               </button>
@@ -1537,16 +1540,15 @@ export default function CartoesPage() {
 
       {/* ── Preview modal ─────────────────────────────────────────────────────── */}
       {showPreviewModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div
-            className="bg-white rounded-t-2xl w-full max-w-lg flex flex-col"
-            style={{ maxHeight: '85vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
+            style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 512, display: 'flex', flexDirection: 'column', maxHeight: '85vh', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="text-gray-900 font-bold text-lg">
+            <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                 Importar fatura {currentBankName}
               </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
                 {nonDupsWithIdx.length} transaç
                 {nonDupsWithIdx.length !== 1 ? 'ões' : 'ão'} encontrada
                 {nonDupsWithIdx.length !== 1 ? 's' : ''}
@@ -1605,32 +1607,31 @@ export default function CartoesPage() {
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
               {dupCount > 0 && (
-                <p className="text-gray-400 text-xs mb-2 text-center">
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 6, textAlign: 'center' }}>
                   {dupCount} item{dupCount !== 1 ? 's' : ''} ignorado
                   {dupCount !== 1 ? 's' : ''} (já existem)
                 </p>
               )}
               {skippedCount > 0 && (
-                <p className="text-gray-400 text-xs mb-3 text-center">
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, textAlign: 'center' }}>
                   {skippedCount} linha{skippedCount !== 1 ? 's' : ''} ignorada
                   {skippedCount !== 1 ? 's' : ''} (valor inválido, data inválida ou descrição vazia)
                 </p>
               )}
-              <div className="flex gap-3">
+              <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => { setImportFlow('idle'); setPreviewItems([]); }}
                   disabled={importFlow === 'inserting'}
-                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  style={{ flex: 1, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text-2)', border: '1.5px solid var(--border)', background: 'var(--bg)', cursor: 'pointer', opacity: importFlow === 'inserting' ? 0.5 : 1 }}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleConfirmImport}
                   disabled={importFlow === 'inserting' || nonDupsWithIdx.length === 0}
-                  className="py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60"
-                  style={{ flex: 2, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                  style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (importFlow === 'inserting' || nonDupsWithIdx.length === 0) ? 0.6 : 1 }}
                 >
                   {importFlow === 'inserting' ? (
                     <>
@@ -1650,107 +1651,69 @@ export default function CartoesPage() {
       {/* Modal add/edit cartão */}
       {showModal && (
         <>
-          <div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowModal(false)}
-          />
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:px-4">
-            <div className="bg-white border-t border-gray-100 rounded-t-2xl md:border md:rounded-2xl md:w-full md:max-w-md">
+            <div style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)', borderRadius: '20px 20px 0 0' }} className="md:border md:rounded-2xl md:w-full md:max-w-md">
               <div className="flex justify-center pt-3 pb-1 md:hidden">
-                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
               </div>
-              <div className="px-5 pb-6 pt-3 md:pt-5">
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-gray-900 font-semibold text-base">
+              <div style={{ padding: '12px 20px 24px' }} className="md:pt-5">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                     {editingCard ? 'Editar cartão' : 'Novo cartão'}
                   </h2>
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="text-gray-500 hover:text-gray-900 transition-colors p-1"
-                  >
+                  <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4 }}>
                     <X size={20} />
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                      Nome do cartão
-                    </label>
-                    <input
-                      type="text"
-                      value={form.nome}
-                      onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-                      placeholder="Ex: Nubank, Inter, Itaú..."
-                      maxLength={40}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                      Limite (R$)
-                    </label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      value={form.limite}
-                      onChange={(e) => setForm((f) => ({ ...f, limite: e.target.value }))}
-                      placeholder="0,00"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                        Dia de fechamento
-                      </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    { label: 'Nome do cartão', key: 'nome' as const, type: 'text', placeholder: 'Ex: Nubank, Inter, Itaú...', maxLength: 40 },
+                    { label: 'Limite (R$)', key: 'limite' as const, type: 'number', placeholder: '0,00' },
+                  ].map(({ label, key, type, placeholder, maxLength }) => (
+                    <div key={key}>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{label}</label>
                       <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={28}
-                        value={form.diaFechamento}
-                        onChange={(e) => setForm((f) => ({ ...f, diaFechamento: e.target.value }))}
-                        placeholder="Ex: 10"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                        type={type}
+                        inputMode={type === 'number' ? 'decimal' : undefined}
+                        value={form[key]}
+                        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        maxLength={maxLength}
+                        style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, fontWeight: 600, color: 'var(--text)', outline: 'none' }}
                       />
                     </div>
-                    <div>
-                      <label className="text-gray-500 text-xs font-medium block mb-1.5">
-                        Dia de vencimento
-                      </label>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={28}
-                        value={form.diaVencimento}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, diaVencimento: e.target.value }))
-                        }
-                        placeholder="Ex: 20"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
-                      />
-                    </div>
+                  ))}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { label: 'Dia fechamento', key: 'diaFechamento' as const, placeholder: 'Ex: 10' },
+                      { label: 'Dia vencimento', key: 'diaVencimento' as const, placeholder: 'Ex: 20' },
+                    ].map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>{label}</label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1} max={28}
+                          value={form[key]}
+                          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                          placeholder={placeholder}
+                          style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, fontWeight: 600, color: 'var(--text)', outline: 'none' }}
+                        />
+                      </div>
+                    ))}
                   </div>
 
-                  {formError && <p className="text-red-400 text-sm">{formError}</p>}
+                  {formError && <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px' }}>{formError}</p>}
 
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
-                    style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                    style={{ width: '100%', padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >
-                    {saving
-                      ? 'Salvando...'
-                      : editingCard
-                      ? 'Salvar alterações'
-                      : 'Adicionar cartão'}
+                    {saving ? 'Salvando...' : editingCard ? 'Salvar alterações' : 'Adicionar cartão'}
                   </button>
                 </div>
               </div>

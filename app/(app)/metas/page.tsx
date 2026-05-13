@@ -398,44 +398,43 @@ export default function MetasPage() {
       <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
 
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between mb-5">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Metas</h1>
-            <p className="text-gray-500 text-sm">Construindo patrimônio</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Metas</h1>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>Construindo patrimônio</p>
           </div>
           {!showForm && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-95 text-white text-sm font-semibold transition-all"
-              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: 'white', fontSize: 12, fontWeight: 700, borderRadius: 20, border: 'none', padding: '6px 14px', cursor: 'pointer', flexShrink: 0 }}
             >
-              <Plus size={16} /> Nova meta
+              <Plus size={14} /> Nova meta
             </button>
           )}
         </div>
 
         {/* Cards de resumo */}
         {goals.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-white border border-gray-100 rounded-2xl p-4">
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Total guardado</p>
-              <p className="text-mint-500 font-bold text-lg leading-tight truncate">{formatCompactCurrency(totalSaved)}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+            <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 14, boxShadow: 'var(--card-shadow)' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>TOTAL GUARDADO</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatCompactCurrency(totalSaved)}</p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-4">
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Metas ativas</p>
-              <p className="text-gray-900 font-bold text-lg leading-tight">{activeGoals.length}</p>
+            <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 14, boxShadow: 'var(--card-shadow)' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>METAS ATIVAS</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{activeGoals.length}</p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-4">
-              <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Próxima</p>
+            <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 14, boxShadow: 'var(--card-shadow)' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>PRÓXIMA</p>
               {nextGoal ? (
                 <>
-                  <p className="text-gray-900 font-bold text-sm leading-tight truncate">{nextGoal.name}</p>
-                  <p className={`text-xs mt-0.5 font-semibold ${colorCfg(nextGoal.color).text}`}>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nextGoal.name}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>
                     {Math.round((nextGoal.currentAmount / nextGoal.targetAmount) * 100)}%
                   </p>
                 </>
               ) : (
-                <p className="text-gray-500 text-sm">—</p>
+                <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0 }}>—</p>
               )}
             </div>
           </div>
@@ -448,7 +447,6 @@ export default function MetasPage() {
             onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}
           >
           <div
-            className="bg-white rounded-2xl p-6 shadow-xl overflow-y-auto"
             style={{
               position: 'fixed',
               top: '50%',
@@ -457,18 +455,24 @@ export default function MetasPage() {
               width: 'calc(100% - 2rem)',
               maxWidth: '32rem',
               maxHeight: '90vh',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r)',
+              padding: 24,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+              overflowY: 'auto',
             }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-gray-800 font-semibold text-sm">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                 {editingId ? 'Editar meta' : 'Nova meta'}
               </p>
               <button
                 type="button"
                 onClick={closeForm}
-                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
+                style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <X size={15} />
+                <X size={15} color="var(--text-2)" />
               </button>
             </div>
             <div className="space-y-4">
@@ -631,20 +635,20 @@ export default function MetasPage() {
             </div>
 
             {formError && (
-              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mt-4">{formError}</p>
+              <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 14 }}>{formError}</p>
             )}
 
-            <div className="flex gap-2 mt-4">
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.targetAmount}
-                className="flex-1 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.targetAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> {editingId ? 'Salvar' : 'Criar meta'}</>}
               </button>
               {editingId && (
                 <button onClick={() => handleDelete(editingId)} disabled={deletingId === editingId}
-                  className="px-4 py-3 rounded-xl bg-gray-50 hover:bg-red-500/10 hover:border-red-500/30 border border-gray-200 text-gray-500 hover:text-red-400 transition-colors"
+                  style={{ padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--red-bg)', border: '1.5px solid var(--red)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  {deletingId === editingId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deletingId === editingId ? <Loader2 size={16} color="var(--red)" className="animate-spin" /> : <Trash2 size={16} color="var(--red)" />}
                 </button>
               )}
             </div>
@@ -654,15 +658,15 @@ export default function MetasPage() {
 
         {/* Estado vazio */}
         {goals.length === 0 && (
-          <div className="py-10 text-center">
-            <p className="text-5xl mb-3">🎯</p>
-            <p className="text-gray-900 font-semibold text-lg mb-2">Nenhuma meta ainda</p>
-            <p className="text-gray-500 text-sm mx-auto mb-5 max-w-[280px]">
-              Defina um objetivo — comprar um carro, fazer uma viagem, montar uma reserva. O Gastômetro te ajuda a chegar lá.
+          <div style={{ padding: '40px 16px', textAlign: 'center' }}>
+            <Target size={48} color="var(--text-3)" style={{ margin: '0 auto 12px' }} />
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>Nenhuma meta criada ainda.</p>
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
+              Crie sua primeira meta e comece a construir seu patrimônio.
             </p>
             <button
               onClick={openCreate}
-              className="px-5 py-2.5 rounded-xl bg-mint hover:bg-mint-700 active:scale-95 text-gray-900 text-sm font-semibold transition-all"
+              style={{ background: 'var(--green)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 20px', cursor: 'pointer' }}
             >
               Criar primeira meta
             </button>
@@ -713,66 +717,67 @@ export default function MetasPage() {
       {/* Modal de contribuição */}
       {contributingGoal && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={(e) => { if (e.target === e.currentTarget) setContributingGoal(null); }}
         >
-          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${colorCfg(contributingGoal.color).bg} border ${colorCfg(contributingGoal.color).border}`}>
+          <div style={{ width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: '20px 20px 0 0', padding: 24 }} className="md:rounded-2xl">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--accent-bg)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
                   {goalIcon(contributingGoal)}
                 </div>
                 <div>
-                  <p className="text-gray-900 font-semibold text-sm">{contributingGoal.name}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">
+                  <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{contributingGoal.name}</p>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>
                     {formatCurrency(contributingGoal.currentAmount)} / {formatCurrency(contributingGoal.targetAmount)}
                   </p>
                 </div>
               </div>
               <button onClick={() => setContributingGoal(null)}
-                className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
+                style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <X size={15} />
+                <X size={15} color="var(--text-2)" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor (R$)</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Valor (R$)</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--text-3)' }}>R$</span>
                   <input type="number" inputMode="decimal" step="0.01" min="0.01" value={contribAmount}
                     onChange={(e) => setContribAmount(e.target.value)}
                     placeholder="0,00" autoFocus
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px 12px 42px', fontSize: 16, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Data</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Data</label>
                 <input type="date" value={contribDate}
                   onChange={(e) => setContribDate(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none', colorScheme: 'light' }}
                 />
               </div>
 
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Observação (opcional)</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Observação (opcional)</label>
                 <input type="text" value={contribNote}
                   onChange={(e) => setContribNote(e.target.value)}
                   placeholder="Ex: salário de abril, bônus…"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
                 />
               </div>
             </div>
 
             {contribError && (
-              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5 mt-3">{contribError}</p>
+              <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 12 }}>{contribError}</p>
             )}
 
             <button onClick={handleContrib} disabled={contribSaving || !contribAmount}
-              className="w-full mt-4 py-3 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-50 text-gray-900 text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+              style={{ width: '100%', marginTop: 16, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (contribSaving || !contribAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               {contribSaving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={16} /> Registrar aporte</>}
             </button>
@@ -783,35 +788,38 @@ export default function MetasPage() {
       {/* Emoji picker */}
       {showEmojiPicker && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setShowEmojiPicker(false)}
         >
           <div
-            className="bg-white rounded-2xl w-[90%] max-w-[400px] max-h-[80vh] overflow-y-auto shadow-xl"
+            style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', width: '90%', maxWidth: 400, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.16)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-semibold text-base">Escolher emoji</h3>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Escolher emoji</h3>
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                 >
-                  <X size={18} />
+                  <X size={16} color="var(--text-2)" />
                 </button>
               </div>
-              <div className="grid grid-cols-7 gap-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
                 {EMOJI_OPTIONS.map((e) => (
                   <button
                     key={e}
                     type="button"
                     onClick={() => { setForm((f) => ({ ...f, emoji: e })); setShowEmojiPicker(false); }}
-                    className={`h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
-                      form.emoji === e
-                        ? 'bg-mint-50 border border-mint-500/50 scale-110'
-                        : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:scale-105'
-                    }`}
+                    style={{
+                      height: 40, borderRadius: 'var(--r-sm)', fontSize: 20,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: `1.5px solid ${form.emoji === e ? 'var(--accent)' : 'var(--border)'}`,
+                      background: form.emoji === e ? 'var(--accent-bg)' : 'var(--bg)',
+                      cursor: 'pointer',
+                    }}
                   >
                     {e}
                   </button>
@@ -894,19 +902,21 @@ function CelebrationOverlay({
 
       {/* Overlay escuro clicável para fechar */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+        className="absolute inset-0 backdrop-blur-sm flex items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.5)' }}
         onClick={onDone}
       >
         <div
-          className="celebrate-card bg-white border border-emerald-500/40 rounded-3xl px-10 py-8 text-center shadow-2xl shadow-emerald-900/50 pointer-events-auto"
+          className="celebrate-card pointer-events-auto"
+          style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 24, padding: '32px 40px', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.2)' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-5xl mb-2 animate-bounce">{icon}</div>
-          <div className="text-3xl mb-3">🎉</div>
-          <p className="text-gray-900 font-bold text-xl mb-1">Meta concluída!</p>
-          <p className="text-mint-500 text-sm font-medium mb-1">{goal.name}</p>
-          <p className="text-gray-700 text-sm">{formatCurrency(goal.currentAmount)} guardados</p>
-          <p className="text-gray-500 text-xs mt-4">Clique para continuar</p>
+          <div style={{ fontSize: 48, marginBottom: 8 }} className="animate-bounce">{icon}</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
+          <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Meta concluída!</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)', marginBottom: 4 }}>{goal.name}</p>
+          <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-2)' }}>{formatCurrency(goal.currentAmount)} guardados</p>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 16 }}>Clique para continuar</p>
         </div>
       </div>
     </div>
@@ -937,48 +947,48 @@ function VictoryCard({
   const timeline = useMemo(() => [...contributions].reverse(), [contributions]);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-emerald-500/25 bg-gradient-to-br from-slate-900 via-emerald-950/30 to-green-950/15">
-      <div className="p-5">
+    <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
+      <div style={{ padding: 20 }}>
         {/* Cabeçalho */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-mint-50 border border-emerald-500/25 flex items-center justify-center text-2xl flex-shrink-0">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--green-bg)', border: '1.5px solid rgba(0,195,122,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
               {icon}
             </div>
-            <div className="min-w-0">
-              <p className="text-gray-900 font-bold text-sm leading-tight truncate">{goal.name}</p>
-              <p className="text-mint-500 text-xs mt-0.5">
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.name}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', marginTop: 2 }}>
                 🏆 Concluída em {formatShortDate(completionDate)}
               </p>
               {goal.term && (
-                <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full border mt-1 ${termBadge(goal.term).badge}`}>
+                <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 20, border: '1px solid rgba(0,195,122,0.25)', background: 'var(--green-bg)', color: 'var(--green)', marginTop: 4 }}>
                   {termBadge(goal.term).label.toUpperCase()}
                 </span>
               )}
             </div>
           </div>
           <button onClick={() => onEdit(goal)}
-            className="w-8 h-8 rounded-lg bg-gray-50/60 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0 ml-2"
+            style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}
           >
-            <Pencil size={13} />
+            <Pencil size={12} color="var(--text-2)" />
           </button>
         </div>
 
         {/* Valor */}
-        <div className="mb-3">
-          <p className="text-mint-500 font-bold text-2xl">{formatCurrency(goal.currentAmount)}</p>
-          <p className="text-gray-500 text-xs mt-0.5">guardados de {formatCurrency(goal.targetAmount)}</p>
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', margin: 0 }}>{formatCurrency(goal.currentAmount)}</p>
+          <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>guardados de {formatCurrency(goal.targetAmount)}</p>
         </div>
 
         {/* Barra completa */}
-        <div className="h-2 rounded-full overflow-hidden mb-4 bg-emerald-950/60">
-          <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-500 to-green-400" />
+        <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 14, background: 'var(--green-bg)' }}>
+          <div style={{ height: '100%', width: '100%', borderRadius: 3, background: 'var(--green)' }} />
         </div>
 
         {/* Botão "Ver conquista" */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-mint-50 border border-emerald-500/20 text-mint-500 text-xs font-semibold hover:bg-mint-50 transition-colors"
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', borderRadius: 'var(--r-sm)', background: 'var(--green-bg)', border: '1.5px solid rgba(0,195,122,0.2)', fontSize: 12, fontWeight: 700, color: 'var(--green)', cursor: 'pointer' }}
         >
           <Trophy size={13} />
           {expanded ? 'Ocultar conquista' : 'Ver conquista'}
@@ -987,37 +997,33 @@ function VictoryCard({
 
         {/* Timeline expandida */}
         {expanded && (
-          <div className="mt-4 pt-4 border-t border-emerald-900/40">
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
             {timeline.length === 0 ? (
-              <p className="text-gray-500 text-xs text-center py-2">Nenhum aporte registrado.</p>
+              <p style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '8px 0' }}>Nenhum aporte registrado.</p>
             ) : (
               <>
-                <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-3">Linha do tempo</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Linha do tempo</p>
                 <div>
                   {timeline.map((c, idx) => {
                     const isLast = idx === timeline.length - 1;
                     return (
-                      <div key={c.id} className="flex items-start gap-3">
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                         {/* Conector */}
-                        <div className="flex flex-col items-center pt-1 w-3 flex-shrink-0">
-                          <div className={`w-2.5 h-2.5 rounded-full border-2 ${
-                            isLast
-                              ? 'border-emerald-400 bg-emerald-400'
-                              : 'border-slate-600 bg-white'
-                          }`} />
-                          {!isLast && <div className="w-px flex-1 bg-gray-50 min-h-[20px] mt-0.5" />}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2, width: 12, flexShrink: 0 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', border: `2px solid ${isLast ? 'var(--green)' : 'var(--border)'}`, background: isLast ? 'var(--green)' : 'var(--surface)' }} />
+                          {!isLast && <div style={{ width: 1, flex: 1, background: 'var(--border)', minHeight: 20, marginTop: 2 }} />}
                         </div>
                         {/* Conteúdo */}
-                        <div className={`flex-1 flex items-start justify-between pb-3 ${isLast ? '' : ''}`}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', paddingBottom: 10 }}>
                           <div>
-                            <p className={`text-xs font-medium ${isLast ? 'text-mint-500' : 'text-gray-500'}`}>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: isLast ? 'var(--green)' : 'var(--text-2)', margin: 0 }}>
                               {formatShortDate(c.date)}{isLast ? ' ✓' : ''}
                             </p>
                             {c.note && (
-                              <p className="text-gray-500 text-xs mt-0.5">{c.note}</p>
+                              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{c.note}</p>
                             )}
                           </div>
-                          <span className={`text-xs font-semibold flex-shrink-0 ml-2 ${isLast ? 'text-mint-500' : 'text-gray-700'}`}>
+                          <span style={{ fontSize: 12, fontWeight: 700, flexShrink: 0, marginLeft: 8, color: isLast ? 'var(--green)' : 'var(--text)' }}>
                             +{formatCurrency(c.amount)}
                           </span>
                         </div>
@@ -1026,9 +1032,9 @@ function VictoryCard({
                   })}
                 </div>
                 {/* Total */}
-                <div className="mt-1 pt-3 border-t border-emerald-900/40 flex justify-between items-center">
-                  <span className="text-gray-500 text-xs">{timeline.length} {timeline.length === 1 ? 'aporte' : 'aportes'}</span>
-                  <span className="text-mint-500 text-xs font-bold">
+                <div style={{ marginTop: 4, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{timeline.length} {timeline.length === 1 ? 'aporte' : 'aportes'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>
                     {formatCurrency(timeline.reduce((s, c) => s + c.amount, 0))} total aportado
                   </span>
                 </div>
@@ -1083,79 +1089,77 @@ function GoalCard({
     ? remaining / mesesRestantes
     : null;
 
+  const cardBorderColor = isPriority && !isCompleted && statusKey === 'atrasada'
+    ? 'var(--red)'
+    : isPriority && !isCompleted && statusKey === 'atencao'
+    ? 'var(--yellow)'
+    : 'var(--border)';
+
+  const barColor = isCompleted
+    ? 'var(--green)'
+    : statusKey === 'atrasada'
+    ? 'var(--red)'
+    : statusKey === 'atencao'
+    ? '#f59e0b'
+    : 'var(--accent)';
+
   return (
-    <div className={`rounded-2xl p-5 border bg-white ${
-      isPriority && !isCompleted && statusKey === 'atrasada'
-        ? 'border-red-500/40 shadow-[0_0_14px_rgba(239,68,68,0.22)]'
-        : isPriority && !isCompleted && statusKey === 'atencao'
-        ? 'border-yellow-500/40 shadow-[0_0_14px_rgba(234,179,8,0.22)]'
-        : 'border-gray-100'
-    }`}>
+    <div style={{
+      background: 'var(--surface)',
+      border: `1.5px solid ${cardBorderColor}`,
+      borderRadius: 'var(--r)',
+      padding: '16px 18px',
+      boxShadow: 'var(--card-shadow)',
+    }}>
 
       {/* Cabeçalho */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${cfg.bg} border ${cfg.border}`}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--logo-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
             {icon}
           </div>
-          <div className="min-w-0">
-            <p className="text-lg font-semibold text-gray-900 truncate">{goal.name}</p>
-            {!isCompleted && <p className={`text-xs font-medium ${sc.cls}`}>{sc.label}</p>}
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.name}</p>
+            {!isCompleted && (
+              <p style={{ fontSize: 11, fontWeight: 700, color: statusKey === 'atrasada' ? 'var(--red)' : statusKey === 'atencao' ? '#f59e0b' : 'var(--green)', marginTop: 2 }}>
+                {sc.label}
+              </p>
+            )}
             {!isCompleted && requiredMonthly !== null && (
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', marginTop: 2 }}>
                 {formatCurrency(requiredMonthly)}/mês para chegar até {formatDeadlineMonth(goal.deadline!)}
               </p>
             )}
-            {!isCompleted && statusKey === 'atrasada' && goal.deadline && (
-              <p className="text-xs text-red-400/80 mt-0.5">Prazo encerrado em {formatDeadlineMonth(goal.deadline)}</p>
-            )}
-            {!isCompleted && statusKey === 'sem-prazo' && (
-              <p className="text-xs text-gray-500 mt-0.5">Sem prazo definido</p>
-            )}
             {!isCompleted && projectedMonths !== null && (
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', marginTop: 2 }}>
                 No ritmo atual, você chega em {formatFutureMonth(projectedMonths)}
               </p>
             )}
           </div>
         </div>
-        <button onClick={() => onEdit(goal)}
-          className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0 ml-2"
-        >
-          <Pencil size={13} />
+        <button onClick={() => onEdit(goal)} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}>
+          <Pencil size={13} color="var(--text-3)" />
         </button>
       </div>
 
-      {/* Valor, percentual e barra */}
-      <div className="flex items-end justify-between mb-2">
-        <p className="text-sm text-gray-700">
+      {/* Progresso */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', margin: 0 }}>
           {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
         </p>
-        <p className={`text-sm font-bold ${isCompleted ? 'text-mint-500' : sc.cls}`}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', margin: 0 }}>
           {Math.round(pct)}%
         </p>
       </div>
-      <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0f0f0' }}>
-        <div
-          className="h-full rounded-full transition-all duration-300 ease-out"
-          style={{
-            width: `${pct}%`,
-            background: isCompleted
-              ? '#00b87a'
-              : statusKey === 'atrasada'
-              ? '#f04e5e'
-              : statusKey === 'atencao'
-              ? '#f59e0b'
-              : '#00b87a',
-          }}
-        />
+      <div style={{ height: 6, background: 'var(--accent-bg)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: 3, width: `${pct}%`, background: barColor, transition: 'width 300ms ease-out' }} />
       </div>
 
       {/* Simulador */}
       {!isCompleted && (
-        <div className="mt-4 pt-3 border-t border-gray-100">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-2)' }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-3)' }}>R$</span>
             <input
               type="number"
               inputMode="decimal"
@@ -1164,16 +1168,13 @@ function GoalCard({
               value={simInput}
               onChange={(e) => setSimInput(e.target.value)}
               placeholder="Quanto deseja aportar por mês?"
-              className="w-full bg-gray-50/60 border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500/50 transition-colors"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', paddingLeft: 32, paddingRight: 12, paddingTop: 12, paddingBottom: 12, fontSize: 14, color: 'var(--text)', outline: 'none' }}
             />
           </div>
           {simInput !== '' && simMonths !== null && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-gray-500 mt-2">Simulação</p>
-              <p className={`text-[13px] text-sm leading-snug break-words line-clamp-2 ${getSimulatorMessage(simMonths).cls}`}>
-                R$ {simMonthly.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mês → {simMonths} meses
-              </p>
-            </div>
+            <p style={{ fontSize: 12, fontWeight: 500, color: getSimulatorMessage(simMonths).cls === 'text-mint-500' ? 'var(--green)' : getSimulatorMessage(simMonths).cls === 'text-red-400' ? 'var(--red)' : '#f59e0b', marginTop: 8 }}>
+              {getSimulatorMessage(simMonths).text}
+            </p>
           )}
         </div>
       )}
@@ -1181,21 +1182,13 @@ function GoalCard({
       {/* Botão de ação */}
       {!isCompleted ? (
         <button
-          onClick={() => {
-            if (simInput !== '') {
-              console.log('aportar-agora', goal.name, simMonthly);
-            } else {
-              console.log('aportar-agora', goal.name);
-            }
-            onContrib(goal);
-          }}
-          className="mt-4 w-full py-2 rounded-xl text-white text-sm font-medium active:scale-95 transition-all"
-          style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+          onClick={() => { onContrib(goal); }}
+          style={{ marginTop: 14, width: '100%', padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer' }}
         >
           {sc.btnLabel}
         </button>
       ) : (
-        <div className="mt-4 w-full py-2 rounded-xl bg-mint-50 border border-green-500/20 text-mint-500 text-sm font-medium text-center">
+        <div style={{ marginTop: 14, width: '100%', padding: '10px 0', borderRadius: 'var(--r-sm)', background: 'var(--green-bg)', border: '1px solid rgba(0,195,122,0.2)', fontSize: 13, fontWeight: 700, color: 'var(--green)', textAlign: 'center' }}>
           🎉 Meta alcançada!
         </div>
       )}

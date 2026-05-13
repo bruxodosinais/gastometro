@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Camera, Check, ChevronRight, Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
@@ -246,32 +246,36 @@ export default function PerfilPage() {
   }
 
   function renderAvatar(size = 56) {
-    const cls = `rounded-2xl bg-mint-50 border border-mint-500/40 flex items-center justify-center overflow-hidden flex-shrink-0`;
-    const style = { width: size, height: size };
+    const circleStyle: React.CSSProperties = {
+      width: size, height: size,
+      borderRadius: '50%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden', flexShrink: 0,
+    };
 
     if (uploadingAvatar) {
       return (
-        <div className={cls} style={style}>
-          <Loader2 size={20} className="animate-spin text-mint-500" />
+        <div style={{ ...circleStyle, background: 'var(--accent-bg)', border: '1.5px solid var(--border)' }}>
+          <Loader2 size={20} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
         </div>
       );
     }
     if (avatarUrl) {
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt="Avatar" className={`${cls} object-cover`} style={style} />
+        <img src={avatarUrl} alt="Avatar" style={{ ...circleStyle, objectFit: 'cover' }} />
       );
     }
     if (avatarEmoji) {
       return (
-        <div className={cls} style={style}>
+        <div style={{ ...circleStyle, background: 'var(--accent-bg)', border: '1.5px solid var(--border)' }}>
           <span style={{ fontSize: size * 0.55 }}>{avatarEmoji}</span>
         </div>
       );
     }
     return (
-      <div className={cls} style={{ ...style }}>
-        <span className="text-mint-500 font-bold" style={{ fontSize: size * 0.38 }}>
+      <div style={{ ...circleStyle, background: 'var(--accent)' }}>
+        <span style={{ color: 'white', fontWeight: 800, fontSize: size * 0.38 }}>
           {(displayName || email).charAt(0).toUpperCase()}
         </span>
       </div>
@@ -280,7 +284,7 @@ export default function PerfilPage() {
 
   if (loading) {
     return (
-      <main className="max-w-lg mx-auto px-4 pt-8 pb-28 md:pb-10">
+      <main style={{ maxWidth: 440, margin: '0 auto', padding: '32px 16px 120px' }}>
         <div className="skeleton h-8 w-32 rounded-lg mb-6" />
         <div className="skeleton h-48 rounded-2xl" />
       </main>
@@ -289,55 +293,60 @@ export default function PerfilPage() {
 
   return (
     <>
-      <main className="max-w-lg mx-auto px-4 pt-8 pb-28 md:pb-10 space-y-4" style={{ animation: 'fade-in 200ms ease-out both' }}>
+      <main style={{ maxWidth: 440, margin: '0 auto', padding: '24px 16px 120px' }}>
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <button
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={14} color="var(--text-2)" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Perfil</h1>
         </div>
 
-        {/* Profile card */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5">
+        {/* Card principal */}
+        <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, marginBottom: 12 }}>
           {/* Avatar + info */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <button
                 onClick={() => setAvatarMenuOpen(true)}
-                className="relative focus:outline-none"
+                style={{ position: 'relative', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                 aria-label="Alterar foto de perfil"
               >
                 {renderAvatar(56)}
-                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-mint-500 border-2 border-white flex items-center justify-center">
-                  <Camera size={10} className="text-white" />
+                <span style={{
+                  position: 'absolute', bottom: 0, right: 0,
+                  width: 20, height: 20, borderRadius: '50%',
+                  background: 'var(--accent)',
+                  border: '2px solid var(--surface)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Camera size={10} color="white" />
                 </span>
               </button>
             </div>
-
             <div>
-              <p className="text-gray-900 font-semibold">{displayName || email.split('@')[0]}</p>
-              <p className="text-gray-500 text-sm">{email}</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{displayName || email.split('@')[0]}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>{email}</p>
             </div>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
 
-          <div className="border-t border-gray-100" />
+          <div style={{ height: 1, background: 'var(--border-2)', marginBottom: 16 }} />
 
-          {/* Name + email form */}
-          <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+          {/* Form */}
+          <form onSubmit={handleSave}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
                 Como quer ser chamado?
               </label>
               <input
@@ -347,27 +356,43 @@ export default function PerfilPage() {
                 placeholder="Seu nome ou apelido"
                 maxLength={40}
                 autoComplete="nickname"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'var(--surface)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '12px 14px',
+                  fontSize: 14, fontWeight: 700, color: 'var(--text)',
+                  outline: 'none',
+                }}
               />
-              <p className="text-gray-500 text-xs mt-1.5">
-                Esse nome aparece na saudação da tela inicial.
+              <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', marginTop: 6 }}>
+                Esse nome aparece na saudação da tela inicial
               </p>
             </div>
 
-            <div>
-              <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
                 E-mail
               </label>
               <input
                 type="email"
                 value={email}
                 disabled
-                className="w-full bg-gray-50/50 border border-gray-200/50 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'var(--bg)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '12px 14px',
+                  fontSize: 14, fontWeight: 700, color: 'var(--text)',
+                  opacity: 0.6, cursor: 'not-allowed',
+                }}
               />
             </div>
 
             {profileError && (
-              <p className="text-red-400 text-sm bg-red-500/10 rounded-xl py-2.5 px-4 text-center">
+              <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', textAlign: 'center', marginBottom: 12 }}>
                 {profileError}
               </p>
             )}
@@ -375,7 +400,18 @@ export default function PerfilPage() {
             <button
               type="submit"
               disabled={saving || saved}
-              className="w-full py-3 rounded-xl font-semibold text-gray-900 transition-all flex items-center justify-center gap-2 bg-mint hover:bg-mint-700 disabled:opacity-70"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--green)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--r-sm)',
+                padding: 14,
+                fontSize: 14, fontWeight: 800,
+                cursor: saving || saved ? 'default' : 'pointer',
+                opacity: saving || saved ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
             >
               {saving ? (
                 <><Loader2 size={16} className="animate-spin" /> Salvando…</>
@@ -387,87 +423,131 @@ export default function PerfilPage() {
             </button>
           </form>
 
-          <div className="border-t border-gray-100" />
+          <div style={{ height: 1, background: 'var(--border-2)', margin: '14px 0' }} />
 
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full py-2.5 text-red-400 text-sm font-medium hover:text-red-500 transition-colors"
+            style={{ display: 'block', width: '100%', textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', marginTop: 4 }}
           >
             Sair da conta
           </button>
         </div>
 
-        {/* Security */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-          <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Segurança</h2>
+        {/* Segurança */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Segurança
+          </p>
           <button
             onClick={() => { setPwError(''); setNewPw(''); setConfirmPw(''); setPwModalOpen(true); }}
-            className="w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors text-left"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r-sm)',
+              padding: '12px 14px',
+              fontSize: 13, fontWeight: 700, color: 'var(--text)',
+              cursor: 'pointer',
+            }}
           >
             Alterar senha
+            <ChevronRight size={16} color="var(--text-3)" />
           </button>
         </div>
 
-        {/* Notifications */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-          <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Notificações</h2>
+        {/* Notificações */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Notificações
+          </p>
+          <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+            {([
+              { key: 'due_date_alerts' as const, label: 'Alertas de vencimento' },
+              { key: 'weekly_email_summary' as const, label: 'Resumo semanal por e-mail' },
+            ] as const).map(({ key, label }, idx) => (
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px',
+                borderTop: idx > 0 ? '1px solid var(--border-2)' : 'none',
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
+                <button
+                  role="switch"
+                  aria-checked={notifPrefs[key]}
+                  disabled={savingNotif}
+                  onClick={() => handleNotifToggle(key)}
+                  style={{
+                    position: 'relative',
+                    width: 44, height: 24, borderRadius: 12,
+                    background: notifPrefs[key] ? 'var(--accent)' : 'var(--border)',
+                    border: 'none', cursor: 'pointer',
+                    transition: 'background 200ms',
+                    flexShrink: 0,
+                    opacity: savingNotif ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2,
+                    left: notifPrefs[key] ? 22 : 2,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    transition: 'left 200ms',
+                  }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          {[
-            { key: 'due_date_alerts' as const, label: 'Alertas de vencimento' },
-            { key: 'weekly_email_summary' as const, label: 'Resumo semanal por e-mail' },
-          ].map(({ key, label }) => (
-            <div key={key} className="flex items-center justify-between">
-              <span className="text-gray-700 text-sm">{label}</span>
-              <button
-                role="switch"
-                aria-checked={notifPrefs[key]}
-                disabled={savingNotif}
-                onClick={() => handleNotifToggle(key)}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${
-                  notifPrefs[key] ? 'bg-mint-500' : 'bg-gray-200'
-                } disabled:opacity-60`}
+        {/* LGPD */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Legal
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[
+              { href: '/termos', label: 'Ver termos de uso' },
+              { href: '/privacidade', label: 'Ver política de privacidade' },
+            ].map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'var(--surface)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '12px 14px',
+                  fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                  textDecoration: 'none',
+                }}
               >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                    notifPrefs[key] ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Legal */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-3">
-          <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Legal</h2>
-          <a
-            href="/termos"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Termos de Uso
-          </a>
-          <a
-            href="/privacidade"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Política de Privacidade
-          </a>
-        </div>
-
-        {/* Danger zone */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-red-400">Zona de Perigo</h2>
-          <button
-            onClick={() => { setDeleteError(''); setDeleteModalOpen(true); }}
-            className="w-full py-3 px-4 rounded-xl border border-red-300 text-red-400 text-sm font-medium hover:bg-red-50 transition-colors"
-          >
-            Excluir minha conta
-          </button>
+                {label}
+                <ChevronRight size={16} color="var(--text-3)" />
+              </a>
+            ))}
+            <button
+              onClick={() => { setDeleteError(''); setDeleteModalOpen(true); }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--r-sm)',
+                padding: '12px 14px',
+                fontSize: 13, fontWeight: 700, color: 'var(--red)',
+                cursor: 'pointer',
+              }}
+            >
+              Excluir minha conta
+              <ChevronRight size={16} color="var(--red)" />
+            </button>
+          </div>
         </div>
       </main>
 
@@ -477,26 +557,28 @@ export default function PerfilPage() {
       {/* Avatar source picker modal */}
       {avatarMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setAvatarMenuOpen(false)}>
-          <div className="bg-white rounded-2xl overflow-hidden" style={{ width: '90%', maxWidth: 420, animation: 'fade-in 150ms ease-out both' }} onClick={(e) => e.stopPropagation()}>
-            <p className="px-6 pt-5 pb-3 text-gray-500 text-xs font-semibold uppercase tracking-wider">Foto de perfil</p>
-            <button
-              onClick={() => { setAvatarMenuOpen(false); fileInputRef.current?.click(); }}
-              className="w-full text-left px-6 py-4 text-sm text-gray-800 font-medium hover:bg-gray-50 transition-colors border-t border-gray-100"
-            >
-              Escolher foto da galeria
-            </button>
-            <button
-              onClick={() => { setAvatarMenuOpen(false); setEmojiModalOpen(true); }}
-              className="w-full text-left px-6 py-4 text-sm text-gray-800 font-medium hover:bg-gray-50 transition-colors border-t border-gray-100"
-            >
-              Escolher avatar
-            </button>
-            <button
-              onClick={() => setAvatarMenuOpen(false)}
-              className="w-full text-left px-6 py-4 text-sm text-gray-500 hover:bg-gray-50 transition-colors border-t border-gray-200"
-            >
-              Cancelar
-            </button>
+          <div style={{ width: '90%', maxWidth: 420, background: 'var(--surface)', borderRadius: 'var(--r)', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+            <p style={{ padding: '18px 20px 10px', fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Foto de perfil</p>
+            {[
+              { label: 'Escolher foto da galeria', action: () => { setAvatarMenuOpen(false); fileInputRef.current?.click(); } },
+              { label: 'Escolher avatar', action: () => { setAvatarMenuOpen(false); setEmojiModalOpen(true); } },
+              { label: 'Cancelar', action: () => setAvatarMenuOpen(false) },
+            ].map(({ label, action }, idx) => (
+              <button
+                key={label}
+                onClick={action}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '14px 20px',
+                  fontSize: 14, fontWeight: 600,
+                  color: idx === 2 ? 'var(--text-3)' : 'var(--text)',
+                  background: 'none', border: 'none', borderTop: '1px solid var(--border-2)',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -504,21 +586,27 @@ export default function PerfilPage() {
       {/* Emoji avatar modal */}
       {emojiModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setEmojiModalOpen(false)}>
-          <div className="bg-white rounded-2xl p-6 space-y-4" style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', animation: 'fade-in 150ms ease-out both' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-gray-900 font-semibold">Escolher avatar</h3>
-              <button onClick={() => setEmojiModalOpen(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
-                <X size={16} />
+          <div style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Escolher avatar</h3>
+              <button onClick={() => setEmojiModalOpen(false)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={16} color="var(--text-2)" />
               </button>
             </div>
-            <div className="grid grid-cols-6 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
               {AVATAR_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => handleEmojiSelect(emoji)}
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl transition-all hover:bg-mint-50 hover:scale-110 ${
-                    avatarEmoji === emoji ? 'bg-mint-50 ring-2 ring-mint-500' : 'bg-gray-50'
-                  }`}
+                  style={{
+                    width: 44, height: 44, borderRadius: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 22,
+                    background: avatarEmoji === emoji ? 'var(--accent-bg)' : 'var(--bg)',
+                    border: avatarEmoji === emoji ? '2px solid var(--accent)' : '1px solid var(--border)',
+                    cursor: 'pointer',
+                    transition: 'transform 100ms',
+                  }}
                 >
                   {emoji}
                 </button>
@@ -531,78 +619,56 @@ export default function PerfilPage() {
       {/* Password modal */}
       {pwModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setPwModalOpen(false)}>
-          <div className="bg-white rounded-2xl p-6 space-y-4" style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', animation: 'fade-in 150ms ease-out both' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-gray-900 font-semibold">Alterar senha</h3>
-              <button onClick={() => setPwModalOpen(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
-                <X size={16} />
+          <div style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Alterar senha</h3>
+              <button onClick={() => setPwModalOpen(false)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={16} color="var(--text-2)" />
               </button>
             </div>
 
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                  Nova senha
-                </label>
-                <div className="relative">
+            <form onSubmit={handlePasswordChange}>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Nova senha</label>
+                <div style={{ position: 'relative' }}>
                   <input
                     type={showNewPw ? 'text' : 'password'}
                     value={newPw}
                     onChange={(e) => setNewPw(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 44px 12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPw(!showNewPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowNewPw(!showNewPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
                     {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                  Confirmar nova senha
-                </label>
-                <div className="relative">
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Confirmar nova senha</label>
+                <div style={{ position: 'relative' }}>
                   <input
                     type={showConfirmPw ? 'text' : 'password'}
                     value={confirmPw}
                     onChange={(e) => setConfirmPw(e.target.value)}
                     placeholder="Repita a nova senha"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 44px 12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPw(!showConfirmPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
                     {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
               {pwError && (
-                <p className="text-red-400 text-sm bg-red-500/10 rounded-xl py-2.5 px-4 text-center">
-                  {pwError}
-                </p>
+                <p style={{ color: 'var(--red)', fontSize: 12, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', textAlign: 'center', marginBottom: 12 }}>{pwError}</p>
               )}
 
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setPwModalOpen(false)}
-                  className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button type="button" onClick={() => setPwModalOpen(false)} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={savingPw}
-                  className="flex-1 py-3 rounded-xl bg-mint font-semibold text-gray-900 text-sm flex items-center justify-center gap-2 hover:bg-mint-700 disabled:opacity-70 transition-colors"
-                >
+                <button type="submit" disabled={savingPw} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: savingPw ? 0.7 : 1 }}>
                   {savingPw ? <Loader2 size={15} className="animate-spin" /> : 'Salvar'}
                 </button>
               </div>
@@ -614,41 +680,27 @@ export default function PerfilPage() {
       {/* Delete account modal */}
       {deleteModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => !deleting && setDeleteModalOpen(false)}>
-          <div className="bg-white rounded-2xl p-6 space-y-4" style={{ width: '90%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto', animation: 'fade-in 150ms ease-out both' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-gray-900 font-semibold">Excluir conta</h3>
-              <button
-                onClick={() => !deleting && setDeleteModalOpen(false)}
-                disabled={deleting}
-                className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
-              >
-                <X size={16} />
+          <div style={{ width: '90%', maxWidth: 420, background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Excluir conta</h3>
+              <button onClick={() => !deleting && setDeleteModalOpen(false)} disabled={deleting} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: deleting ? 0.5 : 1 }}>
+                <X size={16} color="var(--text-2)" />
               </button>
             </div>
 
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 16 }}>
               Tem certeza? Todos os seus dados serão excluídos permanentemente. Esta ação não pode ser desfeita.
             </p>
 
             {deleteError && (
-              <p className="text-red-400 text-sm bg-red-500/10 rounded-xl py-2.5 px-4 text-center">
-                {deleteError}
-              </p>
+              <p style={{ color: 'var(--red)', fontSize: 12, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', textAlign: 'center', marginBottom: 12 }}>{deleteError}</p>
             )}
 
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setDeleteModalOpen(false)}
-                disabled={deleting}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setDeleteModalOpen(false)} disabled={deleting} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer', opacity: deleting ? 0.5 : 1 }}>
                 Cancelar
               </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleting}
-                className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-              >
+              <button onClick={handleDeleteAccount} disabled={deleting} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--red)', border: 'none', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: deleting ? 0.6 : 1 }}>
                 {deleting ? (
                   <><Loader2 size={15} className="animate-spin" /> Excluindo…</>
                 ) : (
