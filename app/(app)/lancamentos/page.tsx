@@ -532,11 +532,18 @@ export default function LancamentosPage() {
   const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
   const currentMonth = getMonthKey(new Date());
   const [filterTab, setFilterTab] = useState<'all' | 'expense' | 'income'>('all');
+  const [isListExpanded, setIsListExpanded] = useState(false);
 
-  const currentExpenses = [...expenses]
+  const currentExpensesAll = [...expenses]
     .filter((e) => e.date.slice(0, 7) === currentMonth)
     .filter((e) => filterTab === 'all' || e.type === filterTab)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const LIST_MAX = 5;
+  const currentExpenses = isListExpanded
+    ? currentExpensesAll
+    : currentExpensesAll.slice(0, LIST_MAX);
+  const hiddenListCount = currentExpensesAll.length - currentExpenses.length;
 
   const ctaLabel = saving ? null
     : launchMode === 'installments' ? `Parcelar em ${installments}x`
@@ -1036,6 +1043,46 @@ export default function LancamentosPage() {
               creditCards={creditCards}
               loading={loadingExpenses}
             />
+            {hiddenListCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsListExpanded(true)}
+                style={{
+                  marginTop: 12,
+                  padding: '10px 14px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'Nunito, sans-serif',
+                }}
+              >
+                Ver mais {hiddenListCount} {hiddenListCount === 1 ? 'item' : 'itens'} →
+              </button>
+            )}
+            {isListExpanded && currentExpensesAll.length > LIST_MAX && (
+              <button
+                type="button"
+                onClick={() => setIsListExpanded(false)}
+                style={{
+                  marginTop: 12,
+                  padding: '10px 14px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-3)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'Nunito, sans-serif',
+                }}
+              >
+                Ver menos
+              </button>
+            )}
           </div>
         </div>
 
@@ -1057,6 +1104,46 @@ export default function LancamentosPage() {
             onDelete={setDeletingExpense}
             loading={loadingExpenses}
           />
+          {hiddenListCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsListExpanded(true)}
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--accent)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'Nunito, sans-serif',
+              }}
+            >
+              Ver mais {hiddenListCount} {hiddenListCount === 1 ? 'item' : 'itens'} →
+            </button>
+          )}
+          {isListExpanded && currentExpensesAll.length > LIST_MAX && (
+            <button
+              type="button"
+              onClick={() => setIsListExpanded(false)}
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-3)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'Nunito, sans-serif',
+              }}
+            >
+              Ver menos
+            </button>
+          )}
         </div>
       </main>
 

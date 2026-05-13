@@ -294,7 +294,8 @@ export default function HistoricoPage() {
     cat,
     total: incomeEntries.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0);
-  const showIncomeBreakdown = typeFilter !== 'expense' && incomeBySource.length > 0;
+  const showIncomeBreakdown =
+    typeFilter === 'all' && categoryFilter === 'all' && incomeBySource.length > 0;
 
   const activeCategories = [...new Set(
     baseEntries
@@ -697,7 +698,7 @@ export default function HistoricoPage() {
       )}
 
       {/* Padrões de gasto */}
-      {topGastosByCount.length > 0 && (
+      {categoryFilter === 'all' && topGastosByCount.length > 0 && (
         <div
           className="mb-4"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 16px' }}

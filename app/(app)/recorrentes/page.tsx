@@ -177,6 +177,12 @@ export default function RecorrentesPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pendentes' | 'pagas'>('all');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [tabExpanded, setTabExpanded] = useState<{ all: boolean; pendentes: boolean; pagas: boolean }>({
+    all: false,
+    pendentes: false,
+    pagas: false,
+  });
   const [duplicateWarning, setDuplicateWarning] = useState<RecurringExpense | null>(null);
   const [variablePayModal, setVariablePayModal] = useState<{ obligationId: string; estimatedAmount: number } | null>(null);
   const [variableAmount, setVariableAmount] = useState('');
@@ -584,9 +590,55 @@ export default function RecorrentesPage() {
 
         {/* ── FORM COLUMN ─────────────────────────────────────────────────── */}
         <div>
-          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
-            Novo recorrente
-          </p>
+          <button
+            type="button"
+            onClick={() => setIsFormOpen((v) => !v)}
+            aria-expanded={isFormOpen}
+            style={{
+              position: 'relative',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              background: 'var(--surface)',
+              border: '1.5px solid var(--accent)',
+              borderRadius: 'var(--r)',
+              padding: '12px 44px',
+              marginBottom: isFormOpen ? 10 : 24,
+              cursor: 'pointer',
+              fontFamily: 'Nunito, sans-serif',
+              textAlign: 'center',
+              transition: 'margin-bottom 0.25s ease',
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
+              + Novo recorrente
+            </span>
+            <ChevronDown
+              size={18}
+              color="var(--accent)"
+              style={{
+                position: 'absolute',
+                right: 16,
+                top: '50%',
+                transform: isFormOpen
+                  ? 'translateY(-50%) rotate(180deg)'
+                  : 'translateY(-50%) rotate(0deg)',
+                transition: 'transform 0.25s ease',
+              }}
+            />
+          </button>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateRows: isFormOpen ? '1fr' : '0fr',
+              transition: 'grid-template-rows 0.3s ease',
+              marginBottom: isFormOpen ? 24 : 0,
+            }}
+          >
+            <div style={{ overflow: 'hidden', minHeight: 0 }}>
 
           <form
             onSubmit={handleSubmit}
@@ -595,7 +647,6 @@ export default function RecorrentesPage() {
               border: '1.5px solid var(--border)',
               borderRadius: 'var(--r)',
               padding: 18,
-              marginBottom: 24,
               display: 'flex',
               flexDirection: 'column',
               gap: 14,
@@ -946,6 +997,8 @@ export default function RecorrentesPage() {
               {saving ? <Loader2 size={17} className="animate-spin" /> : 'Cadastrar recorrente'}
             </button>
           </form>
+            </div>
+          </div>
         </div>
 
         {/* ── LIST COLUMN ─────────────────────────────────────────────────── */}
@@ -1114,10 +1167,25 @@ export default function RecorrentesPage() {
             <p style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
               Nenhum item nesta categoria
             </p>
-          ) : (
+          ) : (() => {
+            const MAX = 5;
+            const isExpanded = tabExpanded[activeTab];
+            const totalCount = activeTab === 'all'
+              ? expenseRecs.length + incomeRecs.length
+              : expenseRecs.length;
+            const expenseBudget = isExpanded
+              ? expenseRecs.length
+              : Math.min(expenseRecs.length, MAX);
+            const incomeBudget = activeTab === 'all'
+              ? (isExpanded ? incomeRecs.length : Math.max(0, MAX - expenseBudget))
+              : 0;
+            const visibleExpense = expenseRecs.slice(0, expenseBudget);
+            const visibleIncome = activeTab === 'all' ? incomeRecs.slice(0, incomeBudget) : [];
+            const hiddenCount = totalCount - (visibleExpense.length + visibleIncome.length);
+            return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {/* Gastos fixos */}
-              {expenseRecs.length > 0 && (
+              {visibleExpense.length > 0 && (
                 <>
                   {activeTab === 'all' && (
                     <p
@@ -1137,14 +1205,14 @@ export default function RecorrentesPage() {
                       Gastos fixos
                     </p>
                   )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: incomeRecs.length > 0 ? 16 : 0 }}>
-                    {expenseRecs.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: visibleIncome.length > 0 ? 16 : 0 }}>
+                    {visibleExpense.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
                   </div>
                 </>
               )}
 
               {/* Receitas fixas */}
-              {incomeRecs.length > 0 && activeTab === 'all' && (
+              {visibleIncome.length > 0 && activeTab === 'all' && (
                 <>
                   <p
                     style={{
@@ -1163,12 +1231,58 @@ export default function RecorrentesPage() {
                     Receitas fixas
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {incomeRecs.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
+                    {visibleIncome.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
                   </div>
                 </>
               )}
+
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTabExpanded((prev) => ({ ...prev, [activeTab]: true }))
+                  }
+                  style={{
+                    marginTop: 12,
+                    padding: '10px 14px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--accent)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                >
+                  Ver mais {hiddenCount} {hiddenCount === 1 ? 'item' : 'itens'} →
+                </button>
+              )}
+              {isExpanded && totalCount > MAX && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTabExpanded((prev) => ({ ...prev, [activeTab]: false }))
+                  }
+                  style={{
+                    marginTop: 12,
+                    padding: '10px 14px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-3)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                >
+                  Ver menos
+                </button>
+              )}
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -1620,20 +1734,19 @@ export default function RecorrentesPage() {
           transition: 'all 0.2s ease',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Category icon */}
           <div
             style={{
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               borderRadius: 8,
               background: 'var(--logo-bg)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 14,
+              fontSize: 16,
               flexShrink: 0,
-              marginTop: 1,
               opacity: contentOpacity,
             }}
           >
@@ -1648,9 +1761,10 @@ export default function RecorrentesPage() {
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  fontSize: 13,
-                  fontWeight: 700,
+                  fontSize: 15,
+                  fontWeight: 600,
                   color: 'var(--text)',
+                  lineHeight: 1.25,
                   margin: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -1809,22 +1923,25 @@ export default function RecorrentesPage() {
                   disabled={isPaying}
                   style={{
                     flexShrink: 0,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: 4,
-                    height: 26,
-                    padding: '0 10px',
-                    borderRadius: 6,
+                    padding: '6px 16px',
+                    borderRadius: 8,
                     background: 'var(--green)',
                     border: 'none',
-                    color: 'white',
-                    fontSize: 11,
+                    color: '#fff',
+                    fontSize: 12,
                     fontWeight: 700,
+                    fontFamily: 'Nunito, sans-serif',
+                    whiteSpace: 'nowrap',
                     cursor: isPaying ? 'not-allowed' : 'pointer',
                     opacity: isPaying ? 0.6 : 1,
+                    boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
                   }}
                 >
-                  {isPaying ? <Loader2 size={10} className="animate-spin" /> : 'Marcar pago'}
+                  {isPaying ? <Loader2 size={12} className="animate-spin" /> : 'Marcar pago'}
                 </button>
               )}
               {showUndo && obligation && (

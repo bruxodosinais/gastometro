@@ -73,19 +73,25 @@ function ExpenseCard({
   const isIncome = expense.type === 'income';
   return (
     <div
-      className={`rounded-xl border p-3.5 space-y-3 max-w-[85%] ${
-        isIncome
-          ? 'bg-mint-50 border-emerald-500/30'
-          : 'bg-mint-50 border-mint-500/30'
-      }`}
+      className="rounded-xl border p-3.5 space-y-3 max-w-[85%]"
+      style={{
+        background: 'var(--accent-bg)',
+        borderColor: 'var(--accent-soft, rgba(91,91,214,0.3))',
+      }}
     >
-      <p className={`text-xs font-semibold ${isIncome ? 'text-mint-500' : 'text-mint-500'}`}>
+      <p
+        className="text-xs font-semibold"
+        style={{ color: isIncome ? 'var(--green)' : 'var(--accent)' }}
+      >
         {isIncome ? '💵 Nova receita detectada' : '💳 Novo gasto detectado'}
       </p>
       <div className="space-y-1">
         <p className="text-gray-900 text-sm font-medium">{expense.description}</p>
         <p className="text-gray-500 text-xs flex items-center gap-1.5">
-          <span className={`text-base font-bold ${isIncome ? 'text-mint-500' : 'text-gray-900'}`}>
+          <span
+            className="text-base font-bold"
+            style={{ color: isIncome ? 'var(--green)' : 'var(--text)' }}
+          >
             {formatCurrency(expense.amount)}
           </span>
           <span>·</span>
@@ -97,9 +103,8 @@ function ExpenseCard({
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-900 transition-colors ${
-            isIncome ? 'bg-mint hover:bg-mint' : 'bg-mint hover:bg-mint-700'
-          }`}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
+          style={{ background: 'var(--accent)', color: '#fff' }}
         >
           <Check size={12} /> Confirmar
         </button>
@@ -119,9 +124,11 @@ function ConfirmedCard({ expense }: { expense: ExpenseData }) {
   return (
     <div className="flex items-center gap-2 text-xs text-gray-500">
       <span
-        className={`w-5 h-5 rounded-full flex items-center justify-center ${
-          isIncome ? 'bg-mint-50 text-mint-500' : 'bg-mint-50 text-mint-500'
-        }`}
+        className="w-5 h-5 rounded-full flex items-center justify-center"
+        style={{
+          background: isIncome ? 'var(--green-bg)' : 'var(--accent-bg)',
+          color: isIncome ? 'var(--green)' : 'var(--accent)',
+        }}
       >
         <Check size={10} />
       </span>
@@ -134,8 +141,11 @@ function ConfirmedCard({ expense }: { expense: ExpenseData }) {
 function WelcomeScreen({ onSuggest }: { onSuggest: (text: string) => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 space-y-6">
-      <div className="w-14 h-14 rounded-2xl bg-mint-50 flex items-center justify-center">
-        <Bot size={28} className="text-mint-500" />
+      <div
+        className="w-14 h-14 rounded-2xl flex items-center justify-center"
+        style={{ background: 'var(--accent-bg)' }}
+      >
+        <Bot size={28} style={{ color: 'var(--accent)' }} />
       </div>
       <div className="text-center space-y-1.5">
         <h2 className="text-gray-900 font-semibold text-base">Olá! Sou o GastôBot</h2>
@@ -286,8 +296,11 @@ export default function AssistentePage() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 bg-white flex-shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-mint-50 flex items-center justify-center">
-          <Bot size={20} className="text-mint-500" />
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: 'var(--accent-bg)' }}
+        >
+          <Bot size={20} style={{ color: 'var(--accent)' }} />
         </div>
         <div className="flex-1">
           <h1 className="text-sm font-semibold text-gray-900">GastôBot</h1>
@@ -315,14 +328,20 @@ export default function AssistentePage() {
           <div key={msg.id}>
             {msg.role === 'user' ? (
               <div className="flex justify-end">
-                <div className="max-w-[80%] bg-mint text-gray-900 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+                <div
+                  className="max-w-[80%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
                   {msg.text}
                 </div>
               </div>
             ) : (
               <div className="flex gap-2.5 items-start">
-                <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot size={14} className="text-mint-500" />
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: 'var(--accent-bg)' }}
+                >
+                  <Bot size={14} style={{ color: 'var(--accent)' }} />
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
                   <div
@@ -353,8 +372,11 @@ export default function AssistentePage() {
 
         {loading && (
           <div className="flex gap-2.5 items-start">
-            <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
-              <Bot size={14} className="text-mint-500" />
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--accent-bg)' }}
+            >
+              <Bot size={14} style={{ color: 'var(--accent)' }} />
             </div>
             <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3.5">
               <div className="flex gap-1.5 items-center">
@@ -377,19 +399,23 @@ export default function AssistentePage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex: Gastei R$ 50 no iFood hoje…"
-            className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-violet-500 border border-gray-200 focus:border-mint-500 transition-colors"
+            className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-gray-200 transition-colors"
+            style={{ borderColor: undefined }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
             disabled={loading}
             autoComplete="off"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-xl bg-mint hover:bg-mint-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            className="w-10 h-10 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-opacity hover:opacity-90 flex-shrink-0"
+            style={{ background: 'var(--accent)' }}
           >
             {loading ? (
-              <Loader2 size={16} className="animate-spin text-gray-900" />
+              <Loader2 size={16} className="animate-spin" color="#fff" />
             ) : (
-              <Send size={16} className="text-gray-900" />
+              <Send size={16} color="#fff" />
             )}
           </button>
         </form>

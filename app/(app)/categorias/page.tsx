@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUp, ArrowDown, Minus, Pencil, Check, X, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Pencil, Check, X, Trash2, ChevronDown } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -94,7 +94,7 @@ export default function CategoriasPage() {
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
-  const insightCardRef = useRef<HTMLDivElement | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<ExpenseCategory | null>(null);
 
   useEffect(() => {
     Promise.all([getExpenses(), getBudgets()]).then(([exp, bud]) => {
@@ -219,14 +219,6 @@ export default function CategoriasPage() {
 
   const insightCategory: ExpenseCategory | null =
     mostAbove?.category ?? topByShare?.category ?? mostBelow?.category ?? null;
-
-  useEffect(() => {
-    if (!ready || !insightCategory) return;
-    const timer = setTimeout(() => {
-      insightCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [ready, insightCategory]);
 
   if (!ready) {
     return (
@@ -388,7 +380,6 @@ export default function CategoriasPage() {
               const budget = budgetMap[summary.category];
               const budgetPct = budget != null && budget > 0 ? (summary.total / budget) * 100 : null;
               const isEditing = editingCategory === summary.category;
-              const isDominant = summary.category === insightCategory;
 
               const hasTrend = summary.average > 0;
               const trendUp = hasTrend && summary.percentChange > 5;
@@ -396,45 +387,106 @@ export default function CategoriasPage() {
 
               const isAboveAvg = hasTrend && summary.total > summary.average;
               const currentColor = isAboveAvg ? 'var(--red)' : 'var(--green)';
-
-              const cardBorderStyle = isDominant
-                ? { border: '1px solid rgba(255,71,87,0.6)', boxShadow: '0 0 18px rgba(239,68,68,0.35)' }
-                : summary.isAlert
-                ? { border: '1px solid rgba(255,71,87,0.3)' }
-                : { border: '1px solid var(--border)' };
+              const isExpanded = expandedCategory === summary.category;
 
               return (
                 <div
                   key={summary.category}
-                  ref={isDominant ? insightCardRef : null}
                   style={{
                     background: 'var(--surface)',
                     borderRadius: 'var(--r)',
                     padding: '14px 16px',
                     transition: 'all 0.2s ease-out',
-                    ...cardBorderStyle,
+                    border: '1px solid var(--border)',
                   }}
                 >
-                  {/* Header do card */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
+                  {/* Linha compacta clicável */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isEditing) return;
+                      setExpandedCategory((curr) =>
+                        curr === summary.category ? null : summary.category
+                      );
+                    }}
+                    aria-expanded={isExpanded}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontFamily: 'Nunito, sans-serif',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
                       <div
                         style={{
                           width: 32, height: 32, borderRadius: 9,
                           background: 'var(--logo-bg)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                          flexShrink: 0,
                         }}
                       >
                         {cfg.icon}
                       </div>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{summary.category}</p>
-                        {summary.isAlert && (
-                          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)' }}>⚠ Acima do normal</p>
-                        )}
-                      </div>
+                      <p
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: 'var(--text)',
+                          margin: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {summary.category}
+                      </p>
                     </div>
 
+                    <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: currentColor }}>
+                        {formatCurrency(summary.total)}
+                      </span>
+                      {hasTrend && (
+                        <span
+                          className="flex items-center gap-0.5"
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: trendUp ? 'var(--red)' : trendDown ? 'var(--green)' : 'var(--text-3)',
+                          }}
+                        >
+                          {trendUp ? <ArrowUp size={12} /> : trendDown ? <ArrowDown size={12} /> : <Minus size={12} />}
+                          {Math.round(Math.abs(summary.percentChange))}%
+                        </span>
+                      )}
+                      <ChevronDown
+                        size={16}
+                        color="var(--text-3)"
+                        style={{
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.25s ease',
+                        }}
+                      />
+                    </div>
+                  </button>
+
+                  {(isExpanded || isEditing) && (
+                  <div style={{ marginTop: 14 }}>
+                  {/* Sub-header com alertas / badges / botão editar */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      {summary.isAlert && (
+                        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', margin: 0 }}>⚠ Acima do normal</p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5">
                       {/* Badge Limite */}
                       {budget != null && !isEditing && (
@@ -449,21 +501,6 @@ export default function CategoriasPage() {
                           Limite
                         </span>
                       )}
-
-                      {/* Indicador de tendência */}
-                      {hasTrend && (
-                        <div
-                          className="flex items-center gap-0.5"
-                          style={{
-                            fontSize: 12, fontWeight: 700,
-                            color: trendUp ? 'var(--red)' : trendDown ? 'var(--green)' : 'var(--text-3)',
-                          }}
-                        >
-                          {trendUp ? <ArrowUp size={12} /> : trendDown ? <ArrowDown size={12} /> : <Minus size={12} />}
-                          {Math.round(Math.abs(summary.percentChange))}%
-                        </div>
-                      )}
-
                       <button
                         onClick={() => (isEditing ? cancelEdit() : openEdit(summary.category))}
                         className="flex items-center justify-center transition-colors"
@@ -665,6 +702,8 @@ export default function CategoriasPage() {
                         </span>
                       )}
                     </div>
+                  )}
+                  </div>
                   )}
                 </div>
               );

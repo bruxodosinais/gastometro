@@ -500,6 +500,51 @@ export default function HomePage() {
     return null;
   })();
 
+  // ── Insights personalizados ───────────────────────────────────────────────
+  const monthInsights: string[] = (() => {
+    if (periodExpenses.length === 0) return [];
+    const out: string[] = [];
+
+    // Maior categoria do mês
+    const totalsByCat = EXPENSE_CATEGORIES.map((cat) => ({
+      cat,
+      total: periodExpenses
+        .filter((e) => e.category === cat)
+        .reduce((s, e) => s + e.amount, 0),
+    }))
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total);
+    const topCat = totalsByCat[0];
+    if (topCat) {
+      out.push(`${topCat.cat} foi sua maior categoria: ${formatCurrency(topCat.total)}`);
+    }
+
+    // Comparação com mês anterior
+    if (prevMonthSpent > 0 && spent > 0) {
+      const diff = spent - prevMonthSpent;
+      if (Math.abs(diff) >= 0.01) {
+        if (diff > 0) {
+          out.push(`Você gastou ${formatCurrency(diff)} a mais que em ${prevMonthLabel}`);
+        } else {
+          out.push(`Você gastou ${formatCurrency(Math.abs(diff))} a menos que em ${prevMonthLabel}`);
+        }
+      }
+    }
+
+    // Maior despesa individual
+    const biggest = periodExpenses.reduce(
+      (max, e) => (e.amount > (max?.amount ?? 0) ? e : max),
+      null as null | (typeof periodExpenses)[number]
+    );
+    if (biggest && out.length < 2) {
+      const desc = (biggest.description || biggest.category).trim();
+      const descCap = desc.charAt(0).toUpperCase() + desc.slice(1);
+      out.push(`Sua maior despesa foi ${descCap}: ${formatCurrency(biggest.amount)}`);
+    }
+
+    return out.slice(0, 2);
+  })();
+
   // ── Monthly close handlers ─────────────────────────────────────────────────
   function handleCloseMonthlyClose() {
     localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
@@ -1351,13 +1396,13 @@ export default function HomePage() {
                   .sort(sortObByDue)
                   .map((o): RowItem => ({ kind: 'obligation', ob: o })),
               ];
-              const visible = rows.slice(0, 5);
+              const visible = rows.slice(0, 3);
 
               return (
                 <>
                   <div>
                     {visible.map((item, idx) => {
-                      const isLast = idx === visible.length - 1 && rows.length <= 5;
+                      const isLast = idx === visible.length - 1 && rows.length <= 3;
                       const borderStyle = isLast
                         ? {}
                         : { borderBottom: '1px solid var(--border-2)' };
@@ -1672,7 +1717,7 @@ export default function HomePage() {
                     })}
                   </div>
 
-                  {rows.length > 5 && (
+                  {rows.length > 3 && (
                     <Link
                       href="/recorrentes"
                       style={{
@@ -1787,13 +1832,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── 9. HINT ──────────────────────────────────────────────────────────── */}
-      {hintText && (
+      {/* ── 9. INSIGHTS PERSONALIZADOS ──────────────────────────────────────── */}
+      {isCurrentMonth && (
         <div
           style={{
             margin: '12px 16px 0',
-            background: 'var(--accent-bg)',
-            border: '1px solid var(--accent-soft)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
             borderRadius: 'var(--r-sm)',
             padding: '12px 14px',
             display: 'flex',
@@ -1806,7 +1851,7 @@ export default function HomePage() {
             style={{
               width: 28,
               height: 28,
-              background: 'var(--accent)',
+              background: 'var(--accent-bg)',
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
@@ -1817,10 +1862,41 @@ export default function HomePage() {
           >
             💡
           </div>
-          <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', margin: 0 }}>
-            <strong style={{ color: 'var(--accent)', fontWeight: 800 }}>Dica: </strong>
-            {hintText}
-          </p>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: 'var(--text)',
+                margin: 0,
+                marginBottom: monthInsights.length > 0 ? 6 : 4,
+              }}
+            >
+              Seu mês em números
+            </p>
+            {monthInsights.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {monthInsights.map((text, i) => (
+                  <li
+                    key={i}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--text-2)',
+                      marginTop: i === 0 ? 0 : 4,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    • {text}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', margin: 0, lineHeight: 1.4 }}>
+                Lance seus primeiros gastos para ver insights personalizados.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
