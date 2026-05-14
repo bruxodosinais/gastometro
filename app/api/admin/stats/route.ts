@@ -79,6 +79,33 @@ export async function GET() {
     return registeredBefore7Days && !recentlyActive.has(u.id);
   });
 
+  // Receita / assinaturas
+  const { data: subs } = await admin
+    .from('subscriptions')
+    .select('plan, status, billing_cycle, updated_at');
+
+  const subsArr = subs ?? [];
+  const proActive = subsArr.filter(s => s.plan === 'pro' && s.status === 'active');
+
+  const monthlyCount = proActive.filter(s => s.billing_cycle === 'monthly').length;
+  const annualCount = proActive.filter(s => s.billing_cycle === 'annual').length;
+  const manualCount = proActive.filter(s => s.billing_cycle === 'manual').length;
+  const betaCount = proActive.filter(s => s.billing_cycle === 'beta').length;
+  const couponCount = proActive.filter(s => s.billing_cycle === 'coupon').length;
+
+  const MONTHLY_PRICE = 19.9;
+  const ANNUAL_PRICE = 147;
+  const mrrMonthly = monthlyCount * MONTHLY_PRICE;
+  const mrrAnnual = annualCount * (ANNUAL_PRICE / 12);
+  const mrr = mrrMonthly + mrrAnnual;
+
+  const totalProActive = proActive.length;
+  const conversionRate = total > 0 ? Math.round((totalProActive / total) * 1000) / 10 : 0;
+
+  const churnedThisMonth = subsArr.filter(s =>
+    s.status === 'cancelled' && s.updated_at && new Date(s.updated_at) >= monthStart
+  ).length;
+
   return NextResponse.json({
     users: {
       total,
@@ -102,6 +129,21 @@ export async function GET() {
       weekGrowth,
     },
     cards: { total: totalCards },
+    revenue: {
+      mrr: Math.round(mrr * 100) / 100,
+      mrrMonthly: Math.round(mrrMonthly * 100) / 100,
+      mrrAnnual: Math.round(mrrAnnual * 100) / 100,
+      totalProActive,
+      breakdown: {
+        monthly: monthlyCount,
+        annual: annualCount,
+        manual: manualCount,
+        beta: betaCount,
+        coupon: couponCount,
+      },
+      conversionRate,
+      churnedThisMonth,
+    },
     churn: {
       neverLaunched: neverLaunchedUsers.map(u => ({
         user_id: u.id,

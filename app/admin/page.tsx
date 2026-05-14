@@ -17,10 +17,41 @@ interface Stats {
   };
   launches: { total: number; avgPerUser: number; byDayOfWeek: number[]; weekGrowth: number };
   cards: { total: number };
+  revenue: {
+    mrr: number;
+    mrrMonthly: number;
+    mrrAnnual: number;
+    totalProActive: number;
+    breakdown: { monthly: number; annual: number; manual: number; beta: number; coupon: number };
+    conversionRate: number;
+    churnedThisMonth: number;
+  };
   churn: {
     neverLaunched: { user_id: string; email: string; created_at: string }[];
     inactiveRisk: { user_id: string; email: string; created_at: string; lastLaunch: string | null }[];
   };
+}
+
+type ActivityType = 'signup' | 'upgrade' | 'cancel' | 'feedback';
+
+interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  email: string | null;
+  description: string;
+  meta?: string | null;
+  created_at: string;
+}
+
+interface Coupon {
+  id: string;
+  code: string;
+  days: number;
+  max_uses: number;
+  uses: number;
+  active: boolean;
+  created_at: string;
+  expires_at: string | null;
 }
 
 interface UserRow {
@@ -68,6 +99,24 @@ const FEEDBACK_META: Record<FeedbackCategory, { emoji: string; label: string; co
 function fmt(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function fmtRelative(d: string | null | undefined): string {
+  if (!d) return '—';
+  const diff = Date.now() - new Date(d).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `há ${days} dia${days === 1 ? '' : 's'}`;
+  const months = Math.floor(days / 30);
+  return `há ${months} m${months === 1 ? 'ês' : 'eses'}`;
+}
+
+function fmtBRL(v: number): string {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function fmtDateTime(d: string | null | undefined): string {
@@ -178,7 +227,7 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
 /* ── Dashboard principal ────────────────────────────────────────────────── */
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'feedback'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'activity' | 'feedback' | 'coupons'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -219,6 +268,28 @@ export default function AdminPage() {
   // Churn expandir
   const [neverExpanded, setNeverExpanded] = useState(false);
   const [riskExpanded, setRiskExpanded] = useState(false);
+
+  // Activity feed
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityVisible, setActivityVisible] = useState(20);
+
+  // E-mail em massa
+  const [emailSegment, setEmailSegment] = useState<'all' | 'free' | 'pro' | 'inactive'>('all');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  // Cupons
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [newCouponCode, setNewCouponCode] = useState('');
+  const [newCouponDays, setNewCouponDays] = useState(30);
+  const [newCouponMaxUses, setNewCouponMaxUses] = useState(1);
+  const [newCouponExpires, setNewCouponExpires] = useState('');
+  const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [creatingCoupon, setCreatingCoupon] = useState(false);
 
   // Toast
   const [toast, setToast] = useState('');
@@ -261,6 +332,96 @@ export default function AdminPage() {
   }, [userPage, userSearch, userFilter, userOrder]);
 
   useEffect(() => { if (tab === 'users') fetchUsers(); }, [tab, fetchUsers]);
+
+  /* Fetch activity */
+  const fetchActivity = useCallback(() => {
+    setActivityLoading(true);
+    fetch('/api/admin/activity')
+      .then(r => r.json())
+      .then(d => { setActivityItems(d.items ?? []); setActivityVisible(20); })
+      .finally(() => setActivityLoading(false));
+  }, []);
+
+  useEffect(() => { if (tab === 'activity') fetchActivity(); }, [tab, fetchActivity]);
+
+  /* Fetch coupons */
+  const fetchCoupons = useCallback(() => {
+    setCouponsLoading(true);
+    fetch('/api/admin/coupons')
+      .then(r => r.json())
+      .then(d => setCoupons(d.items ?? []))
+      .finally(() => setCouponsLoading(false));
+  }, []);
+
+  useEffect(() => { if (tab === 'coupons') fetchCoupons(); }, [tab, fetchCoupons]);
+
+  async function createCoupon() {
+    setCreatingCoupon(true);
+    setCouponMsg(null);
+    try {
+      const r = await fetch('/api/admin/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: newCouponCode || undefined,
+          days: newCouponDays,
+          max_uses: newCouponMaxUses,
+          expires_at: newCouponExpires || null,
+        }),
+      });
+      const d = await r.json();
+      if (r.ok && d.coupon) {
+        setCouponMsg({ kind: 'success', text: `Cupom ${d.coupon.code} criado.` });
+        setNewCouponCode(''); setNewCouponDays(30); setNewCouponMaxUses(1); setNewCouponExpires('');
+        fetchCoupons();
+      } else {
+        setCouponMsg({ kind: 'error', text: d.error ?? 'Erro ao criar cupom.' });
+      }
+    } catch {
+      setCouponMsg({ kind: 'error', text: 'Erro ao criar cupom.' });
+    } finally {
+      setCreatingCoupon(false);
+    }
+  }
+
+  async function deactivateCoupon(id: string) {
+    await fetch('/api/admin/coupons', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, active: false }),
+    });
+    fetchCoupons();
+  }
+
+  async function sendBulkEmail() {
+    setEmailSending(true);
+    setEmailResult(null);
+    try {
+      const r = await fetch('/api/admin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          segment: emailSegment,
+          subject: emailSubject,
+          message: emailMessage,
+        }),
+      });
+      const d = await r.json();
+      if (r.ok && typeof d.sent === 'number') {
+        setEmailResult({
+          kind: d.failed > 0 ? 'error' : 'success',
+          text: `Enviados: ${d.sent}. Falhas: ${d.failed}. Total: ${d.total ?? d.sent + d.failed}.`,
+        });
+        if (d.failed === 0) { setEmailSubject(''); setEmailMessage(''); }
+      } else {
+        setEmailResult({ kind: 'error', text: d.error ?? 'Erro ao enviar.' });
+      }
+    } catch {
+      setEmailResult({ kind: 'error', text: 'Erro ao enviar.' });
+    } finally {
+      setEmailSending(false);
+    }
+  }
 
   /* Block/unblock */
   async function toggleBlock(u: UserRow) {
@@ -388,7 +549,9 @@ export default function AdminPage() {
     { key: 'overview', label: 'Visão Geral' },
     { key: 'users', label: 'Usuários' },
     { key: 'growth', label: 'Gráfico' },
+    { key: 'activity', label: 'Atividade' },
     { key: 'feedback', label: 'Feedback' },
+    { key: 'coupons', label: 'Cupons' },
   ] as const;
 
   const filteredFeedback = feedbackFilter === 'all'
@@ -516,6 +679,7 @@ export default function AdminPage() {
 
                 {/* Row 4 — Saúde / Churn */}
                 <SectionTitle>Saúde</SectionTitle>
+                {/* (Saúde original — Receita e Comunicação vêm logo abaixo) */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {/* Nunca lançaram */}
                   <div style={{
@@ -572,6 +736,110 @@ export default function AdminPage() {
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Row 5 — Receita */}
+                <SectionTitle>Receita</SectionTitle>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  <MetricCard
+                    label="MRR (mensal recorrente)"
+                    value={fmtBRL(stats.revenue.mrr)}
+                    sub={`Mensais ${fmtBRL(stats.revenue.mrrMonthly)} + Anuais ${fmtBRL(stats.revenue.mrrAnnual)}`}
+                    color="var(--green)"
+                  />
+                  <MetricCard
+                    label="Pro ativos"
+                    value={stats.revenue.totalProActive}
+                    sub={`${stats.revenue.conversionRate}% de conversão`}
+                  />
+                  <MetricCard label="Mensais" value={stats.revenue.breakdown.monthly} sub="Kiwify mês" />
+                  <MetricCard label="Anuais" value={stats.revenue.breakdown.annual} sub="Kiwify ano" />
+                  <MetricCard label="Manual" value={stats.revenue.breakdown.manual} sub="concedido pelo admin" />
+                  <MetricCard label="Beta" value={stats.revenue.breakdown.beta} sub="?ref=beta" />
+                  <MetricCard label="Cupom" value={stats.revenue.breakdown.coupon} sub="trial via código" />
+                  <MetricCard
+                    label="Churn do mês"
+                    value={stats.revenue.churnedThisMonth}
+                    sub="cancelamentos"
+                    color={stats.revenue.churnedThisMonth > 0 ? 'var(--red)' : 'var(--text)'}
+                  />
+                </div>
+
+                {/* Row 6 — Comunicação */}
+                <SectionTitle>Comunicação</SectionTitle>
+                <div style={{
+                  background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
+                  border: '1px solid var(--border)',
+                }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px' }}>
+                    Envie um e-mail em massa via Resend para um segmento de usuários. Limite de {50} destinatários por envio.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                      Destinatário
+                      <select
+                        value={emailSegment}
+                        onChange={e => setEmailSegment(e.target.value as typeof emailSegment)}
+                        style={{
+                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                          background: 'var(--surface)', fontFamily: 'inherit', fontSize: 14,
+                        }}
+                      >
+                        <option value="all">Todos os usuários</option>
+                        <option value="free">Apenas Free</option>
+                        <option value="pro">Apenas Pro</option>
+                        <option value="inactive">Usuários inativos (7+ dias)</option>
+                      </select>
+                    </label>
+                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                      Assunto *
+                      <input
+                        type="text" value={emailSubject}
+                        onChange={e => setEmailSubject(e.target.value)}
+                        placeholder="Assunto do e-mail"
+                        style={{
+                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                          fontFamily: 'inherit', fontSize: 14,
+                        }}
+                      />
+                    </label>
+                    <label style={{ fontSize: 13, fontWeight: 700 }}>
+                      Mensagem *
+                      <textarea
+                        value={emailMessage}
+                        onChange={e => setEmailMessage(e.target.value)}
+                        placeholder="Texto simples (sem HTML)…"
+                        rows={6}
+                        style={{
+                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                          fontFamily: 'inherit', fontSize: 14, resize: 'vertical',
+                        }}
+                      />
+                    </label>
+                    {emailResult && (
+                      <p style={{
+                        margin: 0, fontSize: 13,
+                        color: emailResult.kind === 'success' ? 'var(--green)' : 'var(--red)',
+                      }}>{emailResult.text}</p>
+                    )}
+                    <div>
+                      <button
+                        onClick={sendBulkEmail}
+                        disabled={emailSending || !emailSubject.trim() || !emailMessage.trim()}
+                        style={{
+                          padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
+                          borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
+                          fontWeight: 700, fontSize: 14,
+                          opacity: emailSending || !emailSubject.trim() || !emailMessage.trim() ? 0.6 : 1,
+                        }}
+                      >
+                        {emailSending ? 'Enviando…' : 'Enviar e-mail'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>
@@ -719,6 +987,70 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* ── SEÇÃO: ATIVIDADE ── */}
+        {tab === 'activity' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Atividade recente</h1>
+              <button onClick={fetchActivity} style={{
+                padding: '8px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
+                borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
+              }}>↻ Atualizar</button>
+            </div>
+            {activityLoading ? (
+              <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
+            ) : activityItems.length === 0 ? (
+              <div style={{
+                background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
+                color: 'var(--text-3)', border: '1px solid var(--border)',
+              }}>Nenhuma atividade nos últimos 30 dias.</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {activityItems.slice(0, activityVisible).map(item => {
+                    const icon = item.type === 'signup' ? '👤'
+                      : item.type === 'upgrade' ? '⭐'
+                      : item.type === 'cancel' ? '❌' : '💬';
+                    const borderColor = item.type === 'signup' ? '#6366F1'
+                      : item.type === 'upgrade' ? '#10B981'
+                      : item.type === 'cancel' ? '#EF4444' : '#F59E0B';
+                    return (
+                      <div key={item.id} style={{
+                        background: 'var(--surface)', borderRadius: 'var(--r)',
+                        border: '1px solid var(--border)', borderLeft: `4px solid ${borderColor}`,
+                        padding: 14, display: 'flex', gap: 12, alignItems: 'center',
+                      }}>
+                        <div style={{ fontSize: 22, lineHeight: 1 }}>{icon}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{
+                            margin: 0, fontSize: 14, color: 'var(--text)', fontWeight: 600,
+                            wordBreak: 'break-word',
+                          }}>{item.description}</p>
+                        </div>
+                        <span style={{
+                          fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 600,
+                        }}>{fmtRelative(item.created_at)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activityVisible < activityItems.length && (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                    <button
+                      onClick={() => setActivityVisible(v => v + 20)}
+                      style={{
+                        padding: '10px 18px', background: 'var(--surface)', color: 'var(--accent)',
+                        border: '1px solid var(--border)', borderRadius: 'var(--r-sm)',
+                        cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
+                      }}
+                    >Ver mais ({activityItems.length - activityVisible} restantes)</button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
         {/* ── SEÇÃO 4: FEEDBACK ── */}
         {tab === 'feedback' && (
           <>
@@ -821,6 +1153,151 @@ export default function AdminPage() {
                 })}
               </div>
             )}
+          </>
+        )}
+
+        {/* ── SEÇÃO: CUPONS ── */}
+        {tab === 'coupons' && (
+          <>
+            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Cupons</h1>
+
+            <div style={{
+              background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
+              border: '1px solid var(--border)', marginBottom: 20,
+            }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Criar cupom</h2>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12,
+              }}>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Código (opcional)
+                  <input
+                    type="text" value={newCouponCode}
+                    onChange={e => setNewCouponCode(e.target.value.toUpperCase())}
+                    placeholder="auto-gerado"
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Duração (dias)
+                  <input
+                    type="number" min={1} value={newCouponDays}
+                    onChange={e => setNewCouponDays(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Máx. usos (0 = ilimitado)
+                  <input
+                    type="number" min={0} value={newCouponMaxUses}
+                    onChange={e => setNewCouponMaxUses(Math.max(0, parseInt(e.target.value) || 0))}
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Expira em (opcional)
+                  <input
+                    type="date" value={newCouponExpires}
+                    onChange={e => setNewCouponExpires(e.target.value)}
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+              </div>
+              {couponMsg && (
+                <p style={{
+                  fontSize: 13, margin: '12px 0 0',
+                  color: couponMsg.kind === 'success' ? 'var(--green)' : 'var(--red)',
+                }}>{couponMsg.text}</p>
+              )}
+              <div style={{ marginTop: 14 }}>
+                <button
+                  onClick={createCoupon}
+                  disabled={creatingCoupon}
+                  style={{
+                    padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
+                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
+                    fontWeight: 700, fontSize: 14, opacity: creatingCoupon ? 0.6 : 1,
+                  }}
+                >{creatingCoupon ? 'Criando…' : 'Criar cupom'}</button>
+              </div>
+            </div>
+
+            <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Cupons cadastrados</h2>
+            <div style={{
+              overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
+              border: '1px solid var(--border)',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    {['Código', 'Dias', 'Usos', 'Validade', 'Status', 'Ações'].map(h => (
+                      <th key={h} style={{
+                        textAlign: 'left', padding: '12px 14px', fontWeight: 700,
+                        color: 'var(--text-2)', whiteSpace: 'nowrap',
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {couponsLoading ? (
+                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+                  ) : coupons.length === 0 ? (
+                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum cupom criado.</td></tr>
+                  ) : coupons.map(c => {
+                    const exhausted = c.max_uses > 0 && c.uses >= c.max_uses;
+                    const expired = c.expires_at != null && new Date(c.expires_at) < new Date();
+                    const showActive = c.active && !exhausted && !expired;
+                    return (
+                      <tr key={c.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
+                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 800 }}>
+                          {c.code}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>{c.days}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {c.uses}/{c.max_uses === 0 ? '∞' : c.max_uses}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>
+                          {c.expires_at ? fmt(c.expires_at) : '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {showActive
+                            ? <Chip label="Ativo" color="var(--green-text)" bg="var(--green-bg)" />
+                            : exhausted
+                              ? <Chip label="Esgotado" color="#4b5563" bg="#E5E7EB" />
+                              : expired
+                                ? <Chip label="Expirado" color="#4b5563" bg="#E5E7EB" />
+                                : <Chip label="Inativo" color="#4b5563" bg="#E5E7EB" />}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {c.active && (
+                            <button
+                              onClick={() => deactivateCoupon(c.id)}
+                              style={{ ...btnStyle, color: 'var(--red)' }}
+                            >Desativar</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </main>

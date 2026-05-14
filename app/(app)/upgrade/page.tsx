@@ -32,8 +32,36 @@ function formatDate(d: Date | null): string {
 }
 
 export default function UpgradePage() {
-  const { isPro, billingCycle, currentPeriodEnd, status, loading } = useSubscription();
+  const { isPro, billingCycle, currentPeriodEnd, status, loading, refetch } = useSubscription();
   const [cycle, setCycle] = useState<Cycle>('annual');
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  async function redeemCoupon() {
+    setCouponLoading(true);
+    setCouponMsg(null);
+    try {
+      const r = await fetch('/api/coupons/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim() }),
+      });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        setCouponMsg({ kind: 'success', text: `Pro ativado por ${d.days} dia${d.days === 1 ? '' : 's'}!` });
+        setCouponCode('');
+        await refetch();
+      } else {
+        setCouponMsg({ kind: 'error', text: d.error ?? 'Erro ao resgatar cupom.' });
+      }
+    } catch {
+      setCouponMsg({ kind: 'error', text: 'Erro ao resgatar cupom.' });
+    } finally {
+      setCouponLoading(false);
+    }
+  }
 
   const monthlyUrl = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_MONTHLY ?? '#';
   const annualUrl = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_ANNUAL ?? '#';
@@ -313,6 +341,81 @@ export default function UpgradePage() {
       >
         <ShieldCheck size={13} />
         Cancele quando quiser • Pagamento seguro via Kiwify
+      </div>
+
+      {/* Cupom */}
+      <div style={{ marginTop: 18, textAlign: 'center' }}>
+        {!couponOpen ? (
+          <button
+            type="button"
+            onClick={() => setCouponOpen(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--accent)', fontWeight: 700, fontSize: 13,
+              fontFamily: 'inherit', padding: 0,
+            }}
+          >
+            Tenho um cupom
+          </button>
+        ) : (
+          <div
+            style={{
+              marginTop: 12,
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r)',
+              padding: 16,
+              textAlign: 'left',
+            }}
+          >
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>
+              Código do cupom
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                placeholder="EX: TRIAL30"
+                style={{
+                  display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                  borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                  fontFamily: 'monospace', fontSize: 14, letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                }}
+              />
+            </label>
+            {couponMsg && (
+              <p
+                style={{
+                  fontSize: 12, fontWeight: 700,
+                  color: couponMsg.kind === 'success' ? 'var(--green)' : 'var(--red)',
+                  margin: '10px 0 0',
+                }}
+              >{couponMsg.text}</p>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={redeemCoupon}
+                disabled={couponLoading || !couponCode.trim()}
+                style={{
+                  flex: 1, padding: '10px 14px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                  fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
+                  opacity: couponLoading || !couponCode.trim() ? 0.6 : 1,
+                }}
+              >{couponLoading ? 'Resgatando…' : 'Resgatar'}</button>
+              <button
+                type="button"
+                onClick={() => { setCouponOpen(false); setCouponMsg(null); setCouponCode(''); }}
+                style={{
+                  padding: '10px 14px', background: 'var(--surface)', color: 'var(--text-2)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                  fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
+                }}
+              >Cancelar</button>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
