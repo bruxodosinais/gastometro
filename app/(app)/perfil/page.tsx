@@ -14,7 +14,8 @@ const AVATAR_EMOJIS = [
   '🧑‍🎨','🧑‍🚀','🧑‍🍳','🦸','🦹','🧙','🥷','🧝','🧛','🤖',
 ];
 
-type NotifPrefs = { due_date_alerts: boolean; weekly_email_summary: boolean };
+type NotifPrefs = { due_date_alerts: boolean };
+type EmailReports = { weekly: boolean; monthly: boolean };
 
 async function handleLogout() {
   await createClient().auth.signOut();
@@ -79,9 +80,15 @@ export default function PerfilPage() {
   // Notifications
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
     due_date_alerts: true,
-    weekly_email_summary: false,
   });
   const [savingNotif, setSavingNotif] = useState(false);
+
+  // Email reports (colunas dedicadas em profiles)
+  const [emailReports, setEmailReports] = useState<EmailReports>({
+    weekly: true,
+    monthly: true,
+  });
+  const [savingEmail, setSavingEmail] = useState(false);
 
   // Danger zone
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -104,7 +111,7 @@ export default function PerfilPage() {
 
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, avatar_emoji, notification_preferences')
+          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly')
           .eq('id', user.id)
           .single();
 
@@ -112,8 +119,13 @@ export default function PerfilPage() {
           setAvatarUrl(profile.avatar_url ?? null);
           setAvatarEmoji(profile.avatar_emoji ?? null);
           if (profile.notification_preferences) {
-            setNotifPrefs(profile.notification_preferences as NotifPrefs);
+            const raw = profile.notification_preferences as Record<string, unknown>;
+            setNotifPrefs({ due_date_alerts: raw.due_date_alerts !== false });
           }
+          setEmailReports({
+            weekly: profile.email_report_weekly !== false,
+            monthly: profile.email_report_monthly !== false,
+          });
         }
       } catch (err) {
         setProfileError(getErrorMessage(err));
@@ -222,6 +234,26 @@ export default function PerfilPage() {
       addToast('Erro ao salvar preferência.', 'error');
     } finally {
       setSavingNotif(false);
+    }
+  }
+
+  async function handleEmailReportToggle(key: keyof EmailReports) {
+    const updated = { ...emailReports, [key]: !emailReports[key] };
+    setEmailReports(updated);
+    setSavingEmail(true);
+    try {
+      const supabase = createClient();
+      const column = key === 'weekly' ? 'email_report_weekly' : 'email_report_monthly';
+      await supabase.from('profiles').upsert({
+        id: userId,
+        [column]: updated[key],
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      setEmailReports(emailReports);
+      addToast('Erro ao salvar preferência.', 'error');
+    } finally {
+      setSavingEmail(false);
     }
   }
 
@@ -530,7 +562,6 @@ export default function PerfilPage() {
           <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
             {([
               { key: 'due_date_alerts' as const, label: 'Alertas de vencimento' },
-              { key: 'weekly_email_summary' as const, label: 'Resumo semanal por e-mail' },
             ] as const).map(({ key, label }, idx) => (
               <div key={key} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -556,6 +587,54 @@ export default function PerfilPage() {
                   <span style={{
                     position: 'absolute', top: 2,
                     left: notifPrefs[key] ? 22 : 2,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    transition: 'left 200ms',
+                  }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Notificações por e-mail */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Notificações por e-mail
+          </p>
+          <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+            {([
+              { key: 'weekly' as const, label: 'Relatório semanal', hint: 'Toda segunda-feira' },
+              { key: 'monthly' as const, label: 'Relatório mensal', hint: 'Todo dia 1º' },
+            ] as const).map(({ key, label, hint }, idx) => (
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px',
+                borderTop: idx > 0 ? '1px solid var(--border-2)' : 'none',
+              }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{label}</p>
+                  <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: '2px 0 0' }}>{hint}</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={emailReports[key]}
+                  disabled={savingEmail}
+                  onClick={() => handleEmailReportToggle(key)}
+                  style={{
+                    position: 'relative',
+                    width: 44, height: 24, borderRadius: 12,
+                    background: emailReports[key] ? 'var(--accent)' : 'var(--border)',
+                    border: 'none', cursor: 'pointer',
+                    transition: 'background 200ms',
+                    flexShrink: 0,
+                    opacity: savingEmail ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2,
+                    left: emailReports[key] ? 22 : 2,
                     width: 20, height: 20, borderRadius: '50%',
                     background: 'white',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',

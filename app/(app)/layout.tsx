@@ -3,6 +3,7 @@ import Sidebar from '@/components/Sidebar';
 import TopbarDesktop from '@/components/TopbarDesktop';
 import RecurringCheck from '@/components/RecurringCheck';
 import FeedbackButton from '@/components/FeedbackButton';
+import WeeklyReportModal from '@/components/WeeklyReportModal';
 import { PeriodProvider } from '@/lib/periodContext';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <FeedbackButton />
+      <WeeklyReportModal />
     </PeriodProvider>
   );
 }
