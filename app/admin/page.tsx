@@ -44,11 +44,44 @@ interface Subscription {
   updated_at: string | null;
 }
 
+type FeedbackCategory = 'bug' | 'sugestao' | 'elogio' | 'outro';
+
+interface FeedbackItem {
+  id: string;
+  user_id: string | null;
+  email: string | null;
+  category: FeedbackCategory;
+  message: string;
+  page: string | null;
+  created_at: string;
+}
+
+const FEEDBACK_META: Record<FeedbackCategory, { emoji: string; label: string; color: string; bg: string }> = {
+  bug: { emoji: '🐛', label: 'Bug', color: '#c0392b', bg: '#FEE2E2' },
+  sugestao: { emoji: '💡', label: 'Sugestão', color: '#92400e', bg: '#FEF3C7' },
+  elogio: { emoji: '❤️', label: 'Elogio', color: '#9d174d', bg: '#FCE7F3' },
+  outro: { emoji: '💬', label: 'Outro', color: '#3730a3', bg: '#E0E7FF' },
+};
+
 /* ── Utilitários ───────────────────────────────────────────────────────── */
 
 function fmt(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function fmtDateTime(d: string | null | undefined): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function initial(value: string | null | undefined): string {
+  if (!value) return '?';
+  const trimmed = value.trim();
+  return trimmed ? trimmed.charAt(0).toUpperCase() : '?';
 }
 
 function pct(n: number, total: number) {
@@ -97,6 +130,9 @@ function Chip({ label, color, bg }: { label: string; color: string; bg: string }
 }
 
 function PlanBadge({ plan, billingCycle }: { plan: string; billingCycle: string | null }) {
+  if (plan === 'pro' && billingCycle === 'beta') {
+    return <Chip label="BETA" color="#ffffff" bg="#6366F1" />;
+  }
   if (plan === 'pro' && billingCycle === 'manual') {
     return <Chip label="PRO manual" color="#7a5d00" bg="#FFF4CC" />;
   }
@@ -142,9 +178,15 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
 /* ── Dashboard principal ────────────────────────────────────────────────── */
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'users' | 'growth'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'feedback'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+
+  // Feedback
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackUnread, setFeedbackUnread] = useState(0);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | FeedbackCategory>('all');
 
   // Users
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -189,6 +231,21 @@ export default function AdminPage() {
       .then(d => { setStats(d); setLoadingStats(false); })
       .catch(() => setLoadingStats(false));
   }, []);
+
+  /* Fetch feedback counter on load (para badge) */
+  const fetchFeedback = useCallback(() => {
+    setFeedbackLoading(true);
+    fetch('/api/admin/feedback')
+      .then(r => r.json())
+      .then(d => {
+        setFeedbackItems(d.items ?? []);
+        setFeedbackUnread(d.unreadCount ?? 0);
+      })
+      .finally(() => setFeedbackLoading(false));
+  }, []);
+
+  useEffect(() => { fetchFeedback(); }, [fetchFeedback]);
+  useEffect(() => { if (tab === 'feedback') fetchFeedback(); }, [tab, fetchFeedback]);
 
   /* Fetch users */
   const fetchUsers = useCallback(() => {
@@ -331,7 +388,12 @@ export default function AdminPage() {
     { key: 'overview', label: 'Visão Geral' },
     { key: 'users', label: 'Usuários' },
     { key: 'growth', label: 'Gráfico' },
+    { key: 'feedback', label: 'Feedback' },
   ] as const;
+
+  const filteredFeedback = feedbackFilter === 'all'
+    ? feedbackItems
+    : feedbackItems.filter(f => f.category === feedbackFilter);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -351,8 +413,17 @@ export default function AdminPage() {
             color: tab === t.key ? 'var(--accent)' : 'var(--text-2)',
             borderLeft: tab === t.key ? '3px solid var(--accent)' : '3px solid transparent',
             transition: 'all 0.15s',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            {t.label}
+            <span>{t.label}</span>
+            {t.key === 'feedback' && feedbackUnread > 0 && (
+              <span style={{
+                background: 'var(--accent)', color: '#fff', borderRadius: 999,
+                fontSize: 11, fontWeight: 800, padding: '2px 7px', minWidth: 20, textAlign: 'center',
+              }}>
+                {feedbackUnread}
+              </span>
+            )}
           </button>
         ))}
         <div style={{ flex: 1 }} />
@@ -371,8 +442,18 @@ export default function AdminPage() {
               fontFamily: 'inherit', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
               background: tab === t.key ? 'var(--accent)' : 'var(--surface)',
               color: tab === t.key ? '#fff' : 'var(--text-2)',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-              {t.label}
+              <span>{t.label}</span>
+              {t.key === 'feedback' && feedbackUnread > 0 && (
+                <span style={{
+                  background: tab === t.key ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
+                  color: '#fff', borderRadius: 999,
+                  fontSize: 11, fontWeight: 800, padding: '1px 6px', minWidth: 18, textAlign: 'center',
+                }}>
+                  {feedbackUnread}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -633,6 +714,111 @@ export default function AdminPage() {
                     <Line type="monotone" dataKey="lançamentos" stroke="var(--accent)" strokeWidth={2.5} dot={{ fill: 'var(--accent)', r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── SEÇÃO 4: FEEDBACK ── */}
+        {tab === 'feedback' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                Feedback
+                {feedbackUnread > 0 && (
+                  <span style={{
+                    background: 'var(--accent)', color: '#fff', borderRadius: 999,
+                    fontSize: 12, fontWeight: 800, padding: '3px 10px',
+                  }}>
+                    {feedbackUnread} novo{feedbackUnread === 1 ? '' : 's'}
+                  </span>
+                )}
+              </h1>
+              <button onClick={fetchFeedback} style={{
+                padding: '8px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
+                borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
+              }}>↻ Atualizar</button>
+            </div>
+
+            {/* Filtros */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {([
+                { key: 'all', label: 'Todos' },
+                { key: 'bug', label: '🐛 Bug' },
+                { key: 'sugestao', label: '💡 Sugestão' },
+                { key: 'elogio', label: '❤️ Elogio' },
+                { key: 'outro', label: '💬 Outro' },
+              ] as const).map(f => {
+                const active = feedbackFilter === f.key;
+                return (
+                  <button key={f.key} onClick={() => setFeedbackFilter(f.key)} style={{
+                    padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
+                    fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                    background: active ? 'var(--accent)' : 'var(--surface)',
+                    color: active ? '#fff' : 'var(--text-2)',
+                    border: active ? '1px solid transparent' : '1px solid var(--border)',
+                  }}>
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {feedbackLoading ? (
+              <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
+            ) : filteredFeedback.length === 0 ? (
+              <div style={{
+                background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
+                color: 'var(--text-3)', border: '1px solid var(--border)',
+              }}>
+                Nenhum feedback {feedbackFilter !== 'all' ? 'nesta categoria' : 'ainda'}.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {filteredFeedback.map(f => {
+                  const meta = FEEDBACK_META[f.category] ?? FEEDBACK_META.outro;
+                  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+                  const isNew = new Date(f.created_at).getTime() >= sevenDaysAgo;
+                  return (
+                    <div key={f.id} style={{
+                      background: 'var(--surface)', borderRadius: 'var(--r)',
+                      border: '1px solid var(--border)', padding: 16,
+                      display: 'flex', gap: 12,
+                    }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        background: 'var(--accent-bg)', color: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 800, fontSize: 16, flexShrink: 0,
+                      }}>
+                        {initial(f.email)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                          <Chip label={`${meta.emoji} ${meta.label}`} color={meta.color} bg={meta.bg} />
+                          {isNew && <Chip label="NOVO" color="#fff" bg="var(--accent)" />}
+                          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>
+                            {f.email ?? 'Usuário removido'}
+                          </span>
+                          <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 'auto' }}>
+                            {fmtDateTime(f.created_at)}
+                          </span>
+                        </div>
+                        <p style={{
+                          margin: '4px 0 6px', color: 'var(--text)', fontSize: 14,
+                          lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        }}>
+                          {f.message}
+                        </p>
+                        {f.page && (
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
+                            <span style={{ fontWeight: 700 }}>Página:</span> {f.page}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

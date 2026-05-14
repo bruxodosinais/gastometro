@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 function traduzirErroAuth(mensagem: string): string {
@@ -80,8 +80,9 @@ const EYE_BTN: React.CSSProperties = {
   padding: 0,
 };
 
-export default function CadastroPage() {
+function CadastroContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -111,12 +112,17 @@ export default function CadastroPage() {
 
     setLoading(true);
     const supabase = createClient();
+    const ref = searchParams.get('ref');
+    const redirectTo = `${location.origin}/auth/callback${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
-        data: { full_name: name.trim() },
+        emailRedirectTo: redirectTo,
+        data: {
+          full_name: name.trim(),
+          ...(ref ? { signup_ref: ref } : {}),
+        },
       },
     });
 
@@ -401,5 +407,13 @@ export default function CadastroPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function CadastroPage() {
+  return (
+    <Suspense>
+      <CadastroContent />
+    </Suspense>
   );
 }
