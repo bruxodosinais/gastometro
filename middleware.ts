@@ -30,8 +30,12 @@ export default async function middleware(request: NextRequest) {
   const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isPublicWebhook = pathname.startsWith('/api/webhooks/');
+  // Endpoints chamados pelo cron do Vercel: autenticados via Bearer CRON_SECRET na própria rota.
+  // weekly-summary é autenticado por sessão (popup do app), então fica fora desta lista.
+  const isCronEndpoint =
+    pathname === '/api/reports/weekly' || pathname === '/api/reports/monthly';
 
-  if (isPublicWebhook) {
+  if (isPublicWebhook || isCronEndpoint) {
     return supabaseResponse;
   }
 
