@@ -39,18 +39,30 @@ export async function GET(req: NextRequest) {
   const { data: recentExpenses } = await admin.from('expenses').select('user_id, date').gte('date', sevenDaysAgo.toISOString().split('T')[0]);
   const activeSet = new Set(recentExpenses?.map(e => e.user_id) ?? []);
 
-  let users = allUsers.map(u => ({
-    id: u.id,
-    email: u.email ?? '',
-    created_at: u.created_at,
-    last_sign_in_at: u.last_sign_in_at ?? null,
-    email_confirmed_at: u.email_confirmed_at ?? null,
-    launches_count: launchCount[u.id] ?? 0,
-    has_recurring: recurringSet.has(u.id),
-    has_credit_card: cardSet.has(u.id),
-    is_blocked: blockedSet.has(u.id),
-    is_active: activeSet.has(u.id),
-  }));
+  // Assinaturas
+  const { data: subs } = await admin.from('subscriptions').select('user_id, plan, billing_cycle');
+  const subMap = new Map<string, { plan: string; billing_cycle: string | null }>();
+  for (const s of (subs ?? [])) {
+    subMap.set(s.user_id, { plan: s.plan, billing_cycle: s.billing_cycle ?? null });
+  }
+
+  let users = allUsers.map(u => {
+    const sub = subMap.get(u.id);
+    return {
+      id: u.id,
+      email: u.email ?? '',
+      created_at: u.created_at,
+      last_sign_in_at: u.last_sign_in_at ?? null,
+      email_confirmed_at: u.email_confirmed_at ?? null,
+      launches_count: launchCount[u.id] ?? 0,
+      has_recurring: recurringSet.has(u.id),
+      has_credit_card: cardSet.has(u.id),
+      is_blocked: blockedSet.has(u.id),
+      is_active: activeSet.has(u.id),
+      plan: sub?.plan ?? 'free',
+      billing_cycle: sub?.billing_cycle ?? null,
+    };
+  });
 
   // Filtros
   if (search) users = users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()));

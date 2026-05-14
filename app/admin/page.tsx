@@ -28,9 +28,21 @@ interface UserRow {
   last_sign_in_at: string | null; email_confirmed_at: string | null;
   launches_count: number; has_recurring: boolean; has_credit_card: boolean;
   is_blocked: boolean;
+  plan: string;
+  billing_cycle: string | null;
 }
 
 interface UserDetail extends UserRow { /* same shape */ }
+
+interface Subscription {
+  plan: string;
+  status: string;
+  billing_cycle: string | null;
+  current_period_end: string | null;
+  kiwify_order_id: string | null;
+  kiwify_subscription_id: string | null;
+  updated_at: string | null;
+}
 
 /* ── Utilitários ───────────────────────────────────────────────────────── */
 
@@ -82,6 +94,16 @@ function Chip({ label, color, bg }: { label: string; color: string; bg: string }
       {label}
     </span>
   );
+}
+
+function PlanBadge({ plan, billingCycle }: { plan: string; billingCycle: string | null }) {
+  if (plan === 'pro' && billingCycle === 'manual') {
+    return <Chip label="PRO manual" color="#7a5d00" bg="#FFF4CC" />;
+  }
+  if (plan === 'pro') {
+    return <Chip label="PRO Kiwify" color="#3730a3" bg="#E0E7FF" />;
+  }
+  return <Chip label="FREE" color="#4b5563" bg="#E5E7EB" />;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -142,6 +164,16 @@ export default function AdminPage() {
   const [inviteMsg, setInviteMsg] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  // Plano e Assinatura
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subMsg, setSubMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [grantDays, setGrantDays] = useState(30);
+  const [grantLoading, setGrantLoading] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [revokeLoading, setRevokeLoading] = useState(false);
+
   // Churn expandir
   const [neverExpanded, setNeverExpanded] = useState(false);
   const [riskExpanded, setRiskExpanded] = useState(false);
@@ -193,9 +225,73 @@ export default function AdminPage() {
 
   /* Open detail */
   async function openDetail(id: string) {
+    setSubscription(null);
+    setSubMsg(null);
     const r = await fetch(`/api/admin/users/${id}`);
     const d = await r.json();
     setDetailUser(d);
+    loadSubscription(id);
+  }
+
+  async function loadSubscription(id: string) {
+    setSubLoading(true);
+    try {
+      const r = await fetch(`/api/admin/users/${id}/subscription`);
+      const d = await r.json();
+      setSubscription(d.subscription ?? null);
+    } catch {
+      setSubscription(null);
+    } finally {
+      setSubLoading(false);
+    }
+  }
+
+  async function grantPro() {
+    if (!detailUser) return;
+    setGrantLoading(true);
+    setSubMsg(null);
+    try {
+      const r = await fetch(`/api/admin/users/${detailUser.id}/subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: grantDays }),
+      });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        setSubMsg({ kind: 'success', text: `Pro concedido por ${grantDays} dia(s).` });
+        setGrantOpen(false);
+        await loadSubscription(detailUser.id);
+        fetchUsers();
+      } else {
+        setSubMsg({ kind: 'error', text: d.error ?? 'Erro ao conceder Pro.' });
+      }
+    } catch {
+      setSubMsg({ kind: 'error', text: 'Erro ao conceder Pro.' });
+    } finally {
+      setGrantLoading(false);
+    }
+  }
+
+  async function revokePro() {
+    if (!detailUser) return;
+    setRevokeLoading(true);
+    setSubMsg(null);
+    try {
+      const r = await fetch(`/api/admin/users/${detailUser.id}/subscription`, { method: 'DELETE' });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        setSubMsg({ kind: 'success', text: 'Pro revogado.' });
+        setConfirmRevoke(false);
+        await loadSubscription(detailUser.id);
+        fetchUsers();
+      } else {
+        setSubMsg({ kind: 'error', text: d.error ?? 'Erro ao revogar Pro.' });
+      }
+    } catch {
+      setSubMsg({ kind: 'error', text: 'Erro ao revogar Pro.' });
+    } finally {
+      setRevokeLoading(false);
+    }
   }
 
   /* Send invite */
@@ -462,16 +558,16 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    {['E-mail', 'Cadastro', 'Último acesso', 'Lançamentos', 'Status', 'Ações'].map(h => (
+                    {['E-mail', 'Cadastro', 'Último acesso', 'Lançamentos', 'Plano', 'Status', 'Ações'].map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loadingUsers ? (
-                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+                    <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
                   ) : users.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum usuário encontrado.</td></tr>
+                    <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum usuário encontrado.</td></tr>
                   ) : users.map(u => (
                     <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
                       <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -480,6 +576,9 @@ export default function AdminPage() {
                       <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700 }}>{u.launches_count}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} />
+                      </td>
                       <td style={{ padding: '10px 14px' }}>
                         {u.is_blocked
                           ? <Chip label="Bloqueado" color="#c0392b" bg="var(--red-bg)" />
@@ -554,6 +653,53 @@ export default function AdminPage() {
             <Row label="Tem cartão" value={detailUser.has_credit_card ? 'Sim' : 'Não'} />
             <Row label="Bloqueado" value={detailUser.is_blocked ? 'Sim' : 'Não'} />
           </div>
+
+          {/* Plano e Assinatura */}
+          <h3 style={{ margin: '24px 0 12px', fontWeight: 800, fontSize: 15 }}>Plano e Assinatura</h3>
+          {subLoading ? (
+            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: 0 }}>Carregando assinatura…</p>
+          ) : subscription ? (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border-2)', paddingBottom: 8 }}>
+                  <span style={{ color: 'var(--text-2)' }}>Plano atual</span>
+                  <PlanBadge plan={subscription.plan} billingCycle={subscription.billing_cycle} />
+                </div>
+                <Row label="Status" value={subscription.status} />
+                <Row label="Ciclo de cobrança" value={subscription.billing_cycle ?? '—'} />
+                <Row label="Vence em" value={fmt(subscription.current_period_end)} />
+              </div>
+
+              {subMsg && (
+                <p style={{
+                  fontSize: 13, margin: '12px 0 0',
+                  color: subMsg.kind === 'success' ? 'var(--green)' : 'var(--red)',
+                }}>{subMsg.text}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                {subscription.plan === 'free' && (
+                  <button onClick={() => { setGrantDays(30); setSubMsg(null); setGrantOpen(true); }} style={{
+                    padding: '10px 18px', background: '#FFF4CC', color: '#7a5d00', border: '1px solid #f0d97a',
+                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+                  }}>
+                    Conceder Pro
+                  </button>
+                )}
+                {subscription.plan === 'pro' && subscription.billing_cycle === 'manual' && (
+                  <button onClick={() => { setSubMsg(null); setConfirmRevoke(true); }} style={{
+                    padding: '10px 18px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none',
+                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+                  }}>
+                    Revogar Pro
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: 0 }}>Sem dados de assinatura.</p>
+          )}
+
           <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
             <button onClick={() => toggleBlock(detailUser)} style={{
               padding: '10px 18px', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)',
@@ -626,6 +772,59 @@ export default function AdminPage() {
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Sim, excluir</button>
             <button onClick={() => setConfirmDelete(null)} style={{
+              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+            }}>Cancelar</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Modal: Conceder Pro ── */}
+      {grantOpen && detailUser && (
+        <Modal onClose={() => setGrantOpen(false)}>
+          <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18 }}>Conceder Pro</h2>
+          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 16px' }}>
+            Conceder plano Pro manualmente para <strong>{detailUser.email}</strong>.
+          </p>
+          <label style={{ fontSize: 13, fontWeight: 700, display: 'block' }}>
+            Duração em dias
+            <input
+              type="number" min={1} value={grantDays}
+              onChange={e => setGrantDays(Math.max(1, parseInt(e.target.value) || 1))}
+              style={{ display: 'block', marginTop: 4, width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: 14 }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+            <button onClick={grantPro} disabled={grantLoading} style={{
+              padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
+              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+              opacity: grantLoading ? 0.6 : 1,
+            }}>
+              {grantLoading ? 'Concedendo…' : 'Confirmar'}
+            </button>
+            <button onClick={() => setGrantOpen(false)} style={{
+              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+            }}>Cancelar</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Modal: Confirmar revogação Pro ── */}
+      {confirmRevoke && detailUser && (
+        <Modal onClose={() => setConfirmRevoke(false)}>
+          <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18, color: 'var(--red)' }}>Revogar Pro</h2>
+          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 20px' }}>
+            Tem certeza que deseja revogar o plano Pro de <strong>{detailUser.email}</strong>?
+            O usuário voltará para o plano Free imediatamente.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={revokePro} disabled={revokeLoading} style={{
+              padding: '10px 18px', background: 'var(--red)', color: '#fff', border: 'none',
+              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
+              opacity: revokeLoading ? 0.6 : 1,
+            }}>{revokeLoading ? 'Revogando…' : 'Sim, revogar'}</button>
+            <button onClick={() => setConfirmRevoke(false)} style={{
               padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Cancelar</button>

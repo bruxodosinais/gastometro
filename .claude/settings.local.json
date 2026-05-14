@@ -52,7 +52,11 @@
       "Bash(echo \"TypeScript exit: $?\")",
       "Bash(echo \"EXIT_CODE=$?\")",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(grep -n \"^button\\\\|^p\\\\b\\\\|button {\\\\|button,\" /Users/anderson/gastometro/app/globals.css)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(kill 28030)"
     ]
   }
 }
