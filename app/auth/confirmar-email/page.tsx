@@ -32,16 +32,34 @@ function ConfirmarEmailContent() {
   }, [countdown]);
 
   async function handleReenviar() {
-    if (!email) return;
+    if (!email || loading || countdown > 0) return;
     setMensagem('');
     setErro('');
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    // emailRedirectTo precisa bater com o usado no signUp original, senão o
+    // link cai em hostname inválido e a confirmação não chega/quebra.
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback`,
+      },
+    });
 
     if (error) {
-      setErro('Erro ao reenviar. Tente novamente em alguns minutos.');
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('rate') || msg.includes('seconds')) {
+        setErro('Aguarde alguns segundos antes de tentar reenviar novamente.');
+      } else if (msg.includes('already') && msg.includes('confirmed')) {
+        setErro('Este e-mail já foi confirmado. Faça login normalmente.');
+      } else {
+        setErro('Erro ao reenviar. Tente novamente em alguns minutos.');
+      }
+      // Mesmo no erro, inicia cooldown — evita marteladas no botão e novos
+      // erros de rate limit em sequência.
+      setCountdown(COOLDOWN_SEGUNDOS);
     } else {
       setMensagem('E-mail reenviado. Verifique sua caixa de entrada e spam.');
       setCountdown(COOLDOWN_SEGUNDOS);

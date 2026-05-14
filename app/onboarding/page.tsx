@@ -8,6 +8,9 @@ import {
   addRecurringExpense,
   addObligationForNewRecurring,
   upsertMonthlyPlan,
+  getRecurringExpenses,
+  updateRecurringExpense,
+  addCreditCard,
 } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
 import type { ExpenseCategory } from '@/lib/types';
@@ -32,6 +35,9 @@ const CHIPS: ChipDef[] = [
   { id: 'saude',     label: 'Plano de saúde',   icon: '🏥', category: 'Saúde' },
 ];
 
+const TOTAL_STEPS = 4;
+const MAX_CARDS = 3;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function parseAmount(str: string): number {
@@ -46,15 +52,37 @@ function numToStr(n: number): string {
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
 
+function Wordmark() {
+  return (
+    <div className="flex items-center gap-2 justify-center mb-6">
+      <div
+        className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-[11px] flex-shrink-0"
+        style={{ background: 'var(--accent)' }}
+      >
+        ✅
+      </div>
+      <span
+        className="text-sm font-extrabold"
+        style={{ color: 'var(--accent)' }}
+      >
+        TôOrganizado
+      </span>
+    </div>
+  );
+}
+
 function ProgressDots({ filled }: { filled: number }) {
   return (
     <div className="flex gap-2 justify-center">
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: TOTAL_STEPS }, (_, i) => (
         <div
           key={i}
-          className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
-            i < filled ? 'bg-mint' : 'border-2 border-gray-200'
-          }`}
+          className="w-2.5 h-2.5 rounded-full transition-colors duration-300"
+          style={
+            i < filled
+              ? { background: 'var(--accent)' }
+              : { border: '2px solid #e5e7eb' }
+          }
         />
       ))}
     </div>
@@ -70,7 +98,12 @@ function BigCurrencyInput({
 }) {
   return (
     <div className="flex items-center justify-center gap-2 py-2">
-      <span className="text-3xl font-semibold text-mint-500">R$</span>
+      <span
+        className="text-3xl font-semibold"
+        style={{ color: 'var(--accent)' }}
+      >
+        R$
+      </span>
       <div className="relative">
         <input
           type="text"
@@ -80,10 +113,13 @@ function BigCurrencyInput({
           onFocus={(e) => { if (e.target.value === '0') onChange(''); }}
           placeholder="0"
           className="text-6xl font-bold bg-transparent border-none outline-none text-center w-48 pb-2 text-gray-900 placeholder:text-gray-300"
-          style={{ caretColor: '#00b87a' }}
+          style={{ caretColor: 'var(--accent)' }}
         />
         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-100" />
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-mint" />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[2px]"
+          style={{ background: 'var(--accent)' }}
+        />
       </div>
     </div>
   );
@@ -115,23 +151,36 @@ function PrimaryButton({
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-full py-3.5 bg-mint hover:bg-mint-700 disabled:opacity-50 rounded-xl font-semibold text-gray-900 transition-colors"
+      className="w-full py-3.5 rounded-xl font-semibold text-white transition-opacity disabled:opacity-50"
+      style={{ background: 'var(--accent)' }}
     >
       {loading ? 'Salvando...' : children}
     </button>
   );
 }
 
+// ─── Tipos de estado ─────────────────────────────────────────────────────────
+
+type CardForm = {
+  nome: string;
+  limite: string;
+  fechamento: string;
+  vencimento: string;
+};
+
+const EMPTY_CARD: CardForm = { nome: '', limite: '', fechamento: '', vencimento: '' };
+
+type Step = 0 | 1 | 2 | 3 | 4 | 5;
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [step, setStep] = useState<Step>(0);
   const [visible, setVisible] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Dados do usuário
   const [userName, setUserName] = useState('');
 
   // Passo 1 — renda
@@ -147,12 +196,17 @@ export default function OnboardingPage() {
   const [customDueDay, setCustomDueDay] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
 
-  // Passo 3 — meta de poupança
+  // Passo 3 — cartão de crédito
+  const [useCredit, setUseCredit] = useState(false);
+  const [cards, setCards] = useState<CardForm[]>([{ ...EMPTY_CARD }]);
+
+  // Passo 4 — meta de poupança
   const [savings, setSavings] = useState('');
 
-  // Resumo para passo 4
+  // Resumo para passo 5
   const [savedIncome, setSavedIncome] = useState(0);
   const [savedRecurringCount, setSavedRecurringCount] = useState(0);
+  const [savedCardCount, setSavedCardCount] = useState(0);
   const [savedSavings, setSavedSavings] = useState(0);
 
   useEffect(() => {
@@ -171,7 +225,7 @@ export default function OnboardingPage() {
     });
   }, []);
 
-  function goTo(next: 0 | 1 | 2 | 3 | 4) {
+  function goTo(next: Step) {
     setVisible(false);
     setTimeout(() => {
       setStep(next);
@@ -180,7 +234,7 @@ export default function OnboardingPage() {
   }
 
   async function completeOnboarding() {
-    // Cria o plano mensal consolidando os valores dos passos 1 e 3
+    // Cria o plano mensal consolidando os valores dos passos 1 e 4
     if (savedIncome > 0 || savedSavings > 0) {
       try {
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -202,29 +256,46 @@ export default function OnboardingPage() {
 
   // Tela 1 — renda
   async function handleStep1Continue() {
+    if (saving) return;
     const amount = parseAmount(income);
     if (amount > 0) {
+      setSaving(true);
       const parsedDay = parseInt(incomeDay, 10);
       // Não preencher dayOfMonth com 1 quando o usuário não informa — manter
-      // undefined para que o item apareça como "Dia não definido" e não como
-      // "Todo dia 1" enganoso.
+      // undefined/null para que o item apareça como "Dia não definido" e não
+      // como "Todo dia 1" enganoso.
       const day =
         Number.isFinite(parsedDay) && parsedDay >= 1 && parsedDay <= 31
           ? parsedDay
           : undefined;
       try {
-        await addRecurringExpense({
-          description: 'Salário',
-          amount,
-          category: 'Salário',
-          type: 'income',
-          dayOfMonth: day,
-          active: true,
-          isVariable: false,
-        });
+        // Upsert: se já existe um recorrente de salário (ex: usuário voltou e
+        // pressionou Continuar de novo), atualiza em vez de duplicar.
+        const all = await getRecurringExpenses();
+        const existing = all.find(
+          (r) => r.type === 'income' && /sal[áa]rio/i.test(r.description),
+        );
+        if (existing) {
+          await updateRecurringExpense(existing.id, {
+            amount,
+            dayOfMonth: day ?? null,
+          });
+        } else {
+          await addRecurringExpense({
+            description: 'Salário',
+            amount,
+            category: 'Salário',
+            type: 'income',
+            dayOfMonth: day,
+            active: true,
+            isVariable: false,
+          });
+        }
         setSavedIncome(amount);
       } catch (e) {
         console.error('Onboarding: erro ao salvar renda:', e);
+      } finally {
+        setSaving(false);
       }
     }
     goTo(2);
@@ -296,13 +367,62 @@ export default function OnboardingPage() {
     goTo(3);
   }
 
-  // Tela 3 — meta de poupança
-  function handleStep3Continue() {
+  // Tela 3 — cartões
+  function updateCard(idx: number, patch: Partial<CardForm>) {
+    setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  }
+
+  function addCardRow() {
+    if (cards.length >= MAX_CARDS) return;
+    setCards((prev) => [...prev, { ...EMPTY_CARD }]);
+  }
+
+  function removeCardRow(idx: number) {
+    setCards((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
+  }
+
+  async function handleStep3Continue() {
+    if (useCredit) {
+      setSaving(true);
+      let count = 0;
+      for (const c of cards) {
+        const nome = c.nome.trim();
+        const limite = parseAmount(c.limite);
+        if (!nome || limite <= 0) continue;
+        const fechamento = parseInt(c.fechamento, 10);
+        const vencimento = parseInt(c.vencimento, 10);
+        const fechamentoOk =
+          Number.isFinite(fechamento) && fechamento >= 1 && fechamento <= 28;
+        const vencimentoOk =
+          Number.isFinite(vencimento) && vencimento >= 1 && vencimento <= 28;
+        try {
+          await addCreditCard({
+            nome,
+            limite,
+            diaFechamento: fechamentoOk ? fechamento : null,
+            diaVencimento: vencimentoOk ? vencimento : null,
+            ativo: true,
+          });
+          count++;
+        } catch (e) {
+          console.error(`Onboarding: erro ao salvar cartão ${nome}:`, e);
+        }
+      }
+      setSavedCardCount(count);
+      setSaving(false);
+    } else {
+      setSavedCardCount(0);
+    }
+    goTo(4);
+  }
+
+  // Tela 4 — meta de poupança
+  function handleStep4Continue() {
     const amount = parseAmount(savings);
     if (amount > 0) {
       setSavedSavings(amount);
     }
-    goTo(4);
+    goTo(5);
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -310,13 +430,14 @@ export default function OnboardingPage() {
   const incomeNum = parseAmount(income);
   const savingsMax = savedIncome > 0 ? savedIncome * 0.5 : 5000;
   const savingsNum = parseAmount(savings);
+  const savingsPct = savingsMax > 0 ? (savingsNum / savingsMax) * 100 : 0;
 
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6 py-8 relative">
-      {/* Botão voltar — telas 1, 2, 3 */}
-      {(step === 1 || step === 2 || step === 3) && (
+      {/* Botão voltar — telas 1..4 */}
+      {(step === 1 || step === 2 || step === 3 || step === 4) && (
         <button
-          onClick={() => goTo((step - 1) as 0 | 1 | 2 | 3 | 4)}
+          onClick={() => goTo((step - 1) as Step)}
           className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
           aria-label="Voltar"
         >
@@ -330,15 +451,16 @@ export default function OnboardingPage() {
           transition: 'opacity 180ms ease',
         }}
       >
+        <Wordmark />
+
         {/* ── Tela 0 — Boas-vindas ─────────────────────────────────────── */}
         {step === 0 && (
           <div className="flex flex-col items-center text-center gap-0">
-            <div className="text-5xl mb-6">📊</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Olá, {userName || '…'}! 👋
             </h1>
             <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-              Vamos configurar seu Gastômetro em 3 passos rápidos.
+              Vamos configurar seu TôOrganizado em {TOTAL_STEPS} passos rápidos.
             </p>
             <ProgressDots filled={0} />
             <div className="h-10" />
@@ -358,7 +480,7 @@ export default function OnboardingPage() {
             <ProgressDots filled={1} />
             <div className="h-6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
-              Passo 1 de 3
+              Passo 1 de {TOTAL_STEPS}
             </p>
             <div className="h-3" />
             <h2 className="text-xl font-bold text-gray-900 text-center">
@@ -379,7 +501,8 @@ export default function OnboardingPage() {
                 value={incomeDay}
                 onChange={(e) => setIncomeDay(e.target.value)}
                 placeholder="1"
-                className="w-16 text-center bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-mint transition-colors"
+                className="w-16 text-center bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm font-semibold text-gray-900 outline-none transition-colors"
+                style={{ caretColor: 'var(--accent)' }}
               />
               <span className="text-sm text-gray-400">do mês</span>
             </div>
@@ -387,6 +510,7 @@ export default function OnboardingPage() {
             <PrimaryButton
               onClick={handleStep1Continue}
               disabled={incomeNum <= 0}
+              loading={saving}
             >
               Continuar
             </PrimaryButton>
@@ -400,7 +524,7 @@ export default function OnboardingPage() {
             <ProgressDots filled={2} />
             <div className="h-6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
-              Passo 2 de 3
+              Passo 2 de {TOTAL_STEPS}
             </p>
             <div className="h-3" />
             <h2 className="text-xl font-bold text-gray-900 text-center">
@@ -419,20 +543,39 @@ export default function OnboardingPage() {
                     <div key={chip.id}>
                       <button
                         onClick={() => toggleChip(chip.id)}
-                        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors"
+                        style={
                           selected
-                            ? 'bg-mint-50 border-mint text-mint-700'
-                            : 'bg-gray-50 border-gray-100 text-gray-700'
-                        }`}
+                            ? {
+                                background: 'var(--accent-bg)',
+                                borderColor: 'var(--accent)',
+                                color: 'var(--accent)',
+                              }
+                            : {
+                                background: '#f9fafb',
+                                borderColor: '#f3f4f6',
+                                color: '#374151',
+                              }
+                        }
                       >
                         <span>{chip.icon}</span>
                         <span className="truncate">{chip.label}</span>
                       </button>
                       {selected && (
                         <div className="mt-1 flex gap-1">
-                          {/* Valor */}
-                          <div className="flex items-center gap-1 flex-1 min-w-0 px-2 py-1.5 bg-mint-50 rounded-xl border border-mint/20">
-                            <span className="text-xs text-mint-700 font-medium flex-shrink-0">R$</span>
+                          <div
+                            className="flex items-center gap-1 flex-1 min-w-0 px-2 py-1.5 rounded-xl border"
+                            style={{
+                              background: 'var(--accent-bg)',
+                              borderColor: 'var(--accent-soft)',
+                            }}
+                          >
+                            <span
+                              className="text-xs font-medium flex-shrink-0"
+                              style={{ color: 'var(--accent)' }}
+                            >
+                              R$
+                            </span>
                             <input
                               type="text"
                               inputMode="decimal"
@@ -447,9 +590,19 @@ export default function OnboardingPage() {
                               className="min-w-0 flex-1 text-sm bg-transparent outline-none text-center text-gray-900 placeholder:text-gray-300"
                             />
                           </div>
-                          {/* Vence dia */}
-                          <div className="flex items-center gap-1 px-2 py-1.5 bg-mint-50 rounded-xl border border-mint/20 w-[88px] flex-shrink-0">
-                            <span className="text-[10px] text-mint-700 font-medium leading-tight flex-shrink-0">Vence<br/>dia</span>
+                          <div
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-xl border w-[88px] flex-shrink-0"
+                            style={{
+                              background: 'var(--accent-bg)',
+                              borderColor: 'var(--accent-soft)',
+                            }}
+                          >
+                            <span
+                              className="text-[10px] font-medium leading-tight flex-shrink-0"
+                              style={{ color: 'var(--accent)' }}
+                            >
+                              Vence<br />dia
+                            </span>
                             <input
                               type="number"
                               inputMode="numeric"
@@ -473,7 +626,6 @@ export default function OnboardingPage() {
                 })}
               </div>
 
-              {/* Item personalizado */}
               {showCustomForm ? (
                 <div className="mt-3 space-y-2">
                   <input
@@ -481,7 +633,7 @@ export default function OnboardingPage() {
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
                     placeholder="Nome da conta"
-                    className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-mint transition-colors"
+                    className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-colors"
                   />
                   <div className="flex gap-1">
                     <div className="flex items-center gap-1 flex-1 min-w-0 bg-white border border-gray-100 rounded-xl px-3 py-2">
@@ -498,7 +650,7 @@ export default function OnboardingPage() {
                       />
                     </div>
                     <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl px-2 py-2 w-[88px] flex-shrink-0">
-                      <span className="text-[10px] text-gray-400 font-medium leading-tight flex-shrink-0">Vence<br/>dia</span>
+                      <span className="text-[10px] text-gray-400 font-medium leading-tight flex-shrink-0">Vence<br />dia</span>
                       <input
                         type="number"
                         inputMode="numeric"
@@ -515,7 +667,7 @@ export default function OnboardingPage() {
               ) : (
                 <button
                   onClick={() => setShowCustomForm(true)}
-                  className="mt-3 w-full py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-mint-500 hover:text-mint-500 transition-colors"
+                  className="mt-3 w-full py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-400 transition-colors"
                 >
                   + Adicionar outra
                 </button>
@@ -530,13 +682,169 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── Tela 3 — Meta de poupança ────────────────────────────────── */}
+        {/* ── Tela 3 — Cartão de crédito ───────────────────────────────── */}
         {step === 3 && (
           <div className="flex flex-col gap-0">
             <ProgressDots filled={3} />
             <div className="h-6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
-              Passo 3 de 3
+              Passo 3 de {TOTAL_STEPS}
+            </p>
+            <div className="h-3" />
+            <h2 className="text-xl font-bold text-gray-900 text-center">
+              Você usa cartão de crédito?
+            </h2>
+            <p className="text-sm text-gray-400 text-center mt-1 mb-5">
+              Cadastre seus cartões para acompanhar a fatura. Você pode adicionar
+              mais depois.
+            </p>
+
+            {/* Toggle Sim / Não */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={() => setUseCredit(false)}
+                className="py-2.5 rounded-xl border text-sm font-semibold transition-colors"
+                style={
+                  !useCredit
+                    ? {
+                        background: 'var(--accent-bg)',
+                        borderColor: 'var(--accent)',
+                        color: 'var(--accent)',
+                      }
+                    : {
+                        background: '#f9fafb',
+                        borderColor: '#f3f4f6',
+                        color: '#6b7280',
+                      }
+                }
+              >
+                Não
+              </button>
+              <button
+                onClick={() => setUseCredit(true)}
+                className="py-2.5 rounded-xl border text-sm font-semibold transition-colors"
+                style={
+                  useCredit
+                    ? {
+                        background: 'var(--accent-bg)',
+                        borderColor: 'var(--accent)',
+                        color: 'var(--accent)',
+                      }
+                    : {
+                        background: '#f9fafb',
+                        borderColor: '#f3f4f6',
+                        color: '#6b7280',
+                      }
+                }
+              >
+                Sim
+              </button>
+            </div>
+
+            {useCredit && (
+              <div className="space-y-3 max-h-80 overflow-y-auto -mx-1 px-1">
+                {cards.map((card, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-gray-100 p-3 space-y-2"
+                    style={{ background: '#f9fafb' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        Cartão {idx + 1}
+                      </span>
+                      {cards.length > 1 && (
+                        <button
+                          onClick={() => removeCardRow(idx)}
+                          className="text-xs text-gray-400 hover:text-red-500"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={card.nome}
+                      onChange={(e) => updateCard(idx, { nome: e.target.value })}
+                      placeholder="Nome (ex: Nubank, Inter, Itaú)"
+                      className="w-full bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none"
+                    />
+                    <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-lg px-3 py-2">
+                      <span className="text-xs text-gray-400 font-medium flex-shrink-0">Limite R$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={card.limite}
+                        onChange={(e) =>
+                          updateCard(idx, {
+                            limite: e.target.value.replace(/[^0-9.,]/g, ''),
+                          })
+                        }
+                        placeholder="0,00"
+                        className="min-w-0 flex-1 text-sm bg-transparent outline-none text-right text-gray-900 placeholder:text-gray-300"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex items-center gap-1 flex-1 bg-white border border-gray-100 rounded-lg px-2 py-2">
+                        <span className="text-[10px] text-gray-400 font-medium leading-tight flex-shrink-0">
+                          Fecha<br />dia
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={28}
+                          value={card.fechamento}
+                          onChange={(e) => updateCard(idx, { fechamento: e.target.value })}
+                          placeholder="ex: 25"
+                          className="min-w-0 flex-1 text-sm bg-transparent outline-none text-center text-gray-900 placeholder:text-gray-300"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 flex-1 bg-white border border-gray-100 rounded-lg px-2 py-2">
+                        <span className="text-[10px] text-gray-400 font-medium leading-tight flex-shrink-0">
+                          Vence<br />dia
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={28}
+                          value={card.vencimento}
+                          onChange={(e) => updateCard(idx, { vencimento: e.target.value })}
+                          placeholder="ex: 5"
+                          className="min-w-0 flex-1 text-sm bg-transparent outline-none text-center text-gray-900 placeholder:text-gray-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {cards.length < MAX_CARDS && (
+                  <button
+                    onClick={addCardRow}
+                    className="w-full py-2.5 border border-dashed border-gray-200 rounded-xl text-sm text-gray-400 transition-colors"
+                  >
+                    + Adicionar outro cartão
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="h-5" />
+            <PrimaryButton onClick={handleStep3Continue} loading={saving}>
+              Continuar
+            </PrimaryButton>
+            <SkipLink onSkip={() => { setUseCredit(false); goTo(4); }} />
+          </div>
+        )}
+
+        {/* ── Tela 4 — Meta de poupança ────────────────────────────────── */}
+        {step === 4 && (
+          <div className="flex flex-col gap-0">
+            <ProgressDots filled={4} />
+            <div className="h-6" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
+              Passo 4 de {TOTAL_STEPS}
             </p>
             <div className="h-3" />
             <h2 className="text-xl font-bold text-gray-900 text-center">
@@ -547,8 +855,17 @@ export default function OnboardingPage() {
             </p>
 
             {savedIncome > 0 && (
-              <div className="bg-mint-50 border border-mint/20 rounded-xl px-4 py-3 mb-4">
-                <p className="text-xs text-mint-700 text-center leading-relaxed">
+              <div
+                className="rounded-xl px-4 py-3 mb-4 border"
+                style={{
+                  background: 'var(--accent-bg)',
+                  borderColor: 'var(--accent-soft)',
+                }}
+              >
+                <p
+                  className="text-xs text-center leading-relaxed"
+                  style={{ color: 'var(--accent)' }}
+                >
                   Com{' '}
                   <span className="font-semibold">{formatCurrency(savedIncome)}</span>,
                   guardar{' '}
@@ -562,7 +879,6 @@ export default function OnboardingPage() {
 
             <BigCurrencyInput value={savings} onChange={setSavings} />
 
-            {/* Slider */}
             <div className="mt-4 px-1">
               <input
                 type="range"
@@ -573,10 +889,8 @@ export default function OnboardingPage() {
                 onChange={(e) => setSavings(numToStr(Number(e.target.value)))}
                 className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #00b87a ${
-                    (savingsNum / savingsMax) * 100
-                  }%, #e5e7eb ${(savingsNum / savingsMax) * 100}%)`,
-                  accentColor: '#00b87a',
+                  background: `linear-gradient(to right, var(--accent) ${savingsPct}%, #e5e7eb ${savingsPct}%)`,
+                  accentColor: '#5B5BD6',
                 }}
               />
               <div className="flex justify-between mt-1 text-xs text-gray-400">
@@ -586,20 +900,24 @@ export default function OnboardingPage() {
             </div>
 
             <div className="h-8" />
-            <PrimaryButton onClick={handleStep3Continue} loading={saving}>
+            <PrimaryButton onClick={handleStep4Continue} loading={saving}>
               Concluir configuração
             </PrimaryButton>
-            <SkipLink onSkip={() => goTo(4)} />
+            <SkipLink onSkip={() => goTo(5)} />
           </div>
         )}
 
-        {/* ── Tela 4 — Tudo pronto ─────────────────────────────────────── */}
-        {step === 4 && (
+        {/* ── Tela 5 — Tudo pronto ─────────────────────────────────────── */}
+        {step === 5 && (
           <div className="flex flex-col items-center text-center gap-0">
-            {/* Ícone animado */}
             <div
-              className="w-20 h-20 rounded-full bg-mint-50 border-2 border-mint flex items-center justify-center text-4xl mb-6"
-              style={{ animation: 'fade-in-scale 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+              className="w-20 h-20 rounded-full border-2 flex items-center justify-center text-4xl mb-6"
+              style={{
+                background: 'var(--accent-bg)',
+                borderColor: 'var(--accent)',
+                color: 'var(--accent)',
+                animation: 'fade-in-scale 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+              }}
             >
               ✓
             </div>
@@ -608,12 +926,14 @@ export default function OnboardingPage() {
               Tudo configurado!
             </h2>
 
-            {/* Resumo dinâmico — só mostra o que foi salvo */}
-            {(savedIncome > 0 || savedRecurringCount > 0 || savedSavings > 0) && (
+            {(savedIncome > 0 ||
+              savedRecurringCount > 0 ||
+              savedCardCount > 0 ||
+              savedSavings > 0) && (
               <div className="w-full bg-gray-50 rounded-xl px-4 py-4 mb-8 space-y-2.5 text-left">
                 {savedIncome > 0 && (
                   <div className="flex items-center gap-2.5 text-sm text-gray-700">
-                    <span className="text-mint font-bold">✓</span>
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
                     <span>
                       Renda de{' '}
                       <span className="font-semibold">{formatCurrency(savedIncome)}</span>{' '}
@@ -623,7 +943,7 @@ export default function OnboardingPage() {
                 )}
                 {savedRecurringCount > 0 && (
                   <div className="flex items-center gap-2.5 text-sm text-gray-700">
-                    <span className="text-mint font-bold">✓</span>
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
                     <span>
                       <span className="font-semibold">{savedRecurringCount}</span>{' '}
                       conta{savedRecurringCount > 1 ? 's' : ''} fixa
@@ -632,9 +952,19 @@ export default function OnboardingPage() {
                     </span>
                   </div>
                 )}
+                {savedCardCount > 0 && (
+                  <div className="flex items-center gap-2.5 text-sm text-gray-700">
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
+                    <span>
+                      <span className="font-semibold">{savedCardCount}</span>{' '}
+                      cartã{savedCardCount > 1 ? 'ões' : 'o'} cadastrado
+                      {savedCardCount > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
                 {savedSavings > 0 && (
                   <div className="flex items-center gap-2.5 text-sm text-gray-700">
-                    <span className="text-mint font-bold">✓</span>
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
                     <span>
                       Meta de{' '}
                       <span className="font-semibold">{formatCurrency(savedSavings)}</span>{' '}
@@ -645,14 +975,17 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {savedIncome === 0 && savedRecurringCount === 0 && savedSavings === 0 && (
+            {savedIncome === 0 &&
+              savedRecurringCount === 0 &&
+              savedCardCount === 0 &&
+              savedSavings === 0 && (
               <p className="text-gray-400 text-sm mb-8">
                 Você pode configurar tudo isso a qualquer momento nas configurações.
               </p>
             )}
 
             <PrimaryButton onClick={completeOnboarding}>
-              Ver meu Gastômetro →
+              Ver meu TôOrganizado →
             </PrimaryButton>
           </div>
         )}

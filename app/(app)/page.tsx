@@ -118,6 +118,11 @@ export default function HomePage() {
   const [profileAvatarEmoji, setProfileAvatarEmoji] = useState<string | null>(null);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const contasMesRef = useRef<HTMLDivElement>(null);
+  // Guard contra invocações concorrentes de loadUserAndProfile (mount +
+  // visibilitychange podem disparar quase simultaneamente em mobile),
+  // evitando "Lock was released because another request stole it" do
+  // supabase.auth.getUser().
+  const loadingUserRef = useRef(false);
   const [highlighting, setHighlighting] = useState(false);
   const [userName, setUserName] = useState('');
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
@@ -172,27 +177,42 @@ export default function HomePage() {
     loadData();
 
     async function loadUserAndProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const meta = user.user_metadata as Record<string, string> | undefined;
-      const name =
-        meta?.display_name ||
-        meta?.full_name?.split(' ')[0] ||
-        meta?.name?.split(' ')[0] ||
-        user.email?.split('@')[0] ||
-        '';
-      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('avatar_url, avatar_emoji')
-        .eq('id', user.id)
-        .single();
-      if (profile) {
-        setProfileAvatarUrl(profile.avatar_url ?? null);
-        setProfileAvatarEmoji(profile.avatar_emoji ?? null);
+      if (loadingUserRef.current) return;
+      loadingUserRef.current = true;
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const meta = user.user_metadata as Record<string, string> | undefined;
+        const name =
+          meta?.display_name ||
+          meta?.full_name?.split(' ')[0] ||
+          meta?.name?.split(' ')[0] ||
+          user.email?.split('@')[0] ||
+          '';
+        setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url, avatar_emoji')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setProfileAvatarUrl(profile.avatar_url ?? null);
+          setProfileAvatarEmoji(profile.avatar_emoji ?? null);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('Lock') && msg.includes('stole it')) {
+          // Outra requisição roubou o lock do navigator.locks usado pelo
+          // GoTrue. Reagenda fora do finally — o guard será liberado abaixo.
+          setTimeout(() => loadUserAndProfile(), 200);
+          return;
+        }
+        console.error('loadUserAndProfile error:', err);
+      } finally {
+        loadingUserRef.current = false;
       }
     }
     loadUserAndProfile();
