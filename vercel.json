@@ -7,6 +7,14 @@
     {
       "path": "/api/reports/monthly",
       "schedule": "0 8 1 * *"
+    },
+    {
+      "path": "/api/push/cron/due-tomorrow",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/push/cron/budget-exceeded",
+      "schedule": "0 20 * * *"
     }
   ]
 }

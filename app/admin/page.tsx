@@ -54,6 +54,16 @@ interface Coupon {
   expires_at: string | null;
 }
 
+interface PushHistoryItem {
+  id: string;
+  title: string;
+  message: string;
+  target: string;
+  sent_count: number;
+  failed_count: number;
+  created_at: string;
+}
+
 interface UserRow {
   id: string; email: string; created_at: string;
   last_sign_in_at: string | null; email_confirmed_at: string | null;
@@ -227,7 +237,7 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
 /* ── Dashboard principal ────────────────────────────────────────────────── */
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'activity' | 'feedback' | 'coupons'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'activity' | 'feedback' | 'coupons' | 'notifications'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -290,6 +300,16 @@ export default function AdminPage() {
   const [newCouponExpires, setNewCouponExpires] = useState('');
   const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [creatingCoupon, setCreatingCoupon] = useState(false);
+
+  // Push notifications
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushUrl, setPushUrl] = useState('');
+  const [pushTarget, setPushTarget] = useState<'all' | 'pro' | 'free'>('all');
+  const [pushSending, setPushSending] = useState(false);
+  const [pushResult, setPushResult] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [pushHistory, setPushHistory] = useState<PushHistoryItem[]>([]);
+  const [pushHistoryLoading, setPushHistoryLoading] = useState(false);
 
   // Toast
   const [toast, setToast] = useState('');
@@ -354,6 +374,51 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { if (tab === 'coupons') fetchCoupons(); }, [tab, fetchCoupons]);
+
+  /* Fetch push history */
+  const fetchPushHistory = useCallback(() => {
+    setPushHistoryLoading(true);
+    fetch('/api/push/history?limit=20')
+      .then(r => r.json())
+      .then(d => setPushHistory(d.items ?? []))
+      .finally(() => setPushHistoryLoading(false));
+  }, []);
+
+  useEffect(() => { if (tab === 'notifications') fetchPushHistory(); }, [tab, fetchPushHistory]);
+
+  async function sendPushManual() {
+    setPushSending(true);
+    setPushResult(null);
+    try {
+      const r = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: pushTitle,
+          message: pushMessage,
+          url: pushUrl || '/',
+          target: pushTarget,
+        }),
+      });
+      const d = await r.json();
+      if (r.ok && typeof d.sent === 'number') {
+        setPushResult({
+          kind: d.failed > 0 ? 'error' : 'success',
+          text: `${d.sent} enviado(s), ${d.failed} falha(s). Total de devices: ${d.total ?? d.sent + d.failed}.`,
+        });
+        if (d.failed === 0) {
+          setPushTitle(''); setPushMessage(''); setPushUrl('');
+        }
+        fetchPushHistory();
+      } else {
+        setPushResult({ kind: 'error', text: d.error ?? 'Erro ao enviar push.' });
+      }
+    } catch {
+      setPushResult({ kind: 'error', text: 'Erro ao enviar push.' });
+    } finally {
+      setPushSending(false);
+    }
+  }
 
   async function createCoupon() {
     setCreatingCoupon(true);
@@ -552,6 +617,7 @@ export default function AdminPage() {
     { key: 'activity', label: 'Atividade' },
     { key: 'feedback', label: 'Feedback' },
     { key: 'coupons', label: 'Cupons' },
+    { key: 'notifications', label: 'Notificações' },
   ] as const;
 
   const filteredFeedback = feedbackFilter === 'all'
@@ -1295,6 +1361,142 @@ export default function AdminPage() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* ── SEÇÃO: NOTIFICAÇÕES PUSH ── */}
+        {tab === 'notifications' && (
+          <>
+            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Notificações</h1>
+
+            <div style={{
+              background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
+              border: '1px solid var(--border)', marginBottom: 20,
+            }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Enviar push manual</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px' }}>
+                Envia um push instantâneo para os usuários selecionados que tenham notificações ativadas.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Título * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushTitle.length}/50)</span>
+                  <input
+                    type="text" value={pushTitle} maxLength={50}
+                    onChange={e => setPushTitle(e.target.value)}
+                    placeholder="🎉 Nova feature disponível"
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Mensagem * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushMessage.length}/120)</span>
+                  <textarea
+                    value={pushMessage} maxLength={120}
+                    onChange={e => setPushMessage(e.target.value)}
+                    placeholder="Texto curto, direto ao ponto."
+                    rows={3}
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14, resize: 'vertical',
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  URL de destino (opcional)
+                  <input
+                    type="text" value={pushUrl}
+                    onChange={e => setPushUrl(e.target.value)}
+                    placeholder="/ (padrão)"
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Destinatários
+                  <select
+                    value={pushTarget}
+                    onChange={e => setPushTarget(e.target.value as typeof pushTarget)}
+                    style={{
+                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
+                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+                      background: 'var(--surface)', fontFamily: 'inherit', fontSize: 14,
+                    }}
+                  >
+                    <option value="all">Todos</option>
+                    <option value="pro">Só Pro</option>
+                    <option value="free">Só Free</option>
+                  </select>
+                </label>
+                {pushResult && (
+                  <p style={{
+                    margin: 0, fontSize: 13,
+                    color: pushResult.kind === 'success' ? 'var(--green)' : 'var(--red)',
+                  }}>{pushResult.text}</p>
+                )}
+                <div>
+                  <button
+                    onClick={sendPushManual}
+                    disabled={pushSending || !pushTitle.trim() || !pushMessage.trim()}
+                    style={{
+                      padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
+                      borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
+                      fontWeight: 700, fontSize: 14,
+                      opacity: pushSending || !pushTitle.trim() || !pushMessage.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    {pushSending ? 'Enviando…' : 'Enviar push'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Histórico</h2>
+            <div style={{
+              overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
+              border: '1px solid var(--border)',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    {['Data', 'Título', 'Destinatários', 'Enviados', 'Falhas'].map(h => (
+                      <th key={h} style={{
+                        textAlign: 'left', padding: '12px 14px', fontWeight: 700,
+                        color: 'var(--text-2)', whiteSpace: 'nowrap',
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pushHistoryLoading ? (
+                    <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+                  ) : pushHistory.length === 0 ? (
+                    <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum push enviado ainda.</td></tr>
+                  ) : pushHistory.map(h => (
+                    <tr key={h.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDateTime(h.created_at)}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 700 }}>{h.title}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <code style={{ fontSize: 12, background: 'var(--bg)', padding: '2px 6px', borderRadius: 4 }}>
+                          {h.target}
+                        </code>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--green)', fontWeight: 700 }}>{h.sent_count}</td>
+                      <td style={{
+                        padding: '10px 14px', fontWeight: 700,
+                        color: h.failed_count > 0 ? 'var(--red)' : 'var(--text-3)',
+                      }}>{h.failed_count}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
