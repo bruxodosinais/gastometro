@@ -291,9 +291,9 @@ function categoryBlock(top: CategoryBreakdown[]): string {
     .map(
       (c) => `
       <div style="margin:10px 0;">
-        <div style="display:flex; justify-content:space-between; font-size:13px; color:#1A1A1A;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#1A1A1A;">
           <span style="font-weight:600;">${c.emoji} ${c.category}</span>
-          <span style="font-weight:700;">${fmtBRL(c.amount)}</span>
+          <span style="font-weight:700; white-space:nowrap;">${fmtBRL(c.amount)}</span>
         </div>
         <div style="background:#E5E5E0; height:6px; border-radius:3px; margin-top:4px; overflow:hidden;">
           <div style="background:#5B5BD6; width:${Math.min(100, c.percentage).toFixed(0)}%; height:100%;"></div>
