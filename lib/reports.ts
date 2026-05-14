@@ -288,19 +288,20 @@ function categoryBlock(top: CategoryBreakdown[]): string {
     return `<p style="color:#6B6B6B; font-size:13px; margin:8px 0 0;">Nenhum gasto registrado neste período.</p>`;
   }
   return top
-    .map(
-      (c) => `
-      <div style="margin:10px 0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#1A1A1A;">
-          <span style="font-weight:600;">${c.emoji} ${c.category}</span>
-          <span style="font-weight:700; white-space:nowrap;">${fmtBRL(c.amount)}</span>
-        </div>
-        <div style="background:#E5E5E0; height:6px; border-radius:3px; margin-top:4px; overflow:hidden;">
-          <div style="background:#5B5BD6; width:${Math.min(100, c.percentage).toFixed(0)}%; height:100%;"></div>
-        </div>
-        <div style="font-size:11px; color:#6B6B6B; margin-top:2px;">${c.percentage.toFixed(0)}% do total</div>
-      </div>`,
-    )
+    .map((c) => {
+      const pct = Math.min(100, c.percentage).toFixed(0);
+      return `
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;">
+        <tr>
+          <td style="font-size:14px;font-weight:600;color:#1a1a1a;">${c.emoji} ${c.category}</td>
+          <td align="right" style="font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;">${fmtBRL(c.amount)}</td>
+        </tr>
+      </table>
+      <div style="background:#e5e7eb;border-radius:4px;height:6px;margin-bottom:4px;">
+        <div style="background:#5B5BD6;border-radius:4px;height:6px;width:${pct}%;"></div>
+      </div>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 16px;">${pct}% do total</p>`;
+    })
     .join('');
 }
 
