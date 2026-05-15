@@ -341,7 +341,7 @@ export default function PatrimonioPage() {
                 <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, background: 'var(--accent-bg)' }}>
                   <span style={{ color: 'var(--accent)', display: 'flex' }}>{cfg.icon}</span>
                 </div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>{BOLSO_EMOJIS[key]} {cfg.label}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>{cfg.label}</p>
                 <p style={{ fontSize: 16, fontWeight: 800, color: total > 0 ? 'var(--green)' : 'var(--text-3)', margin: 0 }}>
                   {formatCurrency(total)}
                 </p>

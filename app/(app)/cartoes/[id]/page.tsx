@@ -139,7 +139,7 @@ export default function CartaoDetailPage() {
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="text-sm font-semibold text-gray-700 capitalize">
+              <span className="text-sm font-semibold text-gray-700">
                 {getMonthLabel(period)}
               </span>
               <button

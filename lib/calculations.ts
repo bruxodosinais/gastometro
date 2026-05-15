@@ -9,8 +9,13 @@ export function getMonthKey(date: Date): string {
 export function getMonthLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-');
   const d = new Date(parseInt(y), parseInt(m) - 1);
-  const raw = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+  // Monta "Maio de 2026" explicitamente: só o mês recebe inicial maiúscula.
+  // A preposição "de" fica sempre minúscula (padrão pt-BR). Não usar a
+  // classe CSS `capitalize` em cima deste retorno — ela maiusculiza cada
+  // palavra e quebra a preposição ("Maio De 2026").
+  const month = d.toLocaleDateString('pt-BR', { month: 'long' });
+  const monthCapitalized = month.charAt(0).toUpperCase() + month.slice(1);
+  return `${monthCapitalized} de ${y}`;
 }
 
 export function formatCurrency(value: number): string {

@@ -14,6 +14,7 @@ import {
   getBudgets,
   getRecurringExpenses,
   getMonthlyPlan,
+  upsertMonthlyPlan,
   getMonthlyObligations,
   checkAndGenerateObligations,
   markObligationAsPaid,
@@ -28,6 +29,7 @@ import {
   formatCurrency,
   formatCompact,
   getMonthKey,
+  getMonthLabel,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
@@ -110,6 +112,12 @@ export default function HomePage() {
     estimatedAmount: number;
   } | null>(null);
   const [variableAmount, setVariableAmount] = useState('');
+  // P5: modal inline para configurar renda/meta sem sair da tela inicial.
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
+  const [budgetIncomeInput, setBudgetIncomeInput] = useState('');
+  const [budgetGoalInput, setBudgetGoalInput] = useState('');
+  const [savingBudget, setSavingBudget] = useState(false);
+  const [budgetError, setBudgetError] = useState('');
   const [ready, setReady] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
@@ -362,6 +370,41 @@ export default function HomePage() {
     }
   }
 
+  // P5: salva renda/meta do mês selecionado e atualiza o bloco em tempo real.
+  async function handleSaveBudget() {
+    setBudgetError('');
+    const incomeValue = parseFloat(budgetIncomeInput.replace(',', '.'));
+    if (!budgetIncomeInput.trim() || Number.isNaN(incomeValue) || incomeValue <= 0) {
+      setBudgetError('Informe uma renda mensal maior que zero.');
+      return;
+    }
+    let goalValue = 0;
+    if (budgetGoalInput.trim()) {
+      goalValue = parseFloat(budgetGoalInput.replace(',', '.'));
+      if (Number.isNaN(goalValue) || goalValue < 0) {
+        setBudgetError('A meta de poupança não pode ser negativa.');
+        return;
+      }
+    }
+    if (goalValue > incomeValue) {
+      setBudgetError('A meta de poupança não pode ser maior que a renda.');
+      return;
+    }
+    setSavingBudget(true);
+    try {
+      const plan = await upsertMonthlyPlan(period, incomeValue, goalValue);
+      setMonthlyPlan(plan);
+      setBudgetModalOpen(false);
+      setBudgetIncomeInput('');
+      setBudgetGoalInput('');
+      addToast('Orçamento configurado!');
+    } catch (err) {
+      setBudgetError(getErrorMessage(err));
+    } finally {
+      setSavingBudget(false);
+    }
+  }
+
   // ── Derived data ───────────────────────────────────────────────────────────
   const now = new Date();
   const isCurrentMonth = period === getMonthKey(now);
@@ -410,6 +453,11 @@ export default function HomePage() {
     .filter((o) => o.status === 'pending')
     .filter((o) => {
       const rec = recurringExpenses.find((r) => r.id === o.recurringExpenseId);
+      // Defensivo: receita (ex.: Salário) NUNCA conta como conta a pagar,
+      // mesmo que uma obrigação legada tenha sido gerada a partir de uma
+      // recorrente type='income'. Só despesas entram em "pendentes" e no
+      // total "pra pagar ainda".
+      if (rec && rec.type === 'income') return false;
       return rec ? isDayReachedForRec(rec.dayOfMonth) : true;
     });
   const pendingTotal = pendingObligations.reduce((s, o) => s + o.amount, 0);
@@ -427,10 +475,6 @@ export default function HomePage() {
       .filter((e) => e.type === 'income' && e.recurringExpenseId != null)
       .map((e) => e.recurringExpenseId as string)
   );
-  const pendingIncomeCount = activeIncomeRecs.filter(
-    (r) => !receivedIncomeRecIds.has(r.id) && isDayReachedForRec(r.dayOfMonth)
-  ).length;
-
   const firstIncomeDay = (() => {
     const days = activeIncomeRecs
       .map((r) => r.dayOfMonth)
@@ -1230,12 +1274,40 @@ export default function HomePage() {
                 >
                   ORÇAMENTO LIVRE
                 </p>
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', margin: '8px 0 4px' }}>
-                  Defina um orçamento
+                <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '8px 0 4px' }}>
+                  Configure seu orçamento
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                  Informe sua renda esperada no planejamento mensal para acompanhar seus gastos do mês.
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 14 }}>
+                  Informe sua renda mensal para acompanhar seus gastos.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBudgetError('');
+                    setBudgetIncomeInput(
+                      monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
+                    );
+                    setBudgetGoalInput(
+                      monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
+                    );
+                    setBudgetModalOpen(true);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Configurar agora
+                </button>
               </>
             ) : (
               <>
@@ -1336,6 +1408,23 @@ export default function HomePage() {
                       : 'Orçamento do mês.'}
                   </p>
                 )}
+                {/* P4: contas fixas pendentes não entram no cálculo do
+                    Orçamento Livre. Apenas informa — não mexe na barra nem
+                    no percentual. Só aparece com despesas recorrentes não
+                    pagas no mês atual e total > 0. */}
+                {isCurrentMonth && pendingObligations.length > 0 && pendingTotal > 0 && (
+                  <p
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--yellow-text)',
+                      marginTop: 8,
+                    }}
+                  >
+                    ⚠️ {formatCurrency(pendingTotal)} em contas fixas pendentes não
+                    incluídas
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -1363,7 +1452,9 @@ export default function HomePage() {
             <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
               Contas do mês
             </p>
-            {pendingObligations.length + pendingIncomeCount > 0 && (
+            {/* Badge conta apenas despesas fixas pendentes — receitas como
+                Salário aparecem na lista, mas nunca no count de pendentes. */}
+            {pendingObligations.length > 0 && (
               <span
                 style={{
                   background: 'var(--yellow-bg)',
@@ -1374,8 +1465,8 @@ export default function HomePage() {
                   borderRadius: 20,
                 }}
               >
-                {pendingObligations.length + pendingIncomeCount} pendente
-                {pendingObligations.length + pendingIncomeCount > 1 ? 's' : ''}
+                {pendingObligations.length} pendente
+                {pendingObligations.length > 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -2082,6 +2173,162 @@ export default function HomePage() {
                 }}
               >
                 Confirmar pagamento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Configurar orçamento (P5) ─────────────────────────────────── */}
+      {budgetModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          style={{ padding: 16 }}
+          onClick={() => !savingBudget && setBudgetModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 20,
+              width: '90%',
+              maxWidth: 400,
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>
+              Configurar orçamento
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
+              {getMonthLabel(period)}
+            </p>
+
+            <label
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--text-2)',
+                display: 'block',
+                marginBottom: 6,
+              }}
+            >
+              Renda esperada (R$)
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              autoFocus
+              value={budgetIncomeInput}
+              onChange={(e) => setBudgetIncomeInput(e.target.value)}
+              placeholder="0,00"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--text)',
+                outline: 'none',
+                marginBottom: 14,
+              }}
+            />
+
+            <label
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--text-2)',
+                display: 'block',
+                marginBottom: 6,
+              }}
+            >
+              Meta de poupança (R$){' '}
+              <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· opcional</span>
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={budgetGoalInput}
+              onChange={(e) => setBudgetGoalInput(e.target.value)}
+              placeholder="0,00"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--text)',
+                outline: 'none',
+                marginBottom: 14,
+              }}
+            />
+
+            {budgetError && (
+              <p
+                style={{
+                  fontSize: 12,
+                  color: 'var(--red)',
+                  background: 'var(--red-bg)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '10px 14px',
+                  textAlign: 'center',
+                  marginBottom: 14,
+                }}
+              >
+                {budgetError}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setBudgetModalOpen(false)}
+                disabled={savingBudget}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-2)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: savingBudget ? 'default' : 'pointer',
+                  opacity: savingBudget ? 0.6 : 1,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveBudget}
+                disabled={savingBudget}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  background: 'var(--accent)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: savingBudget ? 'default' : 'pointer',
+                  opacity: savingBudget ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                {savingBudget ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
               </button>
             </div>
           </div>

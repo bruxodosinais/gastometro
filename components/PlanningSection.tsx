@@ -148,7 +148,7 @@ export default function PlanningSection({
       {/* Cabeçalho da seção */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-gray-800 font-semibold text-sm">
-          Planejamento · <span className="capitalize font-normal text-gray-500">{getMonthLabel(period)}</span>
+          Planejamento · <span className="font-normal text-gray-500">{getMonthLabel(period)}</span>
         </h2>
         {hasPlan && !editMode && (
           <button

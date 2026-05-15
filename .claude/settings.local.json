@@ -56,7 +56,9 @@
       "Bash(grep -n \"^button\\\\|^p\\\\b\\\\|button {\\\\|button,\" /Users/anderson/gastometro/app/globals.css)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(lsof -i :3000 -sTCP:LISTEN)",
-      "Bash(kill 28030)"
+      "Bash(kill 28030)",
+      "Bash(npx web-push *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

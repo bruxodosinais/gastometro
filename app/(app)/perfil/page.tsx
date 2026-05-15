@@ -566,7 +566,7 @@ export default function PerfilPage() {
               disabled={saving || saved}
               style={{
                 width: '100%', boxSizing: 'border-box',
-                background: 'var(--green)',
+                background: 'var(--accent)',
                 color: 'white',
                 border: 'none',
                 borderRadius: 'var(--r-sm)',
@@ -985,7 +985,7 @@ export default function PerfilPage() {
                 <button type="button" onClick={() => setPwModalOpen(false)} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={savingPw} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: savingPw ? 0.7 : 1 }}>
+                <button type="submit" disabled={savingPw} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: savingPw ? 0.7 : 1 }}>
                   {savingPw ? <Loader2 size={15} className="animate-spin" /> : 'Salvar'}
                 </button>
               </div>

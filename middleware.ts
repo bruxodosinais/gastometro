@@ -69,7 +69,18 @@ export default async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    if (!pathname.startsWith('/auth/nova-senha')) {
+    // /auth/nova-senha: usuário logado via link de recuperação precisa
+    // ver o form. /auth/confirmado: após confirmar o e-mail o usuário já
+    // está autenticado e precisa ver a tela de sucesso (P1) em vez de ser
+    // jogado direto pra home. /auth/callback: é handler transitório que
+    // decide o próprio destino — se um usuário logado clica num link de
+    // confirmação expirado, ele NÃO pode ser jogado pra / (e daí pra
+    // /onboarding); o callback precisa rodar e mandar pra /auth/confirmado.
+    if (
+      !pathname.startsWith('/auth/nova-senha') &&
+      !pathname.startsWith('/auth/confirmado') &&
+      !pathname.startsWith('/auth/callback')
+    ) {
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
