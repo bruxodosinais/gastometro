@@ -429,6 +429,20 @@ export default function HomePage() {
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
 
+  // Categorias que estouraram o orçamento no período selecionado.
+  // Defensivo: só considera budgets com limite > 0 (orçamento zerado ou
+  // ausente não conta como estourado). Ordenado pelo maior excedente.
+  const budgetOverflows = budgets
+    .filter((b) => b.amount > 0)
+    .map((b) => {
+      const categorySpent = periodExpenses
+        .filter((e) => e.category === b.category)
+        .reduce((s, e) => s + e.amount, 0);
+      return { category: b.category, spent: categorySpent, limit: b.amount };
+    })
+    .filter((b) => b.spent > b.limit)
+    .sort((a, b) => (b.spent - b.limit) - (a.spent - a.limit));
+
   // Top gastos do período, agrupados por descrição
   const topExpenses = (() => {
     const byDesc = new Map<string, number>();
@@ -1400,6 +1414,42 @@ export default function HomePage() {
                     >
                       Eita! Orçamento zerado.
                     </p>
+                  </div>
+                ) : budgetOverflows.length > 0 ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      background: 'var(--red-bg)',
+                      border: '1.5px solid rgba(255,71,87,0.25)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                    }}
+                  >
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', margin: 0 }}>
+                      {budgetOverflows.length === 1
+                        ? '⚠️ 1 categoria com orçamento estourado'
+                        : `⚠️ ${budgetOverflows[0].category} e ${budgetOverflows[1].category} estouraram o orçamento`}
+                    </p>
+                    <Link
+                      href="/categorias"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        flexShrink: 0,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--accent)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Ver categorias
+                      <ChevronRight size={13} />
+                    </Link>
                   </div>
                 ) : (
                   <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>

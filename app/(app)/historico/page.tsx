@@ -117,10 +117,14 @@ export default function HistoricoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // BUG 5: ao trocar de mês (setas/dropdown) limpamos a busca e o filtro de
+  // categoria contextual. typeFilter (Todos/Gastos/Receitas) e cardFilter
+  // são preservados de propósito — não dependem do mês.
   useEffect(() => {
     if (prevPeriodRef.current !== period) {
       setQuickFilter(null);
       setCategoryFilter('all');
+      setSearch('');
       prevPeriodRef.current = period;
     }
   }, [period]);
@@ -289,13 +293,25 @@ export default function HistoricoPage() {
   const balance = income - spent;
 
   const incomeEntries = baseEntries.filter((e) => e.type === 'income');
-  const totalPeriodIncome = incomeEntries.reduce((s, e) => s + e.amount, 0);
+  // BUG 4: a busca por texto também filtra as receitas do breakdown. Sem
+  // receita batendo o termo, a seção some (incomeBySource fica vazio).
+  const matchedIncomeEntries = incomeEntries.filter(
+    (e) => !needle || e.description.toLowerCase().includes(needle)
+  );
+  const totalPeriodIncome = matchedIncomeEntries.reduce((s, e) => s + e.amount, 0);
   const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
     cat,
-    total: incomeEntries.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
+    total: matchedIncomeEntries
+      .filter((e) => e.category === cat)
+      .reduce((s, e) => s + e.amount, 0),
   })).filter((c) => c.total > 0);
+  // BUG 3: receitas nunca são associadas a cartão — com filtro de cartão
+  // ativo a seção "Receitas do período" não faz sentido e é ocultada.
   const showIncomeBreakdown =
-    typeFilter === 'all' && categoryFilter === 'all' && incomeBySource.length > 0;
+    typeFilter === 'all' &&
+    categoryFilter === 'all' &&
+    cardFilter === 'all' &&
+    incomeBySource.length > 0;
 
   const activeCategories = [...new Set(
     baseEntries
@@ -778,7 +794,9 @@ export default function HistoricoPage() {
         </div>
       ) : filteredEntries.length === 0 ? (
         <p style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
-          Nenhum resultado para os filtros aplicados
+          {cardFilter !== 'all' && typeFilter === 'income'
+            ? 'Nenhuma receita neste cartão'
+            : 'Nenhum resultado para os filtros aplicados'}
         </p>
       ) : (
         <div className="mb-6">

@@ -6,9 +6,11 @@ import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { getErrorMessage } from '@/lib/errors';
 import { retryAsync } from '@/lib/retry';
 import {
+  addExpense,
   addObligationForNewRecurring,
   addRecurringExpense,
   checkAndGenerateObligations,
+  deleteExpense,
   deleteRecurringExpense,
   getCreditCards,
   getExpenses,
@@ -159,6 +161,11 @@ export default function RecorrentesPage() {
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [undoingIds, setUndoingIds] = useState<Set<string>>(new Set());
   const [paidExpenseIds, setPaidExpenseIds] = useState<Map<string, string>>(new Map());
+  // BUG 2: receitas fixas usam o próprio lançamento (expenses) como prova de
+  // recebimento — não dependem da tabela monthly_obligations (que é só para
+  // despesas). receivingIds/unreceivingIds controlam o estado de cada ação.
+  const [receivingIds, setReceivingIds] = useState<Set<string>>(new Set());
+  const [unreceivingIds, setUnreceivingIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -449,6 +456,63 @@ export default function RecorrentesPage() {
       setUndoingIds((prev) => {
         const next = new Set(prev);
         next.delete(obligationId);
+        return next;
+      });
+    }
+  }
+
+  // BUG 2: "Marcar recebido" — idêntico ao "Marcar pago" das despesas:
+  // cria um lançamento type='income' linkado ao recurring_expense_id, com a
+  // data atual. O recebimento é detectado por isPaidInMonth (que olha os
+  // expenses linkados), então não precisamos da tabela de obrigações.
+  async function handleMarkIncomeReceived(rec: RecurringExpense) {
+    if (receivingIds.has(rec.id)) return;
+    // Guarda defensiva: já recebido neste mês → não duplica.
+    if (isPaidInMonth(rec, selectedMonth)) return;
+    setReceivingIds((prev) => new Set([...prev, rec.id]));
+    try {
+      const saved = await addExpense(
+        {
+          type: 'income',
+          amount: rec.amount,
+          description: rec.description,
+          category: rec.category,
+          date: new Date().toISOString().slice(0, 10),
+        },
+        rec.id
+      );
+      setExpenses((prev) => [saved, ...prev]);
+    } catch {
+      // Silencioso: estado não muda, o botão volta a ficar disponível.
+    } finally {
+      setReceivingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(rec.id);
+        return next;
+      });
+    }
+  }
+
+  async function handleUnmarkIncomeReceived(rec: RecurringExpense) {
+    if (unreceivingIds.has(rec.id)) return;
+    const entry = expenses.find(
+      (e) =>
+        e.recurringExpenseId === rec.id &&
+        typeof e.date === 'string' &&
+        e.date.slice(0, 7) === selectedMonth
+    );
+    if (!entry) return;
+    setUnreceivingIds((prev) => new Set([...prev, rec.id]));
+    const snapshot = expenses;
+    setExpenses((prev) => prev.filter((e) => e.id !== entry.id));
+    try {
+      await deleteExpense(entry.id);
+    } catch {
+      setExpenses(snapshot);
+    } finally {
+      setUnreceivingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(rec.id);
         return next;
       });
     }
@@ -1149,7 +1213,7 @@ export default function RecorrentesPage() {
           {recurrings.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
               {(['all', 'pendentes', 'pagas'] as const).map((tab) => {
-                const labels = { all: 'Ver tudo', pendentes: 'Pendentes', pagas: 'Pagas' };
+                const labels = { all: 'Ver tudo', pendentes: 'Pendentes', pagas: 'Pagas / Recebidas' };
                 const isActive = activeTab === tab;
                 return (
                   <button
@@ -1193,17 +1257,17 @@ export default function RecorrentesPage() {
           ) : (() => {
             const MAX = 5;
             const isExpanded = tabExpanded[activeTab];
-            const totalCount = activeTab === 'all'
-              ? expenseRecs.length + incomeRecs.length
-              : expenseRecs.length;
+            // BUG 2: receitas fixas também aparecem nas abas Pendentes e
+            // Pagas / Recebidas (não só em "Ver tudo").
+            const totalCount = expenseRecs.length + incomeRecs.length;
             const expenseBudget = isExpanded
               ? expenseRecs.length
               : Math.min(expenseRecs.length, MAX);
-            const incomeBudget = activeTab === 'all'
-              ? (isExpanded ? incomeRecs.length : Math.max(0, MAX - expenseBudget))
-              : 0;
+            const incomeBudget = isExpanded
+              ? incomeRecs.length
+              : Math.max(0, MAX - expenseBudget);
             const visibleExpense = expenseRecs.slice(0, expenseBudget);
-            const visibleIncome = activeTab === 'all' ? incomeRecs.slice(0, incomeBudget) : [];
+            const visibleIncome = incomeRecs.slice(0, incomeBudget);
             const hiddenCount = totalCount - (visibleExpense.length + visibleIncome.length);
             return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -1235,24 +1299,26 @@ export default function RecorrentesPage() {
               )}
 
               {/* Receitas fixas */}
-              {visibleIncome.length > 0 && activeTab === 'all' && (
+              {visibleIncome.length > 0 && (
                 <>
-                  <p
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--text-3)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      marginBottom: 8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
-                    Receitas fixas
-                  </p>
+                  {activeTab === 'all' && (
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--text-3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        marginBottom: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
+                      Receitas fixas
+                    </p>
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {visibleIncome.map((rec) => <RecurringItem key={rec.id} rec={rec} />)}
                   </div>
@@ -1634,6 +1700,17 @@ export default function RecorrentesPage() {
     const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
     const isPaid = obligation?.status === 'paid';
     const isPaying = obligation ? payingIds.has(obligation.id) : false;
+    // BUG 2: para receitas, o "recebido" é provado pelo lançamento income
+    // linkado ao recorrente no mês visualizado (não há obligation).
+    const incomeReceivedEntry = isIncome
+      ? expenses.find(
+          (e) =>
+            e.recurringExpenseId === rec.id &&
+            typeof e.date === 'string' &&
+            e.date.slice(0, 7) === selectedMonth
+        )
+      : undefined;
+    const isReceived = !!incomeReceivedEntry;
     // Atraso/vencimento: usa EXCLUSIVAMENTE rec.dueDay. Não faz fallback para
     // dayOfMonth — esses são campos com semânticas distintas (dia de lançamento
     // vs. prazo para pagar sem atraso). Sem dueDay válido → sem badge de atraso.
@@ -1651,6 +1728,8 @@ export default function RecorrentesPage() {
     let badgeColor = 'var(--text-3)';
     let showMarkPaid = false;
     let showUndo = false;
+    let showMarkReceived = false;
+    let showUndoReceived = false;
 
     if (isCurrentMonth) {
       const daysLate =
@@ -1735,7 +1814,39 @@ export default function RecorrentesPage() {
       }
     }
 
-    const contentOpacity = isCurrentMonth && isPaid ? 0.55 : 1;
+    // BUG 2: tratamento das RECEITAS fixas — espelha o comportamento das
+    // despesas ("Marcar pago"/"Desfazer"/badges), mas baseado no lançamento
+    // income linkado (incomeReceivedEntry) e não na tabela de obrigações.
+    if (isIncome && rec.active) {
+      if (isReceived && incomeReceivedEntry) {
+        const [, mm, dd] = incomeReceivedEntry.date.split('-');
+        badgeText = `Recebido · ${dd}/${mm}`;
+        badgeBg = 'var(--green)';
+        badgeColor = 'white';
+        leftBorderColor = 'var(--green)';
+        cardBg = 'var(--green-bg)';
+        // Desfazer só no mês atual (idêntico ao "Desfazer" das despesas).
+        showUndoReceived = isCurrentMonth;
+      } else if (isCurrentMonth) {
+        badgeText = 'A receber';
+        badgeBg = 'var(--border-2)';
+        badgeColor = 'var(--text-3)';
+        showMarkReceived = true;
+      } else if (isPastMonth) {
+        badgeText = 'Não recebido';
+        badgeBg = 'var(--red-bg)';
+        badgeColor = 'var(--red)';
+        leftBorderColor = 'rgba(255,71,87,0.4)';
+        cardBg = 'var(--red-bg)';
+      } else {
+        badgeText = 'Previsto';
+        badgeBg = 'var(--border-2)';
+        badgeColor = 'var(--text-3)';
+      }
+    }
+
+    const contentOpacity =
+      isCurrentMonth && (isPaid || (isIncome && isReceived)) ? 0.55 : 1;
     const displayName = rec.description?.trim()
       ? rec.description.charAt(0).toUpperCase() + rec.description.slice(1)
       : rec.category || 'Sem descrição';
@@ -1989,6 +2100,57 @@ export default function RecorrentesPage() {
                   }}
                 >
                   {undoingIds.has(obligation.id) ? <Loader2 size={10} className="animate-spin" /> : 'Desfazer'}
+                </button>
+              )}
+              {showMarkReceived && (
+                <button
+                  onClick={() => handleMarkIncomeReceived(rec)}
+                  disabled={receivingIds.has(rec.id)}
+                  style={{
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    padding: '6px 16px',
+                    borderRadius: 8,
+                    background: 'var(--green)',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: 'Nunito, sans-serif',
+                    whiteSpace: 'nowrap',
+                    cursor: receivingIds.has(rec.id) ? 'not-allowed' : 'pointer',
+                    opacity: receivingIds.has(rec.id) ? 0.6 : 1,
+                    boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
+                  }}
+                >
+                  {receivingIds.has(rec.id) ? <Loader2 size={12} className="animate-spin" /> : 'Marcar recebido'}
+                </button>
+              )}
+              {showUndoReceived && (
+                <button
+                  onClick={() => handleUnmarkIncomeReceived(rec)}
+                  disabled={unreceivingIds.has(rec.id)}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 26,
+                    padding: '0 10px',
+                    borderRadius: 6,
+                    background: 'var(--bg)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--text-2)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: unreceivingIds.has(rec.id) ? 'not-allowed' : 'pointer',
+                    opacity: unreceivingIds.has(rec.id) ? 0.6 : 1,
+                  }}
+                >
+                  {unreceivingIds.has(rec.id) ? <Loader2 size={10} className="animate-spin" /> : 'Desfazer'}
                 </button>
               )}
             </div>
