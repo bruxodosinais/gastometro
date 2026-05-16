@@ -1326,21 +1326,55 @@ export default function HomePage() {
             ) : (
               <>
                 <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: 4,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--text-3)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      margin: 0,
+                    }}
+                  >
+                    ORÇAMENTO LIVRE
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBudgetError('');
+                      setBudgetIncomeInput(
+                        monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
+                      );
+                      setBudgetGoalInput(
+                        monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
+                      );
+                      setBudgetModalOpen(true);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: '#5B5BD6',
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    Editar
+                  </button>
+                </div>
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
                 >
                   <div>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: 'var(--text-3)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        marginBottom: 4,
-                      }}
-                    >
-                      ORÇAMENTO LIVRE
-                    </p>
                     <p
                       style={{
                         fontSize: 26,
@@ -1354,6 +1388,9 @@ export default function HomePage() {
                     </p>
                     <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
                       disponível
+                    </p>
+                    <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
+                      de {formatCurrency(valorLivreParaGastarPlanejado)} orçados
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
