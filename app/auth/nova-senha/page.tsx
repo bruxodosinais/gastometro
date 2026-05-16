@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import LoadingButton from '@/components/ui/LoadingButton';
 
 export default function NovaSenhaPage() {
   const router = useRouter();
@@ -108,14 +109,15 @@ export default function NovaSenhaPage() {
             </p>
           )}
 
-          <button
+          <LoadingButton
             type="submit"
-            disabled={loading}
-            className="w-full py-3.5 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors"
+            loading={loading}
+            loadingText="Salvando..."
+            className="w-full py-3.5 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors flex items-center justify-center gap-2"
             style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
           >
-            {loading ? 'Salvando...' : 'Salvar nova senha'}
-          </button>
+            Salvar nova senha
+          </LoadingButton>
         </form>
       </div>
     </main>

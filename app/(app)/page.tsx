@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, Check, ChevronLeft, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
+import LoadingButton from '@/components/ui/LoadingButton';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { retryAsync } from '@/lib/retry';
@@ -1916,7 +1917,7 @@ export default function HomePage() {
                               Pago ✓
                             </span>
                           ) : (
-                            <button
+                            <LoadingButton
                               onClick={() => {
                                 const rec = recurringExpenses.find(
                                   (r) => r.id === ob.recurringExpenseId
@@ -1931,7 +1932,9 @@ export default function HomePage() {
                                   handleMarkObligationPaid(ob.id);
                                 }
                               }}
-                              disabled={isPaying}
+                              loading={isPaying}
+                              spinnerSize={13}
+                              spinnerColor="var(--accent)"
                               style={{
                                 width: 27,
                                 height: 27,
@@ -1947,12 +1950,8 @@ export default function HomePage() {
                               }}
                               title="Marcar como pago"
                             >
-                              {isPaying ? (
-                                <Loader2 size={13} color="var(--accent)" className="animate-spin" />
-                              ) : (
-                                <Check size={13} color="var(--accent)" />
-                              )}
-                            </button>
+                              <Check size={13} color="var(--accent)" />
+                            </LoadingButton>
                           )}
                         </div>
                       );
@@ -2437,9 +2436,9 @@ export default function HomePage() {
               >
                 Cancelar
               </button>
-              <button
+              <LoadingButton
                 onClick={handleSaveBudget}
-                disabled={savingBudget}
+                loading={savingBudget}
                 style={{
                   flex: 1,
                   padding: '12px 0',
@@ -2457,8 +2456,8 @@ export default function HomePage() {
                   gap: 6,
                 }}
               >
-                {savingBudget ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
-              </button>
+                Salvar
+              </LoadingButton>
             </div>
           </div>
         </div>

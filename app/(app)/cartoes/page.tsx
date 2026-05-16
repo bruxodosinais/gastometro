@@ -25,6 +25,7 @@ import { CreditCard as CreditCardType, ExpenseCategory, EXPENSE_CATEGORIES } fro
 import { formatCurrency, getBillingMonthOptions, getMonthLabel } from '@/lib/calculations';
 import { ToastContainer, useToast } from '@/components/Toast';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import LoadingButton from '@/components/ui/LoadingButton';
 import { createClient } from '@/lib/supabase/client';
 import { getErrorMessage } from '@/lib/errors';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -1723,13 +1724,14 @@ export default function CartoesPage() {
 
                   {formError && <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px' }}>{formError}</p>}
 
-                  <button
+                  <LoadingButton
                     onClick={handleSave}
-                    disabled={saving}
+                    loading={saving}
+                    loadingText="Salvando..."
                     style={{ width: '100%', padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >
-                    {saving ? 'Salvando...' : editingCard ? 'Salvar alterações' : 'Adicionar cartão'}
-                  </button>
+                    {editingCard ? 'Salvar alterações' : 'Adicionar cartão'}
+                  </LoadingButton>
                 </div>
               </div>
             </div>

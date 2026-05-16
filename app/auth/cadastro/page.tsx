@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import LoadingButton from '@/components/ui/LoadingButton';
 
 function traduzirErroAuth(mensagem: string): string {
   if (mensagem.includes('User already registered'))
@@ -349,9 +350,12 @@ function CadastroContent() {
           )}
 
           {/* Botão */}
-          <button
+          <LoadingButton
             type="submit"
             disabled={isDisabled}
+            loading={loading}
+            loadingText="Criando conta..."
+            spinnerColor="#8888CC"
             className="auth-btn"
             style={{
               background: isDisabled ? '#D1D1F0' : 'var(--accent)',
@@ -359,10 +363,14 @@ function CadastroContent() {
               boxShadow: isDisabled
                 ? 'none'
                 : '0 4px 20px rgba(91,91,214,0.38), 0 1px 4px rgba(91,91,214,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
           >
-            {loading ? 'Criando conta...' : 'Criar conta'}
-          </button>
+            Criar conta
+          </LoadingButton>
         </form>
 
         {/* Footer */}

@@ -15,6 +15,7 @@ import { calculateTotalByType, formatCurrency, getMonthKey } from '@/lib/calcula
 import { Goal, GoalContribution, GoalTerm, GoalType } from '@/lib/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import LoadingButton from '@/components/ui/LoadingButton';
 
 // ─── Configurações de tipo e cor ─────────────────────────────────────────────
 
@@ -656,11 +657,11 @@ export default function MetasPage() {
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.targetAmount}
+              <LoadingButton onClick={handleSave} loading={saving} disabled={!form.name.trim() || !form.targetAmount}
                 style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.targetAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, touchAction: 'manipulation' }}
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> {editingId ? 'Salvar' : 'Criar meta'}</>}
-              </button>
+                <><Check size={16} /> {editingId ? 'Salvar' : 'Criar meta'}</>
+              </LoadingButton>
               {editingId && (
                 <button onClick={() => handleDelete(editingId)} disabled={deletingId === editingId}
                   style={{ padding: '14px 16px', borderRadius: 'var(--r-sm)', background: 'var(--red-bg)', border: '1.5px solid var(--red)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

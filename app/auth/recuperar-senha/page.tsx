@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import LoadingButton from '@/components/ui/LoadingButton';
 
 function EnvelopeIcon() {
   return (
@@ -165,9 +166,12 @@ export default function RecuperarSenhaPage() {
               )}
 
               {/* Botão */}
-              <button
+              <LoadingButton
                 type="submit"
                 disabled={isDisabled}
+                loading={loading}
+                loadingText="Enviando..."
+                spinnerColor="#8888CC"
                 className="auth-btn"
                 style={{
                   background: isDisabled ? '#D1D1F0' : 'var(--accent)',
@@ -175,10 +179,14 @@ export default function RecuperarSenhaPage() {
                   boxShadow: isDisabled
                     ? 'none'
                     : '0 4px 20px rgba(91,91,214,0.38), 0 1px 4px rgba(91,91,214,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
                 }}
               >
-                {loading ? 'Enviando...' : 'Enviar link de recuperação'}
-              </button>
+                Enviar link de recuperação
+              </LoadingButton>
             </form>
 
             <p

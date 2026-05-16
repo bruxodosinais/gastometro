@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CalendarDays, ChevronDown, Copy, Loader2, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronDown, Copy, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
 import {
   addExpense,
   addExpenseInstallments,
@@ -11,6 +11,7 @@ import {
   getExpenses,
 } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
+import LoadingButton from '@/components/ui/LoadingButton';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
@@ -1042,10 +1043,10 @@ export default function LancamentosPage() {
               )}
 
               {/* CTA */}
-              <button
+              <LoadingButton
                 type="button"
                 onClick={handleSubmit}
-                disabled={saving}
+                loading={saving}
                 style={{
                   width: '100%',
                   padding: 14,
@@ -1065,8 +1066,8 @@ export default function LancamentosPage() {
                   opacity: saving ? 0.7 : 1,
                 }}
               >
-                {saving ? <Loader2 size={17} className="animate-spin" /> : ctaLabel}
-              </button>
+                {ctaLabel}
+              </LoadingButton>
             </div>
           </div>
 

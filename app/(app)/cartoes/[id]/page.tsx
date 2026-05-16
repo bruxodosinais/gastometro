@@ -13,6 +13,7 @@ import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { CreditCard as CreditCardType, Expense } from '@/lib/types';
 import { ToastContainer, useToast } from '@/components/Toast';
+import LoadingButton from '@/components/ui/LoadingButton';
 import { getErrorMessage } from '@/lib/errors';
 
 function todayPeriod() {
@@ -206,20 +207,15 @@ export default function CartaoDetailPage() {
 
             {/* Pay button */}
             {fatura > 0 && (
-              <button
+              <LoadingButton
                 onClick={handlePayFatura}
-                disabled={paying || paySuccess}
+                loading={paying}
+                disabled={paySuccess}
                 className="w-full py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70"
                 style={{ background: paySuccess ? '#10b981' : 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
               >
-                {paying ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : paySuccess ? (
-                  '✓ Fatura paga!'
-                ) : (
-                  `Pagar fatura · ${formatCurrency(fatura)}`
-                )}
-              </button>
+                {paySuccess ? '✓ Fatura paga!' : `Pagar fatura · ${formatCurrency(fatura)}`}
+              </LoadingButton>
             )}
           </div>
 

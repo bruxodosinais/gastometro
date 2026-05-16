@@ -17,6 +17,7 @@ import { formatCurrency, calculateTotalByType } from '@/lib/calculations';
 import { Asset, AssetType, Expense, Liability } from '@/lib/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import LoadingButton from '@/components/ui/LoadingButton';
 
 // ─── Configurações de bolso ──────────────────────────────────────────────────
 
@@ -641,13 +642,14 @@ export default function PatrimonioPage() {
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button
+              <LoadingButton
                 onClick={handleSave}
-                disabled={saving || !form.name.trim() || !form.value}
+                loading={saving}
+                disabled={!form.name.trim() || !form.value}
                 style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.value) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, touchAction: 'manipulation' }}
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Salvar</>}
-              </button>
+                <><Check size={16} /> Salvar</>
+              </LoadingButton>
               {(editingAsset || editingLiability) && (
                 <button
                   onClick={() => editingAsset ? handleDeleteAsset(editingAsset.id) : editingLiability && handleDeleteLiability(editingLiability.id)}

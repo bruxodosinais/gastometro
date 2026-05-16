@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Pause, Pencil, Play, RefreshCw, Trash2 } from 'lucide-react';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
+import LoadingButton from '@/components/ui/LoadingButton';
 import { getErrorMessage } from '@/lib/errors';
 import { retryAsync } from '@/lib/retry';
 import {
@@ -1567,9 +1568,9 @@ export default function RecorrentesPage() {
               >
                 Cancelar
               </button>
-              <button
+              <LoadingButton
                 onClick={handleEditSave}
-                disabled={editSaving}
+                loading={editSaving}
                 style={{
                   flex: 1,
                   padding: '12px 0',
@@ -1587,8 +1588,8 @@ export default function RecorrentesPage() {
                   opacity: editSaving ? 0.7 : 1,
                 }}
               >
-                {editSaving ? <Loader2 size={15} className="animate-spin" /> : 'Salvar'}
-              </button>
+                Salvar
+              </LoadingButton>
             </div>
           </div>
         </div>
@@ -2034,7 +2035,7 @@ export default function RecorrentesPage() {
                 </span>
               )}
               {showMarkPaid && (
-                <button
+                <LoadingButton
                   onClick={async () => {
                     let ob = obligation;
                     if (!ob) {
@@ -2054,7 +2055,8 @@ export default function RecorrentesPage() {
                       handleMarkObligationPaid(ob.id);
                     }
                   }}
-                  disabled={isPaying}
+                  loading={isPaying}
+                  spinnerSize={12}
                   style={{
                     flexShrink: 0,
                     display: 'inline-flex',
@@ -2075,8 +2077,8 @@ export default function RecorrentesPage() {
                     boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
                   }}
                 >
-                  {isPaying ? <Loader2 size={12} className="animate-spin" /> : 'Marcar pago'}
-                </button>
+                  Marcar pago
+                </LoadingButton>
               )}
               {showUndo && obligation && (
                 <button
@@ -2103,9 +2105,10 @@ export default function RecorrentesPage() {
                 </button>
               )}
               {showMarkReceived && (
-                <button
+                <LoadingButton
                   onClick={() => handleMarkIncomeReceived(rec)}
-                  disabled={receivingIds.has(rec.id)}
+                  loading={receivingIds.has(rec.id)}
+                  spinnerSize={12}
                   style={{
                     flexShrink: 0,
                     display: 'inline-flex',
@@ -2126,8 +2129,8 @@ export default function RecorrentesPage() {
                     boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
                   }}
                 >
-                  {receivingIds.has(rec.id) ? <Loader2 size={12} className="animate-spin" /> : 'Marcar recebido'}
-                </button>
+                  Marcar recebido
+                </LoadingButton>
               )}
               {showUndoReceived && (
                 <button

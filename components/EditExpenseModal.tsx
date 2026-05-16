@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { addExpense, getCreditCards, updateExpense } from '@/lib/storage';
+import LoadingButton from '@/components/ui/LoadingButton';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
   CreditCard as CreditCardType,
@@ -308,14 +309,14 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 </div>
               )}
 
-              <button
+              <LoadingButton
                 type="submit"
-                disabled={saving}
+                loading={saving}
                 className="w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:active:scale-100 touch-manipulation"
                 style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
               >
-                {saving ? <Loader2 size={18} className="animate-spin" /> : submitLabel}
-              </button>
+                {submitLabel}
+              </LoadingButton>
             </form>
           </div>
         </div>
