@@ -421,7 +421,7 @@ export default function MetasPage() {
           {!showForm && (
             <button
               onClick={openCreate}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green)', color: 'white', fontSize: 12, fontWeight: 700, borderRadius: 20, border: 'none', padding: '6px 14px', cursor: 'pointer', flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'white', fontSize: 12, fontWeight: 700, borderRadius: 20, border: 'none', padding: '6px 14px', cursor: 'pointer', flexShrink: 0, touchAction: 'manipulation' }}
             >
               <Plus size={14} /> Nova meta
             </button>
@@ -500,6 +500,7 @@ export default function MetasPage() {
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Ex: Viagem Europa, Reserva de emergência…"
                   autoFocus
+                  style={{ fontSize: '16px' }}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
@@ -604,6 +605,7 @@ export default function MetasPage() {
                       <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
                       <input type="date" value={form.deadline}
                         onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
+                        style={{ fontSize: '16px' }}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
                       />
                     </div>
@@ -655,7 +657,7 @@ export default function MetasPage() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.targetAmount}
-                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.targetAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.targetAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, touchAction: 'manipulation' }}
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> {editingId ? 'Salvar' : 'Criar meta'}</>}
               </button>
@@ -681,7 +683,7 @@ export default function MetasPage() {
             </p>
             <button
               onClick={openCreate}
-              style={{ background: 'var(--green)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 20px', cursor: 'pointer' }}
+              style={{ background: 'var(--accent)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 20px', cursor: 'pointer', touchAction: 'manipulation' }}
             >
               Criar primeira meta
             </button>
@@ -773,7 +775,7 @@ export default function MetasPage() {
                 <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Data</label>
                 <input type="date" value={contribDate}
                   onChange={(e) => setContribDate(e.target.value)}
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none', colorScheme: 'light' }}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 16, color: 'var(--text)', outline: 'none', colorScheme: 'light' }}
                 />
               </div>
 
@@ -782,7 +784,7 @@ export default function MetasPage() {
                 <input type="text" value={contribNote}
                   onChange={(e) => setContribNote(e.target.value)}
                   placeholder="Ex: salário de abril, bônus…"
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 16, color: 'var(--text)', outline: 'none' }}
                 />
               </div>
             </div>
@@ -792,7 +794,7 @@ export default function MetasPage() {
             )}
 
             <button onClick={handleContrib} disabled={contribSaving || !contribAmount}
-              style={{ width: '100%', marginTop: 16, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (contribSaving || !contribAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              style={{ width: '100%', marginTop: 16, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (contribSaving || !contribAmount) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, touchAction: 'manipulation' }}
             >
               {contribSaving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={16} /> Registrar aporte</>}
             </button>
@@ -1183,7 +1185,7 @@ function GoalCard({
               value={simInput}
               onChange={(e) => setSimInput(e.target.value)}
               placeholder="Quanto deseja aportar por mês?"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', paddingLeft: 32, paddingRight: 12, paddingTop: 12, paddingBottom: 12, fontSize: 14, color: 'var(--text)', outline: 'none' }}
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', paddingLeft: 32, paddingRight: 12, paddingTop: 12, paddingBottom: 12, fontSize: 16, color: 'var(--text)', outline: 'none' }}
             />
           </div>
           {simInput !== '' && simMonths !== null && (
@@ -1198,7 +1200,7 @@ function GoalCard({
       {!isCompleted ? (
         <button
           onClick={() => { onContrib(goal); }}
-          style={{ marginTop: 14, width: '100%', padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer' }}
+          style={{ marginTop: 14, width: '100%', padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', touchAction: 'manipulation' }}
         >
           {sc.btnLabel}
         </button>

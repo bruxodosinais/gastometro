@@ -362,7 +362,7 @@ export default function PatrimonioPage() {
               Cadastre seus bens e dívidas para acompanhar seu patrimônio líquido ao longo do tempo.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={openAddAsset} style={{ background: 'var(--green)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 18px', cursor: 'pointer' }}>
+              <button onClick={openAddAsset} style={{ background: 'var(--accent)', color: 'white', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: 'none', padding: '10px 18px', cursor: 'pointer', touchAction: 'manipulation' }}>
                 + Adicionar ativo
               </button>
               <button onClick={openAddLiability} style={{ background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', padding: '10px 18px', cursor: 'pointer' }}>
@@ -379,7 +379,7 @@ export default function PatrimonioPage() {
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Ativos</p>
               <button
                 onClick={openAddAsset}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green-bg)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--green)', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent-bg)', border: '1px solid var(--accent-soft)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer', touchAction: 'manipulation' }}
               >
                 <Plus size={12} /> Adicionar
               </button>
@@ -388,7 +388,7 @@ export default function PatrimonioPage() {
             {assets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
                 <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Nenhum ativo cadastrado</p>
-                <button onClick={openAddAsset} style={{ marginTop: 8, fontSize: 12, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <button onClick={openAddAsset} style={{ marginTop: 8, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
                   + Adicionar primeiro ativo
                 </button>
               </div>
@@ -424,7 +424,7 @@ export default function PatrimonioPage() {
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Dívidas</p>
               <button
                 onClick={openAddLiability}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--red-bg)', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--red)', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent-bg)', border: '1px solid var(--accent-soft)', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer', touchAction: 'manipulation' }}
               >
                 <Plus size={12} /> Adicionar
               </button>
@@ -555,7 +555,7 @@ export default function PatrimonioPage() {
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder={modalMode === 'asset' ? 'Ex: Nubank, FGTS, Apartamento…' : 'Ex: Financiamento carro, Cartão…'}
                   autoFocus
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, color: 'var(--text)', outline: 'none' }}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 16, color: 'var(--text)', outline: 'none' }}
                 />
               </div>
 
@@ -644,7 +644,7 @@ export default function PatrimonioPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim() || !form.value}
-                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.value) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: (saving || !form.name.trim() || !form.value) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, touchAction: 'manipulation' }}
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Salvar</>}
               </button>

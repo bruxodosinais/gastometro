@@ -155,9 +155,22 @@ function ExpenseList({
 
   useEffect(() => {
     if (!openMenuId) return;
+    // Trava o scroll do body enquanto o menu "…" está aberto para a página
+    // não rolar por trás do dropdown.
+    document.body.style.overflow = 'hidden';
     function close() { setOpenMenuId(null); }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpenMenuId(null);
+    }
     document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    document.addEventListener('keydown', onKeyDown);
+    // Cleanup roda em TODOS os caminhos de fechamento (clique em opção, clique
+    // fora, Esc) e também no unmount do componente — sempre restaura o scroll.
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = '';
+    };
   }, [openMenuId]);
 
   if (loading) {
@@ -1222,9 +1235,14 @@ export default function LancamentosPage() {
       {editingExpense && (
         <EditExpenseModal
           expense={editingExpense}
-          onSave={(updated) => {
-            setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+          onSave={async () => {
+            // Refetch AUTORITATIVO: a lista deriva de `expenses`
+            // (currentExpenses é recalculado a cada render). Buscar do
+            // servidor e setar o estado garante o valor real persistido,
+            // sem depender do objeto otimista do retorno.
             setEditingExpense(null);
+            const fresh = await getExpenses();
+            setExpenses(fresh);
             addToast('Lançamento atualizado', 'success');
           }}
           onClose={() => setEditingExpense(null)}

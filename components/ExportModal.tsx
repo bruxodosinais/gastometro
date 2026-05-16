@@ -144,7 +144,7 @@ async function doExportPDF(data: Expense[], filename: string, displayLabel: stri
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(20, 20, 20);
-  doc.text('GastoMetro - Extrato', ml, 20);
+  doc.text('TôOrganizado - Extrato', ml, 20);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
@@ -183,7 +183,9 @@ async function doExportPDF(data: Expense[], filename: string, displayLabel: stri
     doc.text(dateStr, colX[0], y);
     doc.text(desc, colX[1], y);
     doc.text(cat, colX[2], y);
-    doc.setTextColor(isIncome ? 0 : 200, isIncome ? 140 : 60, isIncome ? 90 : 70);
+    // Semântica: receita → verde #16a34a · gasto → vermelho #dc2626
+    if (isIncome) doc.setTextColor(22, 163, 74);
+    else doc.setTextColor(220, 38, 38);
     doc.text(valor, colX[3], y);
 
     y += 6;
@@ -202,16 +204,20 @@ async function doExportPDF(data: Expense[], filename: string, displayLabel: stri
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
 
-  doc.setTextColor(0, 140, 90);
+  // Total Receitas → verde #16a34a
+  doc.setTextColor(22, 163, 74);
   doc.text(`Total Receitas: R$ ${totalIncome.toFixed(2).replace('.', ',')}`, ml, y);
   y += 6;
 
-  doc.setTextColor(200, 60, 70);
+  // Total Gastos → vermelho #dc2626
+  doc.setTextColor(220, 38, 38);
   doc.text(`Total Gastos: R$ ${totalExpense.toFixed(2).replace('.', ',')}`, ml, y);
   y += 6;
 
+  // Saldo: positivo → verde #16a34a · negativo → vermelho #dc2626 (sem azul)
   const balance = totalIncome - totalExpense;
-  doc.setTextColor(balance >= 0 ? 30 : 200, balance >= 0 ? 120 : 60, balance >= 0 ? 200 : 70);
+  if (balance >= 0) doc.setTextColor(22, 163, 74);
+  else doc.setTextColor(220, 38, 38);
   doc.text(`Saldo: R$ ${balance.toFixed(2).replace('.', ',')}`, ml, y);
 
   doc.save(filename);
@@ -248,9 +254,9 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
       const data = await fetchByRange(from, to);
 
       if (format === 'csv') {
-        doExportCSV(data, `gastometro-extrato-${fileLabel}.csv`);
+        doExportCSV(data, `toorganizado-extrato-${fileLabel}.csv`);
       } else {
-        await doExportPDF(data, `gastometro-extrato-${fileLabel}.pdf`, displayLabel);
+        await doExportPDF(data, `toorganizado-extrato-${fileLabel}.pdf`, displayLabel);
       }
 
       onSuccess?.(`Extrato ${format.toUpperCase()} exportado`);
@@ -263,12 +269,11 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 shadow-xl z-10">
-        {/* Handle (mobile) */}
-        <div className="sm:hidden w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-
+    <div
+      className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl z-50">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-900">Exportar extrato</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors" aria-label="Fechar">
@@ -287,8 +292,8 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
                 opt.value === 'custom' ? 'col-span-2' : ''
               } ${
                 period === opt.value
-                  ? 'bg-mint text-gray-900'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {opt.label}
@@ -305,7 +310,7 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
             <div>
@@ -314,7 +319,7 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
           </div>
@@ -329,8 +334,8 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
               onClick={() => setFormat(f)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${
                 format === f
-                  ? 'bg-mint text-gray-900'
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {f}
@@ -343,10 +348,10 @@ export default function ExportModal({ onClose, onSuccess }: ExportModalProps) {
         <button
           onClick={handleExport}
           disabled={loading}
-          className="w-full py-3 rounded-xl bg-mint hover:bg-mint-700 text-gray-900 font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {loading ? (
-            <span className="w-4 h-4 border-2 border-gray-900/40 border-t-gray-900 rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           ) : (
             <Download size={16} />
           )}

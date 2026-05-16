@@ -129,9 +129,13 @@ export default function HistoricoPage() {
     }
   }, [period]);
 
-  const handleEditSave = (updated: Expense) => {
-    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  const handleEditSave = async () => {
+    // Refetch AUTORITATIVO: filteredEntries/baseEntries são useMemo sobre
+    // `expenses`, então setar o estado com os dados frescos do servidor
+    // recalcula a lista agrupada — sem depender do objeto otimista.
     setEditingExpense(null);
+    const fresh = await getExpenses();
+    setExpenses(fresh);
     addToast('Lançamento atualizado', 'success');
   };
 

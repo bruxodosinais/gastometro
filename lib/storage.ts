@@ -104,24 +104,61 @@ export async function updateExpense(
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Usuário não autenticado');
 
-  const { data: row, error } = await supabase
+  const payload = {
+    type: data.type,
+    amount: data.amount,
+    description: data.description,
+    category: data.category,
+    date: data.date,
+    credit_card_id: data.creditCardId ?? null,
+    is_credit: data.isCredit ?? false,
+    billing_month: data.billingMonth ?? null,
+  };
+
+  // UPDATE sem .select().single(): o .single() encadeado num UPDATE quebra
+  // com "Cannot coerce the result to a single JSON object" em algumas versões
+  // do supabase-js. Atualizamos e buscamos o registro separadamente — 100%
+  // compatível com qualquer versão. Filtro duplo id + user_id mantém o WHERE
+  // correto e respeita a RLS.
+  const { error: updateError } = await supabase
     .from('expenses')
-    .update({
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      category: data.category,
-      date: data.date,
-      credit_card_id: data.creditCardId ?? null,
-      is_credit: data.isCredit ?? false,
-      billing_month: data.billingMonth ?? null,
-    })
+    .update(payload)
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (updateError) {
+    // PostgrestError não é instância de Error — sem este tratamento o modal
+    // só conseguia exibir a mensagem genérica "Erro ao salvar".
+    console.error('updateExpense (update):', {
+      id,
+      message: updateError.message,
+      details: updateError.details,
+      hint: updateError.hint,
+      code: updateError.code,
+    });
+    throw new Error(updateError.message || 'Erro ao salvar o lançamento');
+  }
+
+  const { data: row, error: fetchError } = await supabase
+    .from('expenses')
+    .select('*')
     .eq('id', id)
     .eq('user_id', user.id)
-    .select()
     .single();
 
-  if (error) throw error;
+  if (fetchError) {
+    console.error('updateExpense (refetch):', {
+      id,
+      message: fetchError.message,
+      details: fetchError.details,
+      hint: fetchError.hint,
+      code: fetchError.code,
+    });
+    throw new Error(fetchError.message || 'Erro ao recarregar o lançamento');
+  }
+  if (!row) {
+    throw new Error('Lançamento não encontrado ou sem permissão para editar');
+  }
   return toExpense(row);
 }
 

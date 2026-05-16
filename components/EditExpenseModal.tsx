@@ -36,6 +36,13 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
   const [selectedCardId, setSelectedCardId] = useState(expense.creditCardId ?? '');
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
 
+  // Trava o scroll do body enquanto o modal de edição está aberto e restaura
+  // no unmount (fechar, salvar ou navegar) — evita a página rolar por trás.
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   useEffect(() => {
     if (expense.type === 'expense') {
       getCreditCards().then((cards) => {
@@ -56,8 +63,34 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const num = parseFloat(amount.replace(',', '.'));
-    if (!num || num <= 0 || !description.trim()) return;
+
+    // ── Validação de edge cases ANTES de chamar o Supabase ──
+    const rawAmount = amount.trim();
+    if (!rawAmount) {
+      setError('Informe o valor.');
+      return;
+    }
+    // O input é type="number" (numérico puro): seu .value nunca traz separador
+    // de milhar nem vírgula. parseFloat já basta — o replace(',','.') é só uma
+    // rede de segurança p/ teclados mobile que emitem vírgula. NÃO remover
+    // pontos aqui: "150.50" viraria 15050.
+    const num = parseFloat(rawAmount.replace(',', '.'));
+    if (Number.isNaN(num)) {
+      setError('Valor inválido.');
+      return;
+    }
+    if (num <= 0) {
+      setError('O valor deve ser maior que zero.');
+      return;
+    }
+    if (!description.trim()) {
+      setError('Informe uma descrição.');
+      return;
+    }
+    if (!category || !(categories as readonly Category[]).includes(category)) {
+      setError('Selecione uma categoria.');
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -72,10 +105,19 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
           ? { isCredit: true, creditCardId: selectedCardId }
           : { isCredit: false, creditCardId: undefined }),
       };
+      // Diagnóstico: confirma que o valor parseado chega correto na camada de
+      // persistência (Bug "valor não muda na lista").
+      console.log('[EditExpenseModal] salvando', {
+        id: expense.id,
+        mode,
+        valorParseado: num,
+        payload,
+      });
       const saved =
         mode === 'duplicate'
           ? await addExpense(payload)
           : await updateExpense(expense.id, payload);
+      console.log('[EditExpenseModal] persistido (retorno do storage):', saved);
       onSave(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
@@ -85,27 +127,23 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — cobre toda a tela atrás do modal */}
       <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-40"
+        style={{ background: 'rgba(0,0,0,0.5)' }}
         onClick={onClose}
       />
 
-      {/* Bottom sheet no mobile · dialog centralizado no desktop */}
-      <div className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:px-4">
-        <div className="bg-white border-t border-gray-100 rounded-t-2xl md:border md:rounded-2xl md:w-full md:max-w-md">
-          {/* Handle bar — só aparece no mobile */}
-          <div className="flex justify-center pt-3 pb-1 md:hidden">
-            <div className="w-10 h-1 bg-gray-200 rounded-full" />
-          </div>
-
-          <div className="px-5 pb-6 pt-3 md:pt-5 overflow-y-auto max-h-[88vh] md:max-h-[90vh]">
+      {/* Modal centralizado na tela (não cresce indefinidamente) */}
+      <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2">
+        <div className="bg-white border border-gray-100 rounded-2xl max-h-[90vh] overflow-y-auto">
+          <div className="px-5 pb-6 pt-5">
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-gray-900 font-semibold text-base">{title}</h2>
               <button
                 onClick={onClose}
-                className="text-gray-500 hover:text-gray-900 transition-colors p-1"
+                className="text-gray-500 hover:text-gray-900 transition-colors p-1 touch-manipulation"
                 aria-label="Fechar"
               >
                 <X size={20} />
@@ -118,7 +156,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 <button
                   type="button"
                   onClick={() => handleTypeChange('expense')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all touch-manipulation ${
                     entryType === 'expense'
                       ? 'bg-white text-gray-900 shadow'
                       : 'text-gray-500 hover:text-gray-700'
@@ -129,7 +167,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 <button
                   type="button"
                   onClick={() => handleTypeChange('income')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all touch-manipulation ${
                     entryType === 'income'
                       ? 'bg-white text-mint-500 shadow'
                       : 'text-gray-500 hover:text-gray-700'
@@ -174,6 +212,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                   placeholder={entryType === 'expense' ? 'Ex: iFood, Supermercado...' : 'Ex: Salário maio, Projeto X...'}
                   maxLength={80}
                   required
+                  style={{ fontSize: '16px' }}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
@@ -188,6 +227,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
+                  style={{ fontSize: '16px' }}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
@@ -202,7 +242,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                     <button
                       type="button"
                       onClick={() => setIsCredit((v) => !v)}
-                      className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
+                      className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none touch-manipulation"
                       style={{ backgroundColor: isCredit ? '#00b87a' : '#D1D5DB' }}
                       role="switch"
                       aria-checked={isCredit}
@@ -217,6 +257,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                     <select
                       value={selectedCardId}
                       onChange={(e) => setSelectedCardId(e.target.value)}
+                      style={{ fontSize: '16px' }}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors"
                     >
                       {creditCards.map((c) => (
@@ -238,7 +279,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-2">
                   Categoria
                 </label>
-                <div className={`grid gap-2 ${entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                <div className={`grid gap-2 max-h-48 overflow-y-auto ${entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2'}`}>
                   {categories.map((cat) => {
                     const cfg = CATEGORY_CONFIG[cat];
                     const active = category === cat;
@@ -247,7 +288,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                         key={cat}
                         type="button"
                         onClick={() => setCategory(cat)}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all touch-manipulation ${
                           active
                             ? `${cfg.bgClass} ${cfg.borderClass} ${cfg.textClass}`
                             : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-slate-600'
@@ -270,7 +311,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:active:scale-100"
+                className="w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:active:scale-100 touch-manipulation"
                 style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
               >
                 {saving ? <Loader2 size={18} className="animate-spin" /> : submitLabel}
