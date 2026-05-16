@@ -58,7 +58,17 @@
       "Bash(lsof -i :3000 -sTCP:LISTEN)",
       "Bash(kill 28030)",
       "Bash(npx web-push *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(grep *)",
+      "Bash(echo \"exit: $? \\(no match = I did not modify the avatar-picker code that triggers the lint error\\)\")",
+      "Read(//Users/anderson/**)",
+      "Read(//Users/anderson/Downloads/**)",
+      "Read(//Applications/Google Chrome.app/Contents/MacOS/**)",
+      "Bash(npm config *)",
+      "Bash(PUPPETEER_SKIP_DOWNLOAD=1 npm install puppeteer-core --save-dev)",
+      "Bash(npm audit *)",
+      "Bash(echo \"ESLINT_EXIT=$?\")",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

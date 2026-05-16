@@ -1080,15 +1080,26 @@ export async function getCreditCardFatura(
 ): Promise<number> {
   const billingMonth = `${period}-01`;
   const supabase = createClient();
+  // Não filtra por is_credit: precisamos tanto das compras (is_credit=true)
+  // quanto dos pagamentos da fatura (category='Cartão de Crédito',
+  // is_credit=false) — ambos carimbados com o mesmo billing_month.
   const { data, error } = await supabase
     .from('expenses')
-    .select('amount')
+    .select('amount, is_credit, category')
     .eq('credit_card_id', cardId)
-    .eq('is_credit', true)
     .eq('billing_month', billingMonth);
 
   if (error) return 0;
-  return (data ?? []).reduce((sum, row) => sum + (row.amount as number), 0);
+
+  let purchases = 0;
+  let payments = 0;
+  for (const row of data ?? []) {
+    const amount = row.amount as number;
+    if (row.is_credit === true) purchases += amount;
+    else if (row.category === 'Cartão de Crédito') payments += amount;
+  }
+  // Fatura em aberto = compras − pagamentos, nunca negativa.
+  return Math.max(0, purchases - payments);
 }
 
 export async function getExpensesByCard(

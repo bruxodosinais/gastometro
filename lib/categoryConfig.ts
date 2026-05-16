@@ -163,6 +163,14 @@ export const CATEGORY_CONFIG: Record<Category, Config> = {
     textClass: 'text-teal-500',
     barClass: 'bg-teal-600',
   },
+  'Cartão de Crédito': {
+    icon: '💳',
+    color: '#6366f1',
+    bgClass: 'bg-indigo-500/10',
+    borderClass: 'border-indigo-500/20',
+    textClass: 'text-indigo-400',
+    barClass: 'bg-indigo-500',
+  },
   // Categorias de receita
   Salário: {
     icon: '💰',

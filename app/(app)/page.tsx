@@ -350,21 +350,38 @@ export default function HomePage() {
   }
 
   async function handlePayFatura(card: CreditCardType, faturaTotal: number) {
-    if (payingFaturaId === card.id) return;
+    // Edge cases: fatura zerada e pagamento já em andamento.
+    if (faturaTotal <= 0 || payingFaturaId === card.id) return;
     setPayingFaturaId(card.id);
     try {
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const ref = `${mm}/${now.getFullYear()}`;
+      // O alerta de vencimento paga sempre a fatura do mês corrente.
+      const billingMonth = `${now.getFullYear()}-${mm}-01`;
       const expense = await addExpense({
         type: 'expense',
         amount: faturaTotal,
-        description: `Fatura ${card.nome}`,
-        category: 'Outros',
-        date: new Date().toISOString().slice(0, 10),
+        description: `Pagamento fatura ${card.nome} ${ref}`,
+        category: 'Cartão de Crédito',
+        date: now.toISOString().slice(0, 10),
+        // Saída de caixa (débito), não lançamento da própria fatura.
+        // billingMonth amarra o pagamento à fatura para getCreditCardFatura abatê-lo.
+        isCredit: false,
+        creditCardId: card.id,
+        billingMonth,
       });
+      // Atualiza estado local → saldo e orçamento livre recalculam na hora.
       setExpenses((prev) => [expense, ...prev]);
       setCardFaturas((prev) =>
         prev.map((cf) => (cf.card.id === card.id ? { ...cf, total: 0 } : cf))
       );
       setCardVencimentoAlert(null);
+      addToast('Fatura paga! Lançamento registrado.', 'success');
+    } catch (err) {
+      // Erro de rede / constraint: mensagem legível e mantém o alerta
+      // aberto para nova tentativa (não zera a fatura nem fecha o modal).
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setPayingFaturaId(null);
     }
@@ -421,6 +438,10 @@ export default function HomePage() {
   const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
   const income = calculateTotalByType(periodEntries, 'income');
   const spent = calculateTotalByType(periodEntries, 'expense');
+  // Soma das COMPRAS no crédito do período. NÃO incluir o pagamento de
+  // fatura aqui: este valor é usado em debitSpent para tirar as compras de
+  // crédito do gasto em caixa (compra no crédito não move caixa até a fatura
+  // ser paga; o pagamento, esse sim, entra como débito).
   const periodCreditTotal = periodEntries
     .filter((e) => e.type === 'expense' && e.isCredit === true)
     .reduce((s, e) => s + e.amount, 0);
@@ -428,6 +449,17 @@ export default function HomePage() {
   const debitBalance = income - debitSpent;
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
+
+  // "Fatura atual" = soma das faturas em aberto de TODOS os cartões.
+  // cardFaturas vem de getCreditCardFatura (mês corrente), que já abate os
+  // pagamentos — mesma fonte da aba Cartões, então os valores batem.
+  const cardsComFatura = cardFaturas.filter((cf) => cf.total > 0);
+  const faturasTotal = cardsComFatura.reduce((s, cf) => s + cf.total, 0);
+  // 1 cartão com fatura → vai direto ao detalhe; vários → lista.
+  const faturaHref =
+    cardsComFatura.length === 1
+      ? `/cartoes/${cardsComFatura[0].card.id}`
+      : '/cartoes';
 
   // Categorias que estouraram o orçamento no período selecionado.
   // Defensivo: só considera budgets com limite > 0 (orçamento zerado ou
@@ -1056,7 +1088,7 @@ export default function HomePage() {
           );
         })()}
 
-        {periodCreditTotal > 0 && (
+        {faturasTotal > 0 && (
           <>
             <div
               style={{
@@ -1066,19 +1098,35 @@ export default function HomePage() {
                 position: 'relative',
               }}
             />
-            <div
+            <Link
+              href={faturaHref}
+              aria-label="Ver faturas dos cartões"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 position: 'relative',
+                textDecoration: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                gap: 8,
               }}
             >
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#FFB3B3' }}>
-                −{formatCurrency(periodCreditTotal)}
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#FFB3B3',
+                }}
+              >
+                −{formatCurrency(faturasTotal)}
+                <ChevronRight size={14} color="rgba(255,255,255,0.55)" aria-hidden="true" />
               </span>
-            </div>
+            </Link>
           </>
         )}
       </div>
@@ -1376,7 +1424,13 @@ export default function HomePage() {
                       disponível
                     </p>
                     <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
-                      de {formatCurrency(valorLivreParaGastarPlanejado)} orçados
+                      {valorLivreParaGastarPlanejado > 0
+                        ? `de ${formatCurrency(valorLivreParaGastarPlanejado)} orçados`
+                        : valorLivreParaGastarPlanejado < 0
+                        ? `custos fixos + meta superam a renda em ${formatCurrency(
+                            -valorLivreParaGastarPlanejado
+                          )}`
+                        : 'sem margem livre no orçamento'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>

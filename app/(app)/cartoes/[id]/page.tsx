@@ -11,7 +11,9 @@ import {
 } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { Category, CreditCard as CreditCardType, Expense } from '@/lib/types';
+import { CreditCard as CreditCardType, Expense } from '@/lib/types';
+import { ToastContainer, useToast } from '@/components/Toast';
+import { getErrorMessage } from '@/lib/errors';
 
 function todayPeriod() {
   const d = new Date();
@@ -41,6 +43,7 @@ export default function CartaoDetailPage() {
   const [ready, setReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+  const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
     getCreditCards().then((cards) => {
@@ -65,19 +68,40 @@ export default function CartaoDetailPage() {
   }, [card, cardId, period]);
 
   async function handlePayFatura() {
-    if (!card || fatura <= 0 || paying) return;
+    // Edge cases: sem cartão carregado, fatura zerada/sem lançamentos,
+    // pagamento em andamento ou já concluído neste período.
+    if (!card || fatura <= 0 || paying || paySuccess) return;
     setPaying(true);
     try {
+      // period é "YYYY-MM" → descrição "Pagamento fatura NOME MM/YYYY".
+      const ref = `${period.slice(5, 7)}/${period.slice(0, 4)}`;
       await addExpense({
         type: 'expense',
         amount: fatura,
-        description: `Pagamento fatura ${card.nome}`,
-        category: 'Serviços' as Category,
+        description: `Pagamento fatura ${card.nome} ${ref}`,
+        category: 'Cartão de Crédito',
         date: todayStr(),
+        // Pagamento é uma saída de caixa (débito), NÃO um lançamento da
+        // própria fatura — isCredit false evita recursão no total da fatura.
+        // creditCardId + billingMonth amarram o pagamento à fatura paga, para
+        // getCreditCardFatura abatê-lo do total (Home, lista e detalhe).
         isCredit: false,
-        creditCardId: undefined,
+        creditCardId: card.id,
+        billingMonth: `${period}-01`,
       });
       setPaySuccess(true);
+      addToast('Fatura paga! Lançamento registrado.', 'success');
+      // Reflete o novo saldo da fatura nesta tela (número + barra) e
+      // revalida dados de servidor (saldo / orçamento livre na Home).
+      getCreditCardFatura(cardId, period)
+        .then(setFatura)
+        .catch(() => {});
+      router.refresh();
+    } catch (err) {
+      // addExpense pode lançar um PostgrestError (objeto puro, não Error) —
+      // getErrorMessage normaliza para uma mensagem legível em vez de
+      // "[object Object]". Mantém o botão habilitado para nova tentativa.
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setPaying(false);
     }
@@ -92,6 +116,10 @@ export default function CartaoDetailPage() {
     return acc;
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  // Soma bruta dos lançamentos listados (compras no crédito). Difere de
+  // `fatura` quando há pagamento: `fatura` é o saldo em aberto (líquido),
+  // este Total é o que a lista de fato exibe.
+  const expensesTotal = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
     <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
@@ -254,13 +282,14 @@ export default function CartaoDetailPage() {
                   Total
                 </span>
                 <span className="font-bold text-sm text-red-500">
-                  −{formatCurrency(fatura)}
+                  −{formatCurrency(expensesTotal)}
                 </span>
               </div>
             </div>
           )}
         </>
       )}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
   );
 }

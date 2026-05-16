@@ -4,6 +4,7 @@ export type ExpenseCategory =
   | 'Alimentação'
   | 'Assinaturas'
   | 'Beleza'
+  | 'Cartão de Crédito'
   | 'Combustível'
   | 'Delivery'
   | 'Educação'
@@ -25,6 +26,9 @@ export type IncomeCategory = 'Salário' | 'Freela' | 'Renda passiva' | 'Outros';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
+// Nota: 'Cartão de Crédito' existe em ExpenseCategory mas é uma categoria de
+// sistema (usada só no pagamento de fatura). Fica fora desta lista de propósito,
+// para não aparecer nos seletores de categoria nem no detalhamento por categoria.
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Alimentação',
   'Assinaturas',
