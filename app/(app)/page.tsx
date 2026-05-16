@@ -817,6 +817,8 @@ export default function HomePage() {
           justifyContent: 'space-between',
           alignItems: 'flex-start',
           padding: '18px 22px 0',
+          position: 'relative',
+          zIndex: 50,
           ...(mounted ? anim(50) : hidden),
         }}
       >
