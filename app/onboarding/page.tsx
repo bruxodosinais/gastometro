@@ -54,19 +54,9 @@ function numToStr(n: number): string {
 
 function Wordmark() {
   return (
-    <div className="flex items-center gap-2 justify-center mb-6">
-      <div
-        className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-[11px] flex-shrink-0"
-        style={{ background: 'var(--accent)' }}
-      >
-        ✅
-      </div>
-      <span
-        className="text-sm font-extrabold"
-        style={{ color: 'var(--accent)' }}
-      >
-        TôOrganizado
-      </span>
+    <div className="flex justify-center mb-6">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo-horizontal.png" alt="TôOrganizado" className="h-6 w-auto" />
     </div>
   );
 }

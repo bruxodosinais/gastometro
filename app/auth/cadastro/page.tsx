@@ -177,34 +177,12 @@ function CadastroContent() {
       >
         {/* Hero */}
         <div className="auth-hero" style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              background: 'var(--surface)',
-              border: '1.5px solid var(--border)',
-              borderRadius: '24px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '38px',
-              margin: '0 auto 16px',
-            }}
-          >
-            ✅
-          </div>
-          <h1
-            style={{
-              fontWeight: 900,
-              fontSize: '28px',
-              letterSpacing: '-0.03em',
-              margin: '0 0 6px',
-              color: 'var(--text)',
-            }}
-          >
-            Tô<span style={{ color: 'var(--accent)' }}>Organizado</span>
-          </h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-vertical.png"
+            alt="TôOrganizado"
+            style={{ width: '132px', height: 'auto', display: 'block', margin: '0 auto 16px' }}
+          />
           <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-3)', margin: 0 }}>
             Crie sua conta gratuita
           </p>

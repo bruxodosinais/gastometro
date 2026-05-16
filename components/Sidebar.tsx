@@ -195,26 +195,13 @@ export default function Sidebar() {
       }}
     >
       {/* Brand */}
-      <div style={{ padding: '18px 16px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            background: 'var(--accent)',
-            borderRadius: 9,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 16,
-            flexShrink: 0,
-          }}
-        >
-          ✅
-        </div>
-        <div style={{ display: 'flex', gap: 2, fontFamily: 'inherit' }}>
-          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--text)' }}>Tô</span>
-          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--accent)' }}>Organizado</span>
-        </div>
+      <div style={{ padding: '18px 16px 12px' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-horizontal.png"
+          alt="TôOrganizado"
+          style={{ height: 26, width: 'auto', maxWidth: '100%', display: 'block' }}
+        />
       </div>
 
       {/* User card */}

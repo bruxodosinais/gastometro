@@ -769,26 +769,12 @@ export default function HomePage() {
     >
       {/* ── 1. WORDMARK ────────────────────────────────────────────────────── */}
       <div className="mobile-only" style={{ padding: '16px 22px 0', ...(mounted ? anim(0) : hidden) }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 22,
-              height: 22,
-              background: 'var(--accent)',
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              flexShrink: 0,
-            }}
-          >
-            ✅
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>
-            TôOrganizado
-          </span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-horizontal.png"
+          alt="TôOrganizado"
+          style={{ height: 24, width: 'auto', display: 'block' }}
+        />
       </div>
 
       {/* ── 2. HEADER ──────────────────────────────────────────────────────── */}

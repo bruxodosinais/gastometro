@@ -44,17 +44,12 @@ function ConfirmadoContent() {
           >
             {sucesso ? '✅' : '✉️'}
           </div>
-          <h1
-            style={{
-              fontWeight: 900,
-              fontSize: '28px',
-              letterSpacing: '-0.03em',
-              margin: '0 0 6px',
-              color: 'var(--text)',
-            }}
-          >
-            Tô<span style={{ color: 'var(--accent)' }}>Organizado</span>
-          </h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-horizontal.png"
+            alt="TôOrganizado"
+            style={{ height: '26px', width: 'auto', display: 'block', margin: '0 auto' }}
+          />
         </div>
 
         {/* Card */}
