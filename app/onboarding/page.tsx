@@ -2,18 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
   addRecurringExpense,
   addObligationForNewRecurring,
+  deleteRecurringExpense,
+  deleteObligationsByRecurringIds,
   upsertMonthlyPlan,
   getRecurringExpenses,
   updateRecurringExpense,
   addCreditCard,
+  deleteCreditCard,
+  getExpenses,
+  addExpense,
+  updateExpense,
+  getAssets,
+  createAsset,
+  updateAsset,
+  getMonthlyObligations,
+  markObligationAsPaid,
 } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
-import type { ExpenseCategory } from '@/lib/types';
+import type { ExpenseCategory, MonthlyObligation, RecurringExpense } from '@/lib/types';
 
 // ─── Dados dos chips de contas fixas ─────────────────────────────────────────
 
@@ -35,7 +45,9 @@ const CHIPS: ChipDef[] = [
   { id: 'saude',     label: 'Plano de saúde',   icon: '🏥', category: 'Saúde' },
 ];
 
-const TOTAL_STEPS = 4;
+// 5 passos visíveis: renda, contas fixas, cartões, meta, situação financeira.
+// A situação financeira tem 3 sub-etapas (A/B/C) mas conta como 1 passo.
+const TOTAL_STEPS = 5;
 const MAX_CARDS = 3;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -79,6 +91,25 @@ function ProgressDots({ filled }: { filled: number }) {
   );
 }
 
+// Sub-progresso das 3 etapas (A/B/C) dentro do passo "Situação financeira".
+function SubDots({ active }: { active: number }) {
+  return (
+    <div className="flex gap-1.5 justify-center">
+      {Array.from({ length: 3 }, (_, i) => (
+        <div
+          key={i}
+          className="h-1 rounded-full transition-all duration-300"
+          style={
+            i === active
+              ? { width: 20, background: 'var(--accent)' }
+              : { width: 8, background: '#e5e7eb' }
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function BigCurrencyInput({
   value,
   onChange,
@@ -115,13 +146,13 @@ function BigCurrencyInput({
   );
 }
 
-function SkipLink({ onSkip }: { onSkip: () => void }) {
+function SkipLink({ label, onSkip }: { label?: string; onSkip: () => void }) {
   return (
     <button
       onClick={onSkip}
       className="mt-4 text-gray-400 text-sm text-center w-full"
     >
-      Pular
+      {label ?? 'Pular'}
     </button>
   );
 }
@@ -149,6 +180,62 @@ function PrimaryButton({
   );
 }
 
+// Botão "Voltar" — outline indigo. Preserva os dados já preenchidos: a
+// navegação só troca o passo, nenhum estado de formulário é resetado.
+function SecondaryButton({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="py-3.5 px-5 rounded-xl font-semibold transition-colors flex-shrink-0"
+      style={{
+        border: '1.5px solid var(--accent)',
+        color: 'var(--accent)',
+        background: '#fff',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Linha de navegação: "Voltar" (outline) + ação primária (Continuar/Próximo).
+function NavRow({
+  onBack,
+  showBack = true,
+  onPrimary,
+  primaryLabel,
+  primaryDisabled,
+  loading,
+}: {
+  onBack: () => void;
+  showBack?: boolean;
+  onPrimary: () => void;
+  primaryLabel: React.ReactNode;
+  primaryDisabled?: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <div className="flex gap-3">
+      {showBack && <SecondaryButton onClick={onBack}>Voltar</SecondaryButton>}
+      <div className="flex-1">
+        <PrimaryButton
+          onClick={onPrimary}
+          disabled={primaryDisabled}
+          loading={loading}
+        >
+          {primaryLabel}
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tipos de estado ─────────────────────────────────────────────────────────
 
 type CardForm = {
@@ -160,7 +247,9 @@ type CardForm = {
 
 const EMPTY_CARD: CardForm = { nome: '', limite: '', fechamento: '', vencimento: '' };
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5;
+// 0 boas-vindas · 1 renda · 2 contas fixas · 3 cartões · 4 meta
+// 5 sit. financeira A · 6 sit. financeira B · 7 sit. financeira C (resumo final)
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
@@ -185,15 +274,29 @@ export default function OnboardingPage() {
   const [customValue, setCustomValue] = useState('');
   const [customDueDay, setCustomDueDay] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
+  // IDs criados no passo 2 — apagados e recriados se o usuário voltar e
+  // avançar de novo, evitando recorrentes/obrigações duplicadas.
+  const [createdRecurringIds, setCreatedRecurringIds] = useState<string[]>([]);
 
   // Passo 3 — cartão de crédito
   const [useCredit, setUseCredit] = useState(false);
   const [cards, setCards] = useState<CardForm[]>([{ ...EMPTY_CARD }]);
+  const [createdCardIds, setCreatedCardIds] = useState<string[]>([]);
 
   // Passo 4 — meta de poupança
   const [savings, setSavings] = useState('');
 
-  // Resumo para passo 5
+  // Passo 5 — situação financeira atual
+  const [balance, setBalance] = useState('');       // saldo atual em conta
+  const [emergency, setEmergency] = useState('');   // reserva de emergência
+  const [salaryDropped, setSalaryDropped] = useState(false);
+  const [salaryRec, setSalaryRec] = useState<RecurringExpense | null>(null);
+  const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
+  const [paidObligationIds, setPaidObligationIds] = useState<Set<string>>(new Set());
+  const [loadingB, setLoadingB] = useState(false);
+  const [committing, setCommitting] = useState(false);
+
+  // Resumo
   const [savedIncome, setSavedIncome] = useState(0);
   const [savedRecurringCount, setSavedRecurringCount] = useState(0);
   const [savedCardCount, setSavedCardCount] = useState(0);
@@ -215,12 +318,54 @@ export default function OnboardingPage() {
     });
   }, []);
 
+  // Ao entrar na sub-etapa B, carrega o salário recorrente (passo 1) e as
+  // contas fixas do mês (obrigações criadas no passo 2). Recarrega a cada
+  // entrada para refletir edições feitas ao voltar.
+  useEffect(() => {
+    if (step !== 6) return;
+    let cancelled = false;
+    setLoadingB(true);
+    (async () => {
+      try {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const [recs, obs] = await Promise.all([
+          getRecurringExpenses(),
+          getMonthlyObligations(currentMonth),
+        ]);
+        if (cancelled) return;
+        const sal =
+          recs.find(
+            (r) => r.type === 'income' && /sal[áa]rio/i.test(r.description),
+          ) ?? null;
+        setSalaryRec(sal);
+        const pending = obs.filter((o) => o.status === 'pending');
+        setObligations(pending);
+        // Mantém só as marcações cujas obrigações ainda existem.
+        setPaidObligationIds((prev) => {
+          const valid = new Set(pending.map((o) => o.id));
+          return new Set([...prev].filter((id) => valid.has(id)));
+        });
+      } catch (e) {
+        console.error('Onboarding: erro ao carregar situação do mês:', e);
+      } finally {
+        if (!cancelled) setLoadingB(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
+
   function goTo(next: Step) {
     setVisible(false);
     setTimeout(() => {
       setStep(next);
       setVisible(true);
     }, 180);
+  }
+
+  function goBack() {
+    goTo((step - 1) as Step);
   }
 
   async function completeOnboarding() {
@@ -241,6 +386,14 @@ export default function OnboardingPage() {
 
   // Tela 0 — pular tudo
   async function handleSkipAll() {
+    await completeOnboarding();
+  }
+
+  // Situação financeira — "Pular por agora": vai direto pra home sem gravar
+  // nada do passo financeiro (saldo, reserva, contas pagas, salário recebido).
+  // Os passos anteriores já persistiram seus dados; o plano mensal (renda/meta)
+  // segue salvo via completeOnboarding.
+  async function handleSkipFinance() {
     await completeOnboarding();
   }
 
@@ -308,6 +461,20 @@ export default function OnboardingPage() {
 
   async function handleStep2Continue() {
     setSaving(true);
+    // Idempotência: ao voltar e avançar de novo, apaga o que foi criado antes
+    // (obrigações primeiro, depois recorrentes) e recria a partir dos valores
+    // atuais — sem duplicar.
+    if (createdRecurringIds.length > 0) {
+      try {
+        await deleteObligationsByRecurringIds(createdRecurringIds);
+        for (const id of createdRecurringIds) {
+          await deleteRecurringExpense(id);
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao limpar recorrentes anteriores:', e);
+      }
+    }
+    const newIds: string[] = [];
     let count = 0;
     for (const chip of CHIPS) {
       if (!selectedChips.has(chip.id)) continue;
@@ -326,6 +493,7 @@ export default function OnboardingPage() {
           isVariable: false,
         });
         await addObligationForNewRecurring(rec);
+        newIds.push(rec.id);
         count++;
       } catch (e) {
         console.error(`Onboarding: erro ao salvar ${chip.label}:`, e);
@@ -346,12 +514,14 @@ export default function OnboardingPage() {
             isVariable: false,
           });
           await addObligationForNewRecurring(rec);
+          newIds.push(rec.id);
           count++;
         } catch (e) {
           console.error('Onboarding: erro ao salvar item personalizado:', e);
         }
       }
     }
+    setCreatedRecurringIds(newIds);
     setSavedRecurringCount(count);
     setSaving(false);
     goTo(3);
@@ -372,8 +542,21 @@ export default function OnboardingPage() {
   }
 
   async function handleStep3Continue() {
+    setSaving(true);
+    // Idempotência: apaga os cartões criados antes (se o usuário voltou) e
+    // recria a partir do estado atual.
+    if (createdCardIds.length > 0) {
+      try {
+        for (const id of createdCardIds) {
+          await deleteCreditCard(id);
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao limpar cartões anteriores:', e);
+      }
+      setCreatedCardIds([]);
+    }
     if (useCredit) {
-      setSaving(true);
+      const newIds: string[] = [];
       let count = 0;
       for (const c of cards) {
         const nome = c.nome.trim();
@@ -386,54 +569,173 @@ export default function OnboardingPage() {
         const vencimentoOk =
           Number.isFinite(vencimento) && vencimento >= 1 && vencimento <= 28;
         try {
-          await addCreditCard({
+          const created = await addCreditCard({
             nome,
             limite,
             diaFechamento: fechamentoOk ? fechamento : null,
             diaVencimento: vencimentoOk ? vencimento : null,
             ativo: true,
           });
+          newIds.push(created.id);
           count++;
         } catch (e) {
           console.error(`Onboarding: erro ao salvar cartão ${nome}:`, e);
         }
       }
+      setCreatedCardIds(newIds);
       setSavedCardCount(count);
-      setSaving(false);
     } else {
       setSavedCardCount(0);
     }
+    setSaving(false);
     goTo(4);
   }
 
   // Tela 4 — meta de poupança
   function handleStep4Continue() {
     const amount = parseAmount(savings);
-    if (amount > 0) {
-      setSavedSavings(amount);
-    }
+    setSavedSavings(amount > 0 ? amount : 0);
     goTo(5);
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // Tela 5 — situação financeira A (saldo + reserva)
+  function handleStepAContinue() {
+    if (parseAmount(balance) <= 0) return;
+    goTo(6);
+  }
+
+  // Tela 7 — "Começar organizado": grava saldo inicial, reserva, salário
+  // recebido e contas marcadas como pagas, depois finaliza o onboarding.
+  // Cada escrita é idempotente para suportar voltar/avançar sem duplicar.
+  async function handleFinish() {
+    if (committing) return;
+    setCommitting(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = today.slice(0, 7);
+
+    const bal = parseAmount(balance);
+    if (bal > 0) {
+      try {
+        const all = await getExpenses();
+        const existing = all.find(
+          (e) => e.type === 'income' && e.category === 'Saldo inicial',
+        );
+        if (existing) {
+          if (existing.amount !== bal) {
+            await updateExpense(existing.id, {
+              type: existing.type,
+              amount: bal,
+              description: existing.description,
+              category: existing.category,
+              date: existing.date,
+              recurringExpenseId: existing.recurringExpenseId,
+              creditCardId: existing.creditCardId,
+              isCredit: existing.isCredit,
+              billingMonth: existing.billingMonth,
+            });
+          }
+        } else {
+          await addExpense({
+            type: 'income',
+            amount: bal,
+            description: 'Saldo inicial',
+            category: 'Saldo inicial',
+            date: today,
+          });
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao salvar saldo inicial:', e);
+      }
+    }
+
+    const emg = parseAmount(emergency);
+    if (emg > 0) {
+      try {
+        const assets = await getAssets();
+        const existing = assets.find(
+          (a) => a.type === 'caixa' && a.name === 'Reserva de emergência',
+        );
+        if (existing) {
+          if (existing.value !== emg) {
+            await updateAsset(existing.id, { value: emg });
+          }
+        } else {
+          await createAsset({
+            name: 'Reserva de emergência',
+            type: 'caixa',
+            value: emg,
+          });
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao salvar reserva de emergência:', e);
+      }
+    }
+
+    if (salaryDropped && salaryRec) {
+      try {
+        const all = await getExpenses();
+        const already = all.some(
+          (e) =>
+            e.recurringExpenseId === salaryRec.id &&
+            typeof e.date === 'string' &&
+            e.date.slice(0, 7) === currentMonth,
+        );
+        if (!already) {
+          await addExpense(
+            {
+              type: 'income',
+              amount: salaryRec.amount,
+              description: salaryRec.description,
+              category: salaryRec.category,
+              date: today,
+            },
+            salaryRec.id,
+          );
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao marcar salário recebido:', e);
+      }
+    }
+
+    for (const ob of obligations) {
+      if (!paidObligationIds.has(ob.id)) continue;
+      try {
+        // markObligationAsPaid já deduplica o lançamento por recorrente/mês.
+        await markObligationAsPaid(ob.id, ob);
+      } catch (e) {
+        console.error(`Onboarding: erro ao marcar "${ob.description}" como paga:`, e);
+      }
+    }
+
+    // Sem setCommitting(false): completeOnboarding navega para fora da página.
+    await completeOnboarding();
+  }
+
+  function togglePaidObligation(id: string) {
+    setPaidObligationIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // ─── Valores derivados ─────────────────────────────────────────────────────
 
   const incomeNum = parseAmount(income);
   const savingsMax = savedIncome > 0 ? savedIncome * 0.5 : 5000;
   const savingsNum = parseAmount(savings);
   const savingsPct = savingsMax > 0 ? (savingsNum / savingsMax) * 100 : 0;
 
+  const balanceNum = parseAmount(balance);
+  const paidThisMonth = obligations
+    .filter((o) => paidObligationIds.has(o.id))
+    .reduce((sum, o) => sum + o.amount, 0);
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6 py-8 relative">
-      {/* Botão voltar — telas 1..4 */}
-      {(step === 1 || step === 2 || step === 3 || step === 4) && (
-        <button
-          onClick={() => goTo((step - 1) as Step)}
-          className="absolute top-4 left-4 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
-          aria-label="Voltar"
-        >
-          <ChevronLeft size={22} />
-        </button>
-      )}
       <div
         className="w-full max-w-sm flex flex-col"
         style={{
@@ -497,13 +799,13 @@ export default function OnboardingPage() {
               <span className="text-sm text-gray-400">do mês</span>
             </div>
             <div className="h-6" />
-            <PrimaryButton
-              onClick={handleStep1Continue}
-              disabled={incomeNum <= 0}
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleStep1Continue}
+              primaryLabel="Continuar"
+              primaryDisabled={incomeNum <= 0}
               loading={saving}
-            >
-              Continuar
-            </PrimaryButton>
+            />
             <SkipLink onSkip={() => goTo(2)} />
           </div>
         )}
@@ -665,9 +967,12 @@ export default function OnboardingPage() {
             </div>
 
             <div className="h-5" />
-            <PrimaryButton onClick={handleStep2Continue} loading={saving}>
-              Continuar
-            </PrimaryButton>
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleStep2Continue}
+              primaryLabel="Continuar"
+              loading={saving}
+            />
             <SkipLink onSkip={() => goTo(3)} />
           </div>
         )}
@@ -821,9 +1126,12 @@ export default function OnboardingPage() {
             )}
 
             <div className="h-5" />
-            <PrimaryButton onClick={handleStep3Continue} loading={saving}>
-              Continuar
-            </PrimaryButton>
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleStep3Continue}
+              primaryLabel="Continuar"
+              loading={saving}
+            />
             <SkipLink onSkip={() => { setUseCredit(false); goTo(4); }} />
           </div>
         )}
@@ -890,18 +1198,217 @@ export default function OnboardingPage() {
             </div>
 
             <div className="h-8" />
-            <PrimaryButton onClick={handleStep4Continue} loading={saving}>
-              Concluir configuração
-            </PrimaryButton>
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleStep4Continue}
+              primaryLabel="Continuar"
+              loading={saving}
+            />
             <SkipLink onSkip={() => goTo(5)} />
           </div>
         )}
 
-        {/* ── Tela 5 — Tudo pronto ─────────────────────────────────────── */}
+        {/* ── Tela 5 — Situação financeira · A: quanto você tem ─────────── */}
         {step === 5 && (
+          <div className="flex flex-col gap-0">
+            <ProgressDots filled={5} />
+            <div className="h-6" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
+              Passo 5 de {TOTAL_STEPS} · Situação financeira
+            </p>
+            <div className="h-3" />
+            <SubDots active={0} />
+            <div className="h-4" />
+            <h2 className="text-xl font-bold text-gray-900 text-center">
+              Quanto você tem agora?
+            </h2>
+            <p className="text-sm text-gray-400 text-center mt-1 mb-6">
+              Isso define seu ponto de partida real no app.
+            </p>
+
+            <p className="text-xs font-semibold text-gray-500 text-center mb-1">
+              Saldo atual em conta
+            </p>
+            <BigCurrencyInput value={balance} onChange={setBalance} />
+
+            <div className="h-6" />
+            <p className="text-xs font-semibold text-gray-500 mb-1">
+              Reserva de emergência{' '}
+              <span className="font-normal text-gray-400">(opcional)</span>
+            </p>
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+              <span className="text-sm text-gray-400 font-medium flex-shrink-0">R$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={emergency}
+                onChange={(e) =>
+                  setEmergency(e.target.value.replace(/[^0-9.,]/g, ''))
+                }
+                placeholder="0,00"
+                className="min-w-0 flex-1 text-sm bg-transparent outline-none text-gray-900 placeholder:text-gray-300"
+                style={{ caretColor: 'var(--accent)' }}
+              />
+            </div>
+
+            <div className="h-7" />
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleStepAContinue}
+              primaryLabel="Próximo"
+              primaryDisabled={balanceNum <= 0}
+            />
+            <SkipLink label="Pular por agora" onSkip={handleSkipFinance} />
+          </div>
+        )}
+
+        {/* ── Tela 6 — Situação financeira · B: o que já aconteceu ──────── */}
+        {step === 6 && (
+          <div className="flex flex-col gap-0">
+            <ProgressDots filled={5} />
+            <div className="h-6" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
+              Passo 5 de {TOTAL_STEPS} · Situação financeira
+            </p>
+            <div className="h-3" />
+            <SubDots active={1} />
+            <div className="h-4" />
+            <h2 className="text-xl font-bold text-gray-900 text-center">
+              O que já aconteceu esse mês?
+            </h2>
+            <p className="text-sm text-gray-400 text-center mt-1 mb-5">
+              Vamos deixar o app igual à sua vida real agora.
+            </p>
+
+            {loadingB ? (
+              <p className="text-sm text-gray-400 text-center py-8">Carregando…</p>
+            ) : (
+              <div className="space-y-4">
+                {salaryRec && (
+                  <div className="rounded-xl border border-gray-100 p-3" style={{ background: '#f9fafb' }}>
+                    <p className="text-sm font-medium text-gray-700 mb-2">
+                      Seu salário deste mês já caiu?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setSalaryDropped(false)}
+                        className="py-2 rounded-lg border text-sm font-semibold transition-colors"
+                        style={
+                          !salaryDropped
+                            ? {
+                                background: 'var(--accent-bg)',
+                                borderColor: 'var(--accent)',
+                                color: 'var(--accent)',
+                              }
+                            : {
+                                background: '#fff',
+                                borderColor: '#f3f4f6',
+                                color: '#6b7280',
+                              }
+                        }
+                      >
+                        Ainda não
+                      </button>
+                      <button
+                        onClick={() => setSalaryDropped(true)}
+                        className="py-2 rounded-lg border text-sm font-semibold transition-colors"
+                        style={
+                          salaryDropped
+                            ? {
+                                background: 'var(--accent-bg)',
+                                borderColor: 'var(--accent)',
+                                color: 'var(--accent)',
+                              }
+                            : {
+                                background: '#fff',
+                                borderColor: '#f3f4f6',
+                                color: '#6b7280',
+                              }
+                        }
+                      >
+                        Sim, já caiu
+                      </button>
+                    </div>
+                    {salaryDropped && (
+                      <p className="text-xs mt-2" style={{ color: 'var(--accent)' }}>
+                        Vamos marcar {formatCurrency(salaryRec.amount)} como recebido.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {obligations.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">
+                      Quais contas você já pagou?
+                    </p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto -mx-1 px-1">
+                      {obligations.map((ob) => {
+                        const checked = paidObligationIds.has(ob.id);
+                        return (
+                          <button
+                            key={ob.id}
+                            onClick={() => togglePaidObligation(ob.id)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors"
+                            style={
+                              checked
+                                ? {
+                                    background: 'var(--accent-bg)',
+                                    borderColor: 'var(--accent)',
+                                  }
+                                : {
+                                    background: '#f9fafb',
+                                    borderColor: '#f3f4f6',
+                                  }
+                            }
+                          >
+                            <div
+                              className="w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                              style={
+                                checked
+                                  ? { background: 'var(--accent)', borderColor: 'var(--accent)' }
+                                  : { background: '#fff', borderColor: '#d1d5db' }
+                              }
+                            >
+                              {checked ? '✓' : ''}
+                            </div>
+                            <span className="flex-1 min-w-0 truncate text-sm text-gray-800">
+                              {ob.description}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-600 flex-shrink-0">
+                              {formatCurrency(ob.amount)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  !salaryRec && (
+                    <p className="text-sm text-gray-400 text-center py-6">
+                      Você ainda não cadastrou contas fixas. Pode seguir em frente.
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+
+            <div className="h-7" />
+            <NavRow
+              onBack={goBack}
+              onPrimary={() => goTo(7)}
+              primaryLabel="Próximo"
+              primaryDisabled={loadingB}
+            />
+            <SkipLink label="Pular por agora" onSkip={handleSkipFinance} />
+          </div>
+        )}
+
+        {/* ── Tela 7 — Situação financeira · C: resumo + tudo pronto ────── */}
+        {step === 7 && (
           <div className="flex flex-col items-center text-center gap-0">
             <div
-              className="w-20 h-20 rounded-full border-2 flex items-center justify-center text-4xl mb-6"
+              className="w-16 h-16 rounded-full border-2 flex items-center justify-center text-3xl mb-4"
               style={{
                 background: 'var(--accent-bg)',
                 borderColor: 'var(--accent)',
@@ -912,15 +1419,47 @@ export default function OnboardingPage() {
               ✓
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
               Tudo configurado!
             </h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Veja como você começa no TôOrganizado.
+            </p>
 
+            {/* Resumo financeiro (saldo de partida) */}
+            <div
+              className="w-full rounded-xl px-4 py-4 mb-4 border text-center"
+              style={{
+                background: 'var(--accent-bg)',
+                borderColor: 'var(--accent-soft)',
+              }}
+            >
+              <p className="text-xs text-gray-500">Você começa com</p>
+              <p
+                className="text-3xl font-bold my-1"
+                style={{ color: 'var(--accent)' }}
+              >
+                {formatCurrency(balanceNum)}
+              </p>
+              <p className="text-xs text-gray-500">em conta</p>
+              {paidThisMonth > 0 && (
+                <p className="text-sm text-gray-600 mt-3 pt-3 border-t border-white">
+                  <span className="font-semibold">
+                    {formatCurrency(paidThisMonth)}
+                  </span>{' '}
+                  já saiu esse mês
+                </p>
+              )}
+            </div>
+
+            {/* Resumo dos itens cadastrados */}
             {(savedIncome > 0 ||
               savedRecurringCount > 0 ||
               savedCardCount > 0 ||
-              savedSavings > 0) && (
-              <div className="w-full bg-gray-50 rounded-xl px-4 py-4 mb-8 space-y-2.5 text-left">
+              savedSavings > 0 ||
+              parseAmount(emergency) > 0 ||
+              (salaryDropped && salaryRec)) && (
+              <div className="w-full bg-gray-50 rounded-xl px-4 py-4 mb-6 space-y-2.5 text-left">
                 {savedIncome > 0 && (
                   <div className="flex items-center gap-2.5 text-sm text-gray-700">
                     <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
@@ -962,21 +1501,34 @@ export default function OnboardingPage() {
                     </span>
                   </div>
                 )}
+                {parseAmount(emergency) > 0 && (
+                  <div className="flex items-center gap-2.5 text-sm text-gray-700">
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
+                    <span>
+                      Reserva de{' '}
+                      <span className="font-semibold">
+                        {formatCurrency(parseAmount(emergency))}
+                      </span>{' '}
+                      registrada
+                    </span>
+                  </div>
+                )}
+                {salaryDropped && salaryRec && (
+                  <div className="flex items-center gap-2.5 text-sm text-gray-700">
+                    <span className="font-bold" style={{ color: 'var(--accent)' }}>✓</span>
+                    <span>Salário deste mês marcado como recebido</span>
+                  </div>
+                )}
               </div>
             )}
 
-            {savedIncome === 0 &&
-              savedRecurringCount === 0 &&
-              savedCardCount === 0 &&
-              savedSavings === 0 && (
-              <p className="text-gray-400 text-sm mb-8">
-                Você pode configurar tudo isso a qualquer momento nas configurações.
-              </p>
-            )}
-
-            <PrimaryButton onClick={completeOnboarding}>
-              Ver meu TôOrganizado →
-            </PrimaryButton>
+            <NavRow
+              onBack={goBack}
+              onPrimary={handleFinish}
+              primaryLabel="Começar organizado"
+              loading={committing}
+            />
+            <SkipLink label="Pular por agora" onSkip={handleSkipFinance} />
           </div>
         )}
       </div>

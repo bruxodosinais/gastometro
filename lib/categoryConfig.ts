@@ -196,4 +196,15 @@ export const CATEGORY_CONFIG: Record<Category, Config> = {
     textClass: 'text-emerald-400',
     barClass: 'bg-emerald-500',
   },
+  // Categoria de sistema — receita gerada pelo onboarding como saldo de
+  // partida. Não aparece em seletores (fora de INCOME_CATEGORIES), mas o
+  // Record<Category> exige a entrada para os lançamentos existentes.
+  'Saldo inicial': {
+    icon: '🏦',
+    color: '#5B5BD6',
+    bgClass: 'bg-indigo-500/10',
+    borderClass: 'border-indigo-500/20',
+    textClass: 'text-indigo-400',
+    barClass: 'bg-indigo-500',
+  },
 };

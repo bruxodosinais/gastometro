@@ -990,6 +990,30 @@ export async function addObligationForNewRecurring(
   return toMonthlyObligation(data);
 }
 
+// Remove as obrigações do mês atual de um conjunto de recorrentes. Usado pelo
+// onboarding para tornar o passo "contas fixas" idempotente: ao voltar e
+// avançar de novo, as obrigações criadas antes são apagadas e recriadas a
+// partir dos valores atuais, sem duplicar (deleteRecurringExpense não cascateia
+// para monthly_obligations de forma garantida neste schema).
+export async function deleteObligationsByRecurringIds(
+  recurringIds: string[]
+): Promise<void> {
+  if (recurringIds.length === 0) return;
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  await supabase
+    .from('monthly_obligations')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('month', currentMonth)
+    .in('recurring_expense_id', recurringIds);
+  invalidate('obligations');
+}
+
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────
 
 function toCreditCard(row: Record<string, unknown>): CreditCard {

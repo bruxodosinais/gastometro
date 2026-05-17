@@ -22,7 +22,12 @@ export type ExpenseCategory =
   | 'Vestuário'
   | 'Viagem';
 
-export type IncomeCategory = 'Salário' | 'Freela' | 'Renda passiva' | 'Outros';
+export type IncomeCategory =
+  | 'Salário'
+  | 'Freela'
+  | 'Renda passiva'
+  | 'Outros'
+  | 'Saldo inicial';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
@@ -51,6 +56,10 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Viagem',
 ];
 
+// Nota: 'Saldo inicial' existe em IncomeCategory mas é uma categoria de
+// sistema (gerada só pelo onboarding como ponto de partida do saldo). Fica
+// fora desta lista de propósito — mesmo padrão de 'Cartão de Crédito' acima —
+// para não aparecer nos seletores de receita nem nos detalhamentos por fonte.
 export const INCOME_CATEGORIES: IncomeCategory[] = [
   'Salário',
   'Freela',
