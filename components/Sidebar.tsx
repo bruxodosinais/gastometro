@@ -7,7 +7,7 @@ import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { getCachedUser } from '@/lib/dataCache';
 import {
   getMonthlyObligations,
   getRecurringExpenses,
@@ -62,8 +62,7 @@ export default function Sidebar() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCachedUser();
       if (!user || !mounted) return;
       const meta = user.user_metadata as Record<string, string> | undefined;
       const name =

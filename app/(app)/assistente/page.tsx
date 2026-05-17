@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Send, Bot, Loader2, Check, X, RotateCcw } from 'lucide-react';
 import { addExpense } from '@/lib/storage';
 import { Category, EntryType } from '@/lib/types';
@@ -176,7 +175,6 @@ function WelcomeScreen({ onSuggest }: { onSuggest: (text: string) => void }) {
 const STORAGE_KEY = 'gastometro_chat_history';
 
 export default function AssistentePage() {
-  const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
   const subscription = useSubscription();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -327,7 +325,9 @@ export default function AssistentePage() {
         return next;
       });
       addToast('Lançamento registrado!', 'success');
-      router.refresh();
+      // router.refresh() removido: a Home/Histórico são client-side. addExpense
+      // já invalidou a cache de 'expenses'; o evento abaixo avisa o Histórico
+      // (que escuta 'gastometro_expense_added') para recarregar na hora.
       window.dispatchEvent(new CustomEvent('gastometro_expense_added'));
     } catch (err) {
       console.error('confirmExpense:', err);

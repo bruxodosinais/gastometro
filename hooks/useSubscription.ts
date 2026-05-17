@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { cachedFetch, getCachedUser, invalidate, TTL } from '@/lib/dataCache';
 
 export type SubscriptionPlan = 'free' | 'pro';
 export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due';
@@ -41,25 +42,29 @@ export function useSubscription(): UseSubscriptionResult {
   const [row, setRow] = useState<SubscriptionRow>(DEFAULT_FREE);
   const [loading, setLoading] = useState(true);
 
-  const fetchSub = useCallback(async () => {
+  // useSubscription é montado por Sidebar + Navigation + HomePage ao mesmo
+  // tempo. Antes, cada instância fazia getUser() + query subscriptions
+  // independentemente (3× cada). Agora compartilham 1 round-trip via cache.
+  const fetchSub = useCallback(async (force = false) => {
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setRow(DEFAULT_FREE);
-        return;
-      }
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('plan, billing_cycle, status, current_period_end, kiwify_order_id, kiwify_subscription_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (data) {
-        setRow(data as SubscriptionRow);
-      } else {
-        setRow(DEFAULT_FREE);
-      }
+      if (force) invalidate('subscription');
+      const data = await cachedFetch<SubscriptionRow>(
+        'subscription',
+        TTL.SUBSCRIPTION,
+        async () => {
+          const user = await getCachedUser();
+          if (!user) return DEFAULT_FREE;
+          const supabase = createClient();
+          const { data } = await supabase
+            .from('subscriptions')
+            .select('plan, billing_cycle, status, current_period_end, kiwify_order_id, kiwify_subscription_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          return (data as SubscriptionRow | null) ?? DEFAULT_FREE;
+        }
+      );
+      setRow(data);
     } catch {
       setRow(DEFAULT_FREE);
     } finally {
@@ -84,7 +89,8 @@ export function useSubscription(): UseSubscriptionResult {
     billingCycle: row.billing_cycle,
     currentPeriodEnd,
     loading,
-    refetch: fetchSub,
+    // refetch força bypass do cache (usado após upgrade/checkout).
+    refetch: useCallback(() => fetchSub(true), [fetchSub]),
   };
 }
 

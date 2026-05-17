@@ -22,8 +22,9 @@ import {
   addExpense,
   getAllGoalContributions,
   getCreditCards,
-  getCreditCardFatura,
+  faturaFromExpenses,
 } from '@/lib/storage';
+import { getCachedUser } from '@/lib/dataCache';
 import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
@@ -168,13 +169,14 @@ export default function HomePage() {
       setContributions(contrib);
       setCreditCards(cards);
       if (cards.length > 0) {
-        const faturas = await Promise.all(
-          cards.map(async (card) => ({
+        // Deriva a fatura dos expenses já carregados — zero query extra
+        // (antes: 1 getCreditCardFatura por cartão).
+        setCardFaturas(
+          cards.map((card) => ({
             card,
-            total: await getCreditCardFatura(card.id, currentMonth),
+            total: faturaFromExpenses(exp, card.id, currentMonth),
           }))
         );
-        setCardFaturas(faturas);
       }
       setReady(true);
     } catch (err) {
@@ -190,9 +192,7 @@ export default function HomePage() {
       loadingUserRef.current = true;
       try {
         const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getCachedUser();
         if (!user) return;
         const meta = user.user_metadata as Record<string, string> | undefined;
         const name =

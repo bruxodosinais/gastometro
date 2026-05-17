@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { getCachedUser } from '@/lib/dataCache';
 
 const STORAGE_KEY = 'weekly_report_dismissed_week';
 
@@ -70,8 +70,7 @@ export default function WeeklyReportModal() {
       }
 
       // Confirma sessão antes de abrir.
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCachedUser();
       if (!user) return;
 
       setLoading(true);

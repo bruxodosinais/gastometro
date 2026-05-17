@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { getCachedUser } from '@/lib/dataCache';
 import { usePeriod } from '@/lib/periodContext';
 import { getMonthKey } from '@/lib/calculations';
 import {
@@ -23,8 +23,7 @@ export default function TopbarDesktop() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCachedUser();
       if (!user || !mounted) return;
       const meta = user.user_metadata as Record<string, string> | undefined;
       const name =

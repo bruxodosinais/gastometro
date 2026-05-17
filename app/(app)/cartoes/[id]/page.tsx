@@ -102,8 +102,7 @@ export default function CartaoDetailPage() {
       setPaySuccess(true);
       addToast('Fatura paga! Lançamento registrado.', 'success');
       // Reflete o novo saldo da fatura nesta tela (número + barra) e o
-      // estado "Fatura paga" (badge + data + valor), além de revalidar
-      // dados de servidor (saldo / orçamento livre na Home).
+      // estado "Fatura paga" (badge + data + valor).
       Promise.all([
         getCreditCardFatura(cardId, period),
         getCreditCardPayment(cardId, period),
@@ -113,7 +112,9 @@ export default function CartaoDetailPage() {
           setPayment(pay);
         })
         .catch(() => {});
-      router.refresh();
+      // router.refresh() removido: a Home é client-side (busca via storage),
+      // logo refresh de RSC não atualizava nada lá. addExpense já invalidou a
+      // cache de 'expenses' — a Home pega o dado novo na próxima navegação.
     } catch (err) {
       // addExpense pode lançar um PostgrestError (objeto puro, não Error) —
       // getErrorMessage normaliza para uma mensagem legível em vez de

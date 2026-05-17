@@ -1,4 +1,5 @@
 import { createClient } from './supabase/client';
+import { cachedFetch, getCachedUser, invalidate, TTL } from './dataCache';
 import { Asset, AssetType, Budget, Category, CreditCard, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyObligation, MonthlyPlan, RecurringExpense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
@@ -18,14 +19,16 @@ function toExpense(row: Record<string, unknown>): Expense {
 }
 
 export async function getExpenses(): Promise<Expense[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('expenses')
-    .select('*')
-    .order('date', { ascending: false });
+  return cachedFetch('expenses', TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .order('date', { ascending: false });
 
-  if (error) return [];
-  return (data ?? []).map(toExpense);
+    if (error) return [];
+    return (data ?? []).map(toExpense);
+  });
 }
 
 export async function addExpense(
@@ -56,6 +59,7 @@ export async function addExpense(
     .single();
 
   if (error) throw error;
+  invalidate('expenses');
   return toExpense(row);
 }
 
@@ -91,6 +95,7 @@ export async function addExpenseInstallments(
 
   const { data, error } = await supabase.from('expenses').insert(rows).select();
   if (error) throw error;
+  invalidate('expenses');
   return (data ?? []).map(toExpense);
 }
 
@@ -159,12 +164,14 @@ export async function updateExpense(
   if (!row) {
     throw new Error('Lançamento não encontrado ou sem permissão para editar');
   }
+  invalidate('expenses');
   return toExpense(row);
 }
 
 export async function deleteExpense(id: string): Promise<void> {
   const supabase = createClient();
   await supabase.from('expenses').delete().eq('id', id);
+  invalidate('expenses');
 }
 
 // ─── Recorrentes ─────────────────────────────────────────────────────────────
@@ -196,13 +203,15 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
 }
 
 export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('recurring_expenses')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) return [];
-  return (data ?? []).map(toRecurring);
+  return cachedFetch('recurring', TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('recurring_expenses')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return (data ?? []).map(toRecurring);
+  });
 }
 
 export async function addRecurringExpense(
@@ -236,6 +245,7 @@ export async function addRecurringExpense(
     .single();
 
   if (error) throw error;
+  invalidate('recurring');
   return toRecurring(row);
 }
 
@@ -250,6 +260,7 @@ export async function toggleRecurringExpense(id: string, active: boolean): Promi
     .update({ active })
     .eq('id', id)
     .eq('user_id', user.id);
+  invalidate('recurring');
 }
 
 export async function deleteRecurringExpense(id: string): Promise<void> {
@@ -263,6 +274,7 @@ export async function deleteRecurringExpense(id: string): Promise<void> {
     .delete()
     .eq('id', id)
     .eq('user_id', user.id);
+  invalidate('recurring');
 }
 
 export type UpdateRecurringPayload = {
@@ -308,6 +320,7 @@ export async function updateRecurringExpense(
     .single();
 
   if (error) throw error;
+  invalidate('recurring');
   return toRecurring(row);
 }
 
@@ -390,19 +403,21 @@ export async function checkAndLaunchRecurring(): Promise<void> {
 // ─── Planejamento Mensal ──────────────────────────────────────────────────────
 
 export async function getMonthlyPlan(month: string): Promise<MonthlyPlan | null> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from('monthly_plans')
-    .select('*')
-    .eq('month', month)
-    .maybeSingle();
-  if (!data) return null;
-  return {
-    id: data.id,
-    month: data.month,
-    expectedIncome: data.expected_income,
-    savingsGoal: data.savings_goal,
-  };
+  return cachedFetch(`monthlyPlan:${month}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('monthly_plans')
+      .select('*')
+      .eq('month', month)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      id: data.id,
+      month: data.month,
+      expectedIncome: data.expected_income,
+      savingsGoal: data.savings_goal,
+    };
+  });
 }
 
 export async function upsertMonthlyPlan(
@@ -426,6 +441,7 @@ export async function upsertMonthlyPlan(
     .single();
 
   if (error) throw error;
+  invalidate('monthlyPlan');
   return {
     id: data.id,
     month: data.month,
@@ -445,10 +461,12 @@ function toBudget(row: Record<string, unknown>): Budget {
 }
 
 export async function getBudgets(): Promise<Budget[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from('budgets').select('*');
-  if (error) return [];
-  return (data ?? []).map(toBudget);
+  return cachedFetch('budgets', TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase.from('budgets').select('*');
+    if (error) return [];
+    return (data ?? []).map(toBudget);
+  });
 }
 
 export async function upsertBudget(category: ExpenseCategory, amount: number): Promise<void> {
@@ -463,6 +481,7 @@ export async function upsertBudget(category: ExpenseCategory, amount: number): P
     .upsert({ user_id: user.id, category, amount }, { onConflict: 'user_id,category' });
 
   if (error) throw error;
+  invalidate('budgets');
 }
 
 export async function deleteBudget(category: ExpenseCategory): Promise<void> {
@@ -472,6 +491,7 @@ export async function deleteBudget(category: ExpenseCategory): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) return;
   await supabase.from('budgets').delete().eq('user_id', user.id).eq('category', category);
+  invalidate('budgets');
 }
 
 // ─── Metas Financeiras ────────────────────────────────────────────────────────
@@ -585,13 +605,15 @@ function toContribution(row: Record<string, unknown>): GoalContribution {
 }
 
 export async function getAllGoalContributions(): Promise<GoalContribution[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('goal_contributions')
-    .select('*')
-    .order('date', { ascending: false });
-  if (error) return [];
-  return (data ?? []).map(toContribution);
+  return cachedFetch('goalContributions', TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('goal_contributions')
+      .select('*')
+      .order('date', { ascending: false });
+    if (error) return [];
+    return (data ?? []).map(toContribution);
+  });
 }
 
 // ─── Patrimônio ───────────────────────────────────────────────────────────────
@@ -728,28 +750,42 @@ function toMonthlyObligation(row: Record<string, unknown>): MonthlyObligation {
 }
 
 export async function getMonthlyObligations(month: string): Promise<MonthlyObligation[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('monthly_obligations')
-    .select('*')
-    .eq('month', month)
-    .order('due_day', { ascending: true });
-  if (error) return [];
-  return (data ?? []).map(toMonthlyObligation);
+  return cachedFetch(`obligations:${month}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('monthly_obligations')
+      .select('*')
+      .eq('month', month)
+      .order('due_day', { ascending: true });
+    if (error) return [];
+    return (data ?? []).map(toMonthlyObligation);
+  });
 }
 
 // Gera as obrigações do mês caso ainda não existam. Protegido por sessionStorage
 // para não re-executar desnecessariamente dentro da mesma sessão.
-export async function checkAndGenerateObligations(): Promise<void> {
+//
+// Dedupe em voo: RecurringCheck, a Home, a Sidebar e a TopbarDesktop chamam
+// isto quase ao mesmo tempo no primeiro load. O sessionStorage só é gravado
+// DEPOIS da query, então sem este guard os 4 corriam concorrentes (race) e
+// cada um disparava getUser + count + recurring. Agora compartilham 1 execução.
+let obligationsInflight: Promise<void> | null = null;
+export function checkAndGenerateObligations(): Promise<void> {
+  if (obligationsInflight) return obligationsInflight;
+  obligationsInflight = runCheckAndGenerateObligations().finally(() => {
+    obligationsInflight = null;
+  });
+  return obligationsInflight;
+}
+
+async function runCheckAndGenerateObligations(): Promise<void> {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const sessionKey = `obligations_generated_${currentMonth}`;
 
   if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) return;
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) return;
 
   const { count, error: countError } = await supabase
@@ -766,14 +802,13 @@ export async function checkAndGenerateObligations(): Promise<void> {
     return;
   }
 
-  const { data: recurring } = await supabase
-    .from('recurring_expenses')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('active', true)
-    .eq('type', 'expense');
+  // Reusa o getRecurringExpenses cacheado — a Home, Sidebar e Topbar buscam
+  // recorrentes no mesmo load; sem isto era +1 query idêntica aqui.
+  const recurring = (await getRecurringExpenses()).filter(
+    (r) => r.active && r.type === 'expense'
+  );
 
-  if (!recurring?.length) {
+  if (!recurring.length) {
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
     return;
   }
@@ -782,11 +817,9 @@ export async function checkAndGenerateObligations(): Promise<void> {
     // Obrigação herda APENAS due_day do recorrente. due_day e day_of_month têm
     // significados distintos — não fazer fallback cruzado. Quando ambos são
     // null, a obrigação fica sem prazo (due_day null) e nenhum badge de
-    // atraso/vencimento é mostrado nas telas.
-    const due =
-      typeof rec.due_day === 'number' && rec.due_day >= 1 && rec.due_day <= 31
-        ? rec.due_day
-        : null;
+    // atraso/vencimento é mostrado nas telas. toRecurring já valida o range
+    // 1..31 (dueDay vira undefined fora dele).
+    const due = typeof rec.dueDay === 'number' ? rec.dueDay : null;
     return {
       user_id: user.id,
       recurring_expense_id: rec.id,
@@ -800,8 +833,9 @@ export async function checkAndGenerateObligations(): Promise<void> {
   });
 
   const { error: insertError } = await supabase.from('monthly_obligations').insert(obligations);
-  if (!insertError && typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(sessionKey, '1');
+  if (!insertError) {
+    invalidate('obligations');
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
   }
 }
 
@@ -828,6 +862,11 @@ export async function markObligationAsPaid(
     .single();
 
   if (obErr) throw obErr;
+
+  // Obrigação foi marcada como paga e, em qualquer ramo abaixo, um expense é
+  // criado/atualizado/reutilizado — invalida ambas as caches já aqui.
+  invalidate('obligations');
+  invalidate('expenses');
 
   const expenseAmount = actualAmount ?? obligation.amount;
 
@@ -908,6 +947,8 @@ export async function unmarkObligationAsPaid(
       .eq('id', expenseId)
       .eq('user_id', user.id),
   ]);
+  invalidate('obligations');
+  invalidate('expenses');
 }
 
 // Cria obrigação imediata para um recorrente recém-cadastrado no mês atual.
@@ -945,6 +986,7 @@ export async function addObligationForNewRecurring(
     .single();
 
   if (error) return null;
+  invalidate('obligations');
   return toMonthlyObligation(data);
 }
 
@@ -985,14 +1027,16 @@ export function calcFaturaPeriod(
 }
 
 export async function getCreditCards(): Promise<CreditCard[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('credit_cards')
-    .select('*')
-    .eq('ativo', true)
-    .order('created_at', { ascending: true });
-  if (error) return [];
-  return (data ?? []).map(toCreditCard);
+  return cachedFetch('creditCards', TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('credit_cards')
+      .select('*')
+      .eq('ativo', true)
+      .order('created_at', { ascending: true });
+    if (error) return [];
+    return (data ?? []).map(toCreditCard);
+  });
 }
 
 export async function addCreditCard(
@@ -1029,6 +1073,7 @@ export async function addCreditCard(
     .single();
 
   if (selectError) throw selectError;
+  invalidate('creditCards');
   return toCreditCard(row);
 }
 
@@ -1058,6 +1103,7 @@ export async function updateCreditCard(
     .single();
 
   if (error) throw error;
+  invalidate('creditCards');
   return toCreditCard(row);
 }
 
@@ -1072,6 +1118,7 @@ export async function deleteCreditCard(id: string): Promise<void> {
     .update({ ativo: false })
     .eq('id', id)
     .eq('user_id', user.id);
+  invalidate('creditCards');
 }
 
 export async function getCreditCardFatura(
@@ -1099,6 +1146,26 @@ export async function getCreditCardFatura(
     else if (row.category === 'Cartão de Crédito') payments += amount;
   }
   // Fatura em aberto = compras − pagamentos, nunca negativa.
+  return Math.max(0, purchases - payments);
+}
+
+// Mesma conta de getCreditCardFatura, porém SEM ir ao banco: deriva da lista
+// de expenses já carregada (que traz creditCardId/isCredit/billingMonth/
+// category/amount). A Home buscava expenses 1× e ainda fazia N queries
+// getCreditCardFatura — uma por cartão. Agora são 0 queries extras.
+export function faturaFromExpenses(
+  expenses: Expense[],
+  cardId: string,
+  period: string
+): number {
+  const billingMonth = `${period}-01`;
+  let purchases = 0;
+  let payments = 0;
+  for (const e of expenses) {
+    if (e.creditCardId !== cardId || e.billingMonth !== billingMonth) continue;
+    if (e.isCredit === true) purchases += e.amount;
+    else if (e.category === 'Cartão de Crédito') payments += e.amount;
+  }
   return Math.max(0, purchases - payments);
 }
 
@@ -1167,6 +1234,7 @@ export async function addGoalContribution(
     note: note ?? null,
     date: date ?? new Date().toISOString().slice(0, 10),
   });
+  invalidate('goalContributions');
 
   const { data: current } = await supabase
     .from('goals')
