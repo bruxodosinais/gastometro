@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getSiteUrl } from '@/lib/site-url';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 function traduzirErroAuth(mensagem: string): string {
@@ -114,7 +115,7 @@ function CadastroContent() {
     setLoading(true);
     const supabase = createClient();
     const ref = searchParams.get('ref');
-    const redirectTo = `${location.origin}/auth/callback${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
+    const redirectTo = `${getSiteUrl()}/auth/callback${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,

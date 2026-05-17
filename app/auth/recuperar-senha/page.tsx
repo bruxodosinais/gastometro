@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { getSiteUrl } from '@/lib/site-url';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 function EnvelopeIcon() {
@@ -28,7 +29,7 @@ export default function RecuperarSenhaPage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/nova-senha`,
+      redirectTo: `${getSiteUrl()}/auth/callback?next=/auth/nova-senha`,
     });
 
     if (error) {
