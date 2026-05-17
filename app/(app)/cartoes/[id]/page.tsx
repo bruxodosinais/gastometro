@@ -7,6 +7,7 @@ import {
   addExpense,
   getCreditCards,
   getCreditCardFatura,
+  getCreditCardPayment,
   getExpensesByCard,
 } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
@@ -32,6 +33,11 @@ function shiftPeriod(period: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// "YYYY-MM-DD" → "DD/MM/YYYY" (sem new Date, evita shift de timezone).
+function formatDateBR(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+}
+
 export default function CartaoDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -41,6 +47,7 @@ export default function CartaoDetailPage() {
   const [period, setPeriod] = useState(todayPeriod());
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fatura, setFatura] = useState(0);
+  const [payment, setPayment] = useState<{ total: number; lastDate: string } | null>(null);
   const [ready, setReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
@@ -60,9 +67,11 @@ export default function CartaoDetailPage() {
     Promise.all([
       getExpensesByCard(cardId, period),
       getCreditCardFatura(cardId, period),
-    ]).then(([exps, total]) => {
+      getCreditCardPayment(cardId, period),
+    ]).then(([exps, total, pay]) => {
       setExpenses(exps);
       setFatura(total);
+      setPayment(pay);
       setReady(true);
       setPaySuccess(false);
     });
@@ -92,10 +101,17 @@ export default function CartaoDetailPage() {
       });
       setPaySuccess(true);
       addToast('Fatura paga! Lançamento registrado.', 'success');
-      // Reflete o novo saldo da fatura nesta tela (número + barra) e
-      // revalida dados de servidor (saldo / orçamento livre na Home).
-      getCreditCardFatura(cardId, period)
-        .then(setFatura)
+      // Reflete o novo saldo da fatura nesta tela (número + barra) e o
+      // estado "Fatura paga" (badge + data + valor), além de revalidar
+      // dados de servidor (saldo / orçamento livre na Home).
+      Promise.all([
+        getCreditCardFatura(cardId, period),
+        getCreditCardPayment(cardId, period),
+      ])
+        .then(([total, pay]) => {
+          setFatura(total);
+          setPayment(pay);
+        })
         .catch(() => {});
       router.refresh();
     } catch (err) {
@@ -110,6 +126,9 @@ export default function CartaoDetailPage() {
 
   const fatPct = card && card.limite > 0 ? Math.min((fatura / card.limite) * 100, 100) : 0;
   const isCurrentPeriod = period === todayPeriod();
+  // Fatura quitada: saldo zerado E há pagamento registrado no período.
+  // fatura === 0 sem pagamento (mês sem compras) NÃO entra neste estado.
+  const isPaid = fatura === 0 && payment !== null;
 
   const grouped = expenses.reduce<Record<string, Expense[]>>((acc, exp) => {
     if (!acc[exp.date]) acc[exp.date] = [];
@@ -185,12 +204,21 @@ export default function CartaoDetailPage() {
               <span className="text-xs text-gray-500">
                 Fatura {period.slice(5, 7)}/{period.slice(0, 4)}
               </span>
-              <span
-                className="text-base font-bold"
-                style={{ color: fatura > 0 ? '#f04e5e' : '#9ca3af' }}
-              >
-                {formatCurrency(fatura)}
-              </span>
+              {isPaid ? (
+                <span
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: '#dcfce7', color: '#16a34a' }}
+                >
+                  ✓ Fatura paga
+                </span>
+              ) : (
+                <span
+                  className="text-base font-bold"
+                  style={{ color: fatura > 0 ? '#f04e5e' : '#9ca3af' }}
+                >
+                  {formatCurrency(fatura)}
+                </span>
+              )}
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
               <div
@@ -205,7 +233,7 @@ export default function CartaoDetailPage() {
               {Math.round(fatPct)}% do limite utilizado
             </p>
 
-            {/* Pay button */}
+            {/* Pay button (fatura em aberto) */}
             {fatura > 0 && (
               <LoadingButton
                 onClick={handlePayFatura}
@@ -216,6 +244,21 @@ export default function CartaoDetailPage() {
               >
                 {paySuccess ? '✓ Fatura paga!' : `Pagar fatura · ${formatCurrency(fatura)}`}
               </LoadingButton>
+            )}
+
+            {/* Fatura quitada: data + valor pago */}
+            {isPaid && payment && (
+              <div
+                className="flex items-center justify-between rounded-xl px-4 py-3"
+                style={{ background: '#f0fdf4', border: '1px solid #dcfce7' }}
+              >
+                <span className="text-xs text-gray-500">
+                  Pago em {formatDateBR(payment.lastDate)}
+                </span>
+                <span className="text-sm font-bold" style={{ color: '#16a34a' }}>
+                  {formatCurrency(payment.total)}
+                </span>
+              </div>
             )}
           </div>
 

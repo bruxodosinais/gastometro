@@ -1102,6 +1102,34 @@ export async function getCreditCardFatura(
   return Math.max(0, purchases - payments);
 }
 
+// Pagamento(s) de fatura registrado(s) para o cartão neste período.
+// Mesmo critério de "pagamento" usado em getCreditCardFatura
+// (category='Cartão de Crédito', is_credit=false, mesmo billing_month).
+// Retorna o total pago e a data do pagamento mais recente, ou null se
+// nenhum pagamento foi registrado.
+export async function getCreditCardPayment(
+  cardId: string,
+  period: string
+): Promise<{ total: number; lastDate: string } | null> {
+  const billingMonth = `${period}-01`;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('amount, date')
+    .eq('credit_card_id', cardId)
+    .eq('billing_month', billingMonth)
+    .eq('category', 'Cartão de Crédito')
+    .eq('is_credit', false)
+    .order('date', { ascending: false });
+
+  if (error || !data || data.length === 0) return null;
+
+  const total = data.reduce((s, r) => s + (r.amount as number), 0);
+  // data ordenado desc por date → primeiro registro é o pagamento mais recente.
+  const lastDate = data[0].date as string;
+  return { total, lastDate };
+}
+
 export async function getExpensesByCard(
   cardId: string,
   period: string
