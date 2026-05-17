@@ -141,10 +141,27 @@ function CadastroContent() {
         terms_accepted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-      await supabase.from('subscriptions').upsert(
-        { user_id: userId, plan: 'free', status: 'active' },
-        { onConflict: 'user_id' },
-      );
+
+      if (ref === 'beta') {
+        // Plano Pro do beta: o insert precisa da service role (RLS não deixa
+        // o próprio usuário escrever em subscriptions). Feito server-side,
+        // logo após o signUp, pra não depender só do callback de confirmação
+        // de e-mail — que não roda quando o signUp já devolve sessão.
+        try {
+          await fetch('/api/activate-beta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+        } catch {
+          // Best-effort: o callback de confirmação de e-mail é o fallback.
+        }
+      } else {
+        await supabase.from('subscriptions').upsert(
+          { user_id: userId, plan: 'free', status: 'active' },
+          { onConflict: 'user_id' },
+        );
+      }
     }
 
     if (data.session) {

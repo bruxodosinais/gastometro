@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
   if (effectiveRef === 'beta' && data.user?.id) {
     try {
       const admin = createAdminClient();
-      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       const { error: grantError } = await admin
         .from('subscriptions')
         .upsert(
@@ -70,12 +69,12 @@ export async function GET(request: NextRequest) {
             plan: 'pro',
             status: 'active',
             billing_cycle: 'beta',
-            current_period_end: periodEnd,
+            current_period_end: null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'user_id' },
         );
-      console.log('[callback] grant beta result:', grantError?.message ?? 'ok', 'until:', periodEnd);
+      console.log('[callback] grant beta result:', grantError?.message ?? 'ok', '(Pro permanente)');
     } catch (err) {
       console.error('[callback] grant beta exception:', err);
     }
