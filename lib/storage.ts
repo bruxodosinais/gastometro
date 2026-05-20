@@ -1,5 +1,5 @@
 import { createClient } from './supabase/client';
-import { cachedFetch, getCachedUser, invalidate, TTL } from './dataCache';
+import { cachedFetch, getCachedUser, TTL, withCacheInvalidation } from './dataCache';
 import { Asset, AssetType, Budget, Category, CreditCard, EntryType, Expense, ExpenseCategory, Goal, GoalContribution, GoalTerm, GoalType, Liability, MonthlyObligation, MonthlyPlan, RecurringExpense } from './types';
 
 function toExpense(row: Record<string, unknown>): Expense {
@@ -35,32 +35,33 @@ export async function addExpense(
   data: Omit<Expense, 'id' | 'createdAt'>,
   recurringExpenseId?: string
 ): Promise<Expense> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { data: row, error } = await supabase
-    .from('expenses')
-    .insert({
-      user_id: user.id,
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      category: data.category,
-      date: data.date,
-      ...(recurringExpenseId ? { recurring_expense_id: recurringExpenseId } : {}),
-      is_credit: data.isCredit ?? false,
-      credit_card_id: data.creditCardId ?? null,
-      billing_month: data.billingMonth ?? null,
-    })
-    .select()
-    .single();
+    const { data: row, error } = await supabase
+      .from('expenses')
+      .insert({
+        user_id: user.id,
+        type: data.type,
+        amount: data.amount,
+        description: data.description,
+        category: data.category,
+        date: data.date,
+        ...(recurringExpenseId ? { recurring_expense_id: recurringExpenseId } : {}),
+        is_credit: data.isCredit ?? false,
+        credit_card_id: data.creditCardId ?? null,
+        billing_month: data.billingMonth ?? null,
+      })
+      .select()
+      .single();
 
-  if (error) throw error;
-  invalidate('expenses');
-  return toExpense(row);
+    if (error) throw error;
+    return toExpense(row);
+  });
 }
 
 // Cria N lançamentos mensais consecutivos com "(i/N)" na descrição
@@ -68,110 +69,113 @@ export async function addExpenseInstallments(
   base: Omit<Expense, 'id' | 'createdAt'>,
   installments: number
 ): Promise<Expense[]> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const baseDate = new Date(`${base.date}T12:00:00`);
-  const baseDay = baseDate.getDate();
+    const baseDate = new Date(`${base.date}T12:00:00`);
+    const baseDay = baseDate.getDate();
 
-  const rows = Array.from({ length: installments }, (_, i) => {
-    const d = new Date(baseDate);
-    d.setDate(1);
-    d.setMonth(d.getMonth() + i);
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(baseDay, lastDay));
-    return {
-      user_id: user.id,
-      type: base.type,
-      amount: base.amount,
-      description: `${base.description} (${i + 1}/${installments})`,
-      category: base.category,
-      date: d.toISOString().slice(0, 10),
-    };
+    const rows = Array.from({ length: installments }, (_, i) => {
+      const d = new Date(baseDate);
+      d.setDate(1);
+      d.setMonth(d.getMonth() + i);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(baseDay, lastDay));
+      return {
+        user_id: user.id,
+        type: base.type,
+        amount: base.amount,
+        description: `${base.description} (${i + 1}/${installments})`,
+        category: base.category,
+        date: d.toISOString().slice(0, 10),
+      };
+    });
+
+    const { data, error } = await supabase.from('expenses').insert(rows).select();
+    if (error) throw error;
+    return (data ?? []).map(toExpense);
   });
-
-  const { data, error } = await supabase.from('expenses').insert(rows).select();
-  if (error) throw error;
-  invalidate('expenses');
-  return (data ?? []).map(toExpense);
 }
 
 export async function updateExpense(
   id: string,
   data: Omit<Expense, 'id' | 'createdAt'>
 ): Promise<Expense> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const payload = {
-    type: data.type,
-    amount: data.amount,
-    description: data.description,
-    category: data.category,
-    date: data.date,
-    credit_card_id: data.creditCardId ?? null,
-    is_credit: data.isCredit ?? false,
-    billing_month: data.billingMonth ?? null,
-  };
+    const payload = {
+      type: data.type,
+      amount: data.amount,
+      description: data.description,
+      category: data.category,
+      date: data.date,
+      credit_card_id: data.creditCardId ?? null,
+      is_credit: data.isCredit ?? false,
+      billing_month: data.billingMonth ?? null,
+    };
 
-  // UPDATE sem .select().single(): o .single() encadeado num UPDATE quebra
-  // com "Cannot coerce the result to a single JSON object" em algumas versões
-  // do supabase-js. Atualizamos e buscamos o registro separadamente — 100%
-  // compatível com qualquer versão. Filtro duplo id + user_id mantém o WHERE
-  // correto e respeita a RLS.
-  const { error: updateError } = await supabase
-    .from('expenses')
-    .update(payload)
-    .eq('id', id)
-    .eq('user_id', user.id);
+    // UPDATE sem .select().single(): o .single() encadeado num UPDATE quebra
+    // com "Cannot coerce the result to a single JSON object" em algumas versões
+    // do supabase-js. Atualizamos e buscamos o registro separadamente — 100%
+    // compatível com qualquer versão. Filtro duplo id + user_id mantém o WHERE
+    // correto e respeita a RLS.
+    const { error: updateError } = await supabase
+      .from('expenses')
+      .update(payload)
+      .eq('id', id)
+      .eq('user_id', user.id);
 
-  if (updateError) {
-    // PostgrestError não é instância de Error — sem este tratamento o modal
-    // só conseguia exibir a mensagem genérica "Erro ao salvar".
-    console.error('updateExpense (update):', {
-      id,
-      message: updateError.message,
-      details: updateError.details,
-      hint: updateError.hint,
-      code: updateError.code,
-    });
-    throw new Error(updateError.message || 'Erro ao salvar o lançamento');
-  }
+    if (updateError) {
+      // PostgrestError não é instância de Error — sem este tratamento o modal
+      // só conseguia exibir a mensagem genérica "Erro ao salvar".
+      console.error('updateExpense (update):', {
+        id,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        code: updateError.code,
+      });
+      throw new Error(updateError.message || 'Erro ao salvar o lançamento');
+    }
 
-  const { data: row, error: fetchError } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single();
+    const { data: row, error: fetchError } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
 
-  if (fetchError) {
-    console.error('updateExpense (refetch):', {
-      id,
-      message: fetchError.message,
-      details: fetchError.details,
-      hint: fetchError.hint,
-      code: fetchError.code,
-    });
-    throw new Error(fetchError.message || 'Erro ao recarregar o lançamento');
-  }
-  if (!row) {
-    throw new Error('Lançamento não encontrado ou sem permissão para editar');
-  }
-  invalidate('expenses');
-  return toExpense(row);
+    if (fetchError) {
+      console.error('updateExpense (refetch):', {
+        id,
+        message: fetchError.message,
+        details: fetchError.details,
+        hint: fetchError.hint,
+        code: fetchError.code,
+      });
+      throw new Error(fetchError.message || 'Erro ao recarregar o lançamento');
+    }
+    if (!row) {
+      throw new Error('Lançamento não encontrado ou sem permissão para editar');
+    }
+    return toExpense(row);
+  });
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  const supabase = createClient();
-  await supabase.from('expenses').delete().eq('id', id);
-  invalidate('expenses');
+  return withCacheInvalidation('expenses', async () => {
+    const supabase = createClient();
+    await supabase.from('expenses').delete().eq('id', id);
+  });
 }
 
 // ─── Recorrentes ─────────────────────────────────────────────────────────────
@@ -217,64 +221,67 @@ export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
 export async function addRecurringExpense(
   data: Omit<RecurringExpense, 'id' | 'createdAt'>
 ): Promise<RecurringExpense> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('recurring_expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { data: row, error } = await supabase
-    .from('recurring_expenses')
-    .insert({
-      user_id: user.id,
-      description: data.description,
-      amount: data.amount,
-      category: data.category,
-      type: data.type,
-      // day_of_month e due_day são salvos de forma independente. due_day NUNCA
-      // herda de day_of_month — campos com semânticas distintas (lançamento vs
-      // vencimento).
-      day_of_month: data.dayOfMonth ?? null,
-      due_day: data.dueDay ?? null,
-      active: data.active,
-      is_variable: data.isVariable ?? false,
-      is_credit: data.isCredit ?? false,
-      credit_card_id: data.creditCardId ?? null,
-    })
-    .select()
-    .single();
+    const { data: row, error } = await supabase
+      .from('recurring_expenses')
+      .insert({
+        user_id: user.id,
+        description: data.description,
+        amount: data.amount,
+        category: data.category,
+        type: data.type,
+        // day_of_month e due_day são salvos de forma independente. due_day NUNCA
+        // herda de day_of_month — campos com semânticas distintas (lançamento vs
+        // vencimento).
+        day_of_month: data.dayOfMonth ?? null,
+        due_day: data.dueDay ?? null,
+        active: data.active,
+        is_variable: data.isVariable ?? false,
+        is_credit: data.isCredit ?? false,
+        credit_card_id: data.creditCardId ?? null,
+      })
+      .select()
+      .single();
 
-  if (error) throw error;
-  invalidate('recurring');
-  return toRecurring(row);
+    if (error) throw error;
+    return toRecurring(row);
+  });
 }
 
 export async function toggleRecurringExpense(id: string, active: boolean): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase
-    .from('recurring_expenses')
-    .update({ active })
-    .eq('id', id)
-    .eq('user_id', user.id);
-  invalidate('recurring');
+  return withCacheInvalidation('recurring_expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('recurring_expenses')
+      .update({ active })
+      .eq('id', id)
+      .eq('user_id', user.id);
+  });
 }
 
 export async function deleteRecurringExpense(id: string): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase
-    .from('recurring_expenses')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
-  invalidate('recurring');
+  return withCacheInvalidation('recurring_expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('recurring_expenses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+  });
 }
 
 export type UpdateRecurringPayload = {
@@ -295,33 +302,34 @@ export async function updateRecurringExpense(
   id: string,
   data: UpdateRecurringPayload
 ): Promise<RecurringExpense> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('recurring_expenses', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const patch: Record<string, unknown> = {};
-  if (data.description !== undefined) patch.description = data.description;
-  if (data.amount !== undefined) patch.amount = data.amount;
-  if (data.category !== undefined) patch.category = data.category;
-  if (data.type !== undefined) patch.type = data.type;
-  if (data.dayOfMonth !== undefined) patch.day_of_month = data.dayOfMonth;
-  if (data.dueDay !== undefined) patch.due_day = data.dueDay;
-  if (data.isVariable !== undefined) patch.is_variable = data.isVariable;
-  if (data.active !== undefined) patch.active = data.active;
+    const patch: Record<string, unknown> = {};
+    if (data.description !== undefined) patch.description = data.description;
+    if (data.amount !== undefined) patch.amount = data.amount;
+    if (data.category !== undefined) patch.category = data.category;
+    if (data.type !== undefined) patch.type = data.type;
+    if (data.dayOfMonth !== undefined) patch.day_of_month = data.dayOfMonth;
+    if (data.dueDay !== undefined) patch.due_day = data.dueDay;
+    if (data.isVariable !== undefined) patch.is_variable = data.isVariable;
+    if (data.active !== undefined) patch.active = data.active;
 
-  const { data: row, error } = await supabase
-    .from('recurring_expenses')
-    .update(patch)
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
+    const { data: row, error } = await supabase
+      .from('recurring_expenses')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
 
-  if (error) throw error;
-  invalidate('recurring');
-  return toRecurring(row);
+    if (error) throw error;
+    return toRecurring(row);
+  });
 }
 
 // IDs de recorrentes já lançados no mês atual
@@ -369,35 +377,40 @@ export async function checkAndLaunchRecurring(): Promise<void> {
 
   if (!recurring?.length) return;
 
-  for (const rec of recurring) {
-    // Sem day_of_month, não há gatilho de lançamento automático — pula.
-    if (
-      typeof rec.day_of_month !== 'number' ||
-      rec.day_of_month < 1 ||
-      rec.day_of_month > 31
-    ) continue;
-    // Só lança se o dia já chegou e ainda não foi lançado este mês
-    if (rec.day_of_month > todayDay) continue;
-    if (launchedIds.has(rec.id)) continue;
-    // Despesas variáveis exigem valor real informado pelo usuário no momento do pagamento
-    if (rec.is_variable) continue;
+  // Envelopa o loop inteiro: se UMA inserção ocorreu, o cache de expenses
+  // precisa ser invalidado para refletir o lançamento no próximo getExpenses().
+  // (Antes este auto-launch não invalidava nada — bug latente.)
+  await withCacheInvalidation('expenses', async () => {
+    for (const rec of recurring) {
+      // Sem day_of_month, não há gatilho de lançamento automático — pula.
+      if (
+        typeof rec.day_of_month !== 'number' ||
+        rec.day_of_month < 1 ||
+        rec.day_of_month > 31
+      ) continue;
+      // Só lança se o dia já chegou e ainda não foi lançado este mês
+      if (rec.day_of_month > todayDay) continue;
+      if (launchedIds.has(rec.id)) continue;
+      // Despesas variáveis exigem valor real informado pelo usuário no momento do pagamento
+      if (rec.is_variable) continue;
 
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const day = Math.min(rec.day_of_month, lastDay);
-    const date = `${currentMonth}-${String(day).padStart(2, '0')}`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const day = Math.min(rec.day_of_month, lastDay);
+      const date = `${currentMonth}-${String(day).padStart(2, '0')}`;
 
-    await supabase.from('expenses').insert({
-      user_id: user.id,
-      type: rec.type,
-      amount: rec.amount,
-      description: rec.description,
-      category: rec.category,
-      date,
-      recurring_expense_id: rec.id,
-      is_credit: rec.is_credit ?? false,
-      credit_card_id: rec.credit_card_id ?? null,
-    });
-  }
+      await supabase.from('expenses').insert({
+        user_id: user.id,
+        type: rec.type,
+        amount: rec.amount,
+        description: rec.description,
+        category: rec.category,
+        date,
+        recurring_expense_id: rec.id,
+        is_credit: rec.is_credit ?? false,
+        credit_card_id: rec.credit_card_id ?? null,
+      });
+    }
+  });
 }
 
 // ─── Planejamento Mensal ──────────────────────────────────────────────────────
@@ -425,29 +438,30 @@ export async function upsertMonthlyPlan(
   expectedIncome: number,
   savingsGoal: number
 ): Promise<MonthlyPlan> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('monthly_plans', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { data, error } = await supabase
-    .from('monthly_plans')
-    .upsert(
-      { user_id: user.id, month, expected_income: expectedIncome, savings_goal: savingsGoal },
-      { onConflict: 'user_id,month' }
-    )
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from('monthly_plans')
+      .upsert(
+        { user_id: user.id, month, expected_income: expectedIncome, savings_goal: savingsGoal },
+        { onConflict: 'user_id,month' }
+      )
+      .select()
+      .single();
 
-  if (error) throw error;
-  invalidate('monthlyPlan');
-  return {
-    id: data.id,
-    month: data.month,
-    expectedIncome: data.expected_income,
-    savingsGoal: data.savings_goal,
-  };
+    if (error) throw error;
+    return {
+      id: data.id,
+      month: data.month,
+      expectedIncome: data.expected_income,
+      savingsGoal: data.savings_goal,
+    };
+  });
 }
 
 // ─── Budgets ─────────────────────────────────────────────────────────────────
@@ -470,28 +484,30 @@ export async function getBudgets(): Promise<Budget[]> {
 }
 
 export async function upsertBudget(category: ExpenseCategory, amount: number): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('budgets', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { error } = await supabase
-    .from('budgets')
-    .upsert({ user_id: user.id, category, amount }, { onConflict: 'user_id,category' });
+    const { error } = await supabase
+      .from('budgets')
+      .upsert({ user_id: user.id, category, amount }, { onConflict: 'user_id,category' });
 
-  if (error) throw error;
-  invalidate('budgets');
+    if (error) throw error;
+  });
 }
 
 export async function deleteBudget(category: ExpenseCategory): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from('budgets').delete().eq('user_id', user.id).eq('category', category);
-  invalidate('budgets');
+  return withCacheInvalidation('budgets', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('budgets').delete().eq('user_id', user.id).eq('category', category);
+  });
 }
 
 // ─── Metas Financeiras ────────────────────────────────────────────────────────
@@ -523,74 +539,80 @@ export async function getGoals(): Promise<Goal[]> {
 }
 
 export async function createGoal(data: Omit<Goal, 'id' | 'createdAt'>): Promise<Goal> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('goals', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { data: row, error } = await supabase
-    .from('goals')
-    .insert({
-      user_id: user.id,
-      name: data.name,
-      type: data.type,
-      target_amount: data.targetAmount,
-      current_amount: data.currentAmount,
-      deadline: data.deadline ?? null,
-      color: data.color,
-      status: data.status,
-      term: data.term ?? null,
-      emoji: data.emoji ?? null,
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error('createGoal:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
-    throw new Error(error.message || 'Erro ao criar meta');
-  }
-  return toGoal(row);
+    const { data: row, error } = await supabase
+      .from('goals')
+      .insert({
+        user_id: user.id,
+        name: data.name,
+        type: data.type,
+        target_amount: data.targetAmount,
+        current_amount: data.currentAmount,
+        deadline: data.deadline ?? null,
+        color: data.color,
+        status: data.status,
+        term: data.term ?? null,
+        emoji: data.emoji ?? null,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error('createGoal:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      throw new Error(error.message || 'Erro ao criar meta');
+    }
+    return toGoal(row);
+  });
 }
 
 export async function updateGoal(id: string, data: Partial<Omit<Goal, 'id' | 'createdAt'>>): Promise<Goal> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('goals', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const patch: Record<string, unknown> = {};
-  if (data.name !== undefined) patch.name = data.name;
-  if (data.type !== undefined) patch.type = data.type;
-  if (data.targetAmount !== undefined) patch.target_amount = data.targetAmount;
-  if (data.currentAmount !== undefined) patch.current_amount = data.currentAmount;
-  if ('deadline' in data) patch.deadline = data.deadline ?? null;
-  if (data.color !== undefined) patch.color = data.color;
-  if (data.status !== undefined) patch.status = data.status;
-  if ('term' in data) patch.term = data.term ?? null;
-  if ('emoji' in data) patch.emoji = data.emoji ?? null;
+    const patch: Record<string, unknown> = {};
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.type !== undefined) patch.type = data.type;
+    if (data.targetAmount !== undefined) patch.target_amount = data.targetAmount;
+    if (data.currentAmount !== undefined) patch.current_amount = data.currentAmount;
+    if ('deadline' in data) patch.deadline = data.deadline ?? null;
+    if (data.color !== undefined) patch.color = data.color;
+    if (data.status !== undefined) patch.status = data.status;
+    if ('term' in data) patch.term = data.term ?? null;
+    if ('emoji' in data) patch.emoji = data.emoji ?? null;
 
-  const { data: row, error } = await supabase
-    .from('goals')
-    .update(patch)
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  if (error) {
-    console.error('updateGoal:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
-    throw new Error(error.message || 'Erro ao atualizar meta');
-  }
-  return toGoal(row);
+    const { data: row, error } = await supabase
+      .from('goals')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if (error) {
+      console.error('updateGoal:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      throw new Error(error.message || 'Erro ao atualizar meta');
+    }
+    return toGoal(row);
+  });
 }
 
 export async function deleteGoal(id: string): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id);
+  return withCacheInvalidation('goals', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id);
+  });
 }
 
 function toContribution(row: Record<string, unknown>): GoalContribution {
@@ -640,38 +662,44 @@ export async function getAssets(): Promise<Asset[]> {
 }
 
 export async function createAsset(data: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>): Promise<Asset> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
-  const { data: row, error } = await supabase
-    .from('assets')
-    .insert({ user_id: user.id, name: data.name, type: data.type, value: data.value })
-    .select()
-    .single();
-  if (error) throw error;
-  return toAsset(row);
+  return withCacheInvalidation('assets', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    const { data: row, error } = await supabase
+      .from('assets')
+      .insert({ user_id: user.id, name: data.name, type: data.type, value: data.value })
+      .select()
+      .single();
+    if (error) throw error;
+    return toAsset(row);
+  });
 }
 
 export async function updateAsset(id: string, data: Partial<Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Asset> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
-  const { data: row, error } = await supabase
-    .from('assets')
-    .update({ ...data, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return toAsset(row);
+  return withCacheInvalidation('assets', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    const { data: row, error } = await supabase
+      .from('assets')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return toAsset(row);
+  });
 }
 
 export async function deleteAsset(id: string): Promise<void> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from('assets').delete().eq('id', id).eq('user_id', user.id);
+  return withCacheInvalidation('assets', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('assets').delete().eq('id', id).eq('user_id', user.id);
+  });
 }
 
 function toLiability(row: Record<string, unknown>): Liability {
@@ -696,38 +724,44 @@ export async function getLiabilities(): Promise<Liability[]> {
 }
 
 export async function createLiability(data: Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>): Promise<Liability> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
-  const { data: row, error } = await supabase
-    .from('liabilities')
-    .insert({ user_id: user.id, name: data.name, type: data.type, value: data.value })
-    .select()
-    .single();
-  if (error) throw error;
-  return toLiability(row);
+  return withCacheInvalidation('liabilities', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    const { data: row, error } = await supabase
+      .from('liabilities')
+      .insert({ user_id: user.id, name: data.name, type: data.type, value: data.value })
+      .select()
+      .single();
+    if (error) throw error;
+    return toLiability(row);
+  });
 }
 
 export async function updateLiability(id: string, data: Partial<Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Liability> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
-  const { data: row, error } = await supabase
-    .from('liabilities')
-    .update({ ...data, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return toLiability(row);
+  return withCacheInvalidation('liabilities', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    const { data: row, error } = await supabase
+      .from('liabilities')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return toLiability(row);
+  });
 }
 
 export async function deleteLiability(id: string): Promise<void> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from('liabilities').delete().eq('id', id).eq('user_id', user.id);
+  return withCacheInvalidation('liabilities', async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('liabilities').delete().eq('id', id).eq('user_id', user.id);
+  });
 }
 
 // ─── Obrigações Mensais ───────────────────────────────────────────────────────
@@ -832,10 +866,17 @@ async function runCheckAndGenerateObligations(): Promise<void> {
     };
   });
 
-  const { error: insertError } = await supabase.from('monthly_obligations').insert(obligations);
-  if (!insertError) {
-    invalidate('obligations');
+  // try/catch silencia falha (comportamento histórico: tabela ausente etc. não
+  // deve quebrar o load); withCacheInvalidation invalida 'obligations' (+ uma
+  // chave derivada do mapa) só no caminho de sucesso.
+  try {
+    await withCacheInvalidation('monthly_obligations', async () => {
+      const { error: insertError } = await supabase.from('monthly_obligations').insert(obligations);
+      if (insertError) throw insertError;
+    });
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+  } catch {
+    // sem marcar sessionStorage — próximo load tenta de novo
   }
 }
 
@@ -844,111 +885,111 @@ export async function markObligationAsPaid(
   obligation: MonthlyObligation,
   actualAmount?: number
 ): Promise<{ obligation: MonthlyObligation; expense: Expense }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  // Toca DUAS tabelas: monthly_obligations (status=paid) + expenses (cria/reusa).
+  // Passar ambas como array garante que 'obligations' E 'expenses' (e as demais
+  // chaves derivadas) sejam invalidadas no fim — única vez, sem duplicidade.
+  return withCacheInvalidation(['monthly_obligations', 'expenses'], async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const today = new Date().toISOString().slice(0, 10);
-  const currentMonth = today.slice(0, 7);
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = today.slice(0, 7);
 
-  const { data: obligationRow, error: obErr } = await supabase
-    .from('monthly_obligations')
-    .update({ status: 'paid', paid_at: new Date().toISOString() })
-    .eq('id', obligationId)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-
-  if (obErr) throw obErr;
-
-  // Obrigação foi marcada como paga e, em qualquer ramo abaixo, um expense é
-  // criado/atualizado/reutilizado — invalida ambas as caches já aqui.
-  invalidate('obligations');
-  invalidate('expenses');
-
-  const expenseAmount = actualAmount ?? obligation.amount;
-
-  // Dedup: se já existe expense com o mesmo recurring_expense_id neste mês, reutiliza
-  if (obligation.recurringExpenseId) {
-    const { data: existing } = await supabase
-      .from('expenses')
-      .select('*')
+    const { data: obligationRow, error: obErr } = await supabase
+      .from('monthly_obligations')
+      .update({ status: 'paid', paid_at: new Date().toISOString() })
+      .eq('id', obligationId)
       .eq('user_id', user.id)
-      .eq('recurring_expense_id', obligation.recurringExpenseId)
-      .gte('date', `${currentMonth}-01`)
-      .lte('date', `${currentMonth}-31`)
-      .maybeSingle();
+      .select()
+      .single();
 
-    if (existing) {
-      // Para despesas variáveis, atualiza o valor real se diferente do estimado
-      if (actualAmount !== undefined && actualAmount !== (existing.amount as number)) {
-        const { data: updated } = await supabase
-          .from('expenses')
-          .update({ amount: actualAmount })
-          .eq('id', existing.id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
+    if (obErr) throw obErr;
+
+    const expenseAmount = actualAmount ?? obligation.amount;
+
+    // Dedup: se já existe expense com o mesmo recurring_expense_id neste mês, reutiliza
+    if (obligation.recurringExpenseId) {
+      const { data: existing } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('recurring_expense_id', obligation.recurringExpenseId)
+        .gte('date', `${currentMonth}-01`)
+        .lte('date', `${currentMonth}-31`)
+        .maybeSingle();
+
+      if (existing) {
+        // Para despesas variáveis, atualiza o valor real se diferente do estimado
+        if (actualAmount !== undefined && actualAmount !== (existing.amount as number)) {
+          const { data: updated } = await supabase
+            .from('expenses')
+            .update({ amount: actualAmount })
+            .eq('id', existing.id)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+          return {
+            obligation: toMonthlyObligation(obligationRow),
+            expense: toExpense(updated ?? existing),
+          };
+        }
         return {
           obligation: toMonthlyObligation(obligationRow),
-          expense: toExpense(updated ?? existing),
+          expense: toExpense(existing),
         };
       }
-      return {
-        obligation: toMonthlyObligation(obligationRow),
-        expense: toExpense(existing),
-      };
     }
-  }
 
-  const { data: expenseRow, error: expErr } = await supabase
-    .from('expenses')
-    .insert({
-      user_id: user.id,
-      type: 'expense',
-      amount: expenseAmount,
-      description: obligation.description,
-      category: obligation.category,
-      date: today,
-      recurring_expense_id: obligation.recurringExpenseId,
-    })
-    .select()
-    .single();
+    const { data: expenseRow, error: expErr } = await supabase
+      .from('expenses')
+      .insert({
+        user_id: user.id,
+        type: 'expense',
+        amount: expenseAmount,
+        description: obligation.description,
+        category: obligation.category,
+        date: today,
+        recurring_expense_id: obligation.recurringExpenseId,
+      })
+      .select()
+      .single();
 
-  if (expErr) throw expErr;
+    if (expErr) throw expErr;
 
-  return {
-    obligation: toMonthlyObligation(obligationRow),
-    expense: toExpense(expenseRow),
-  };
+    return {
+      obligation: toMonthlyObligation(obligationRow),
+      expense: toExpense(expenseRow),
+    };
+  });
 }
 
 export async function unmarkObligationAsPaid(
   obligationId: string,
   expenseId: string
 ): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation(['monthly_obligations', 'expenses'], async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  await Promise.all([
-    supabase
-      .from('monthly_obligations')
-      .update({ status: 'pending', paid_at: null })
-      .eq('id', obligationId)
-      .eq('user_id', user.id),
-    supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expenseId)
-      .eq('user_id', user.id),
-  ]);
-  invalidate('obligations');
-  invalidate('expenses');
+    await Promise.all([
+      supabase
+        .from('monthly_obligations')
+        .update({ status: 'pending', paid_at: null })
+        .eq('id', obligationId)
+        .eq('user_id', user.id),
+      supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId)
+        .eq('user_id', user.id),
+    ]);
+  });
 }
 
 // Cria obrigação imediata para um recorrente recém-cadastrado no mês atual.
@@ -958,36 +999,39 @@ export async function addObligationForNewRecurring(
 ): Promise<MonthlyObligation | null> {
   if (rec.type !== 'expense' || !rec.active) return null;
 
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Caminho que retorna null cedo (auth ausente, error) não invalida — só o
+  // sucesso. Encapsular o body inteiro mantém esse contrato.
+  return withCacheInvalidation('monthly_obligations', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  // Obrigação herda apenas due_day. Sem due_day válido, fica null (sem prazo).
-  const due =
-    typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
-      ? rec.dueDay
-      : null;
-  const { data, error } = await supabase
-    .from('monthly_obligations')
-    .insert({
-      user_id: user.id,
-      recurring_expense_id: rec.id,
-      month: currentMonth,
-      amount: rec.amount,
-      description: rec.description,
-      category: rec.category,
-      due_day: due,
-      status: 'pending',
-    })
-    .select()
-    .single();
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    // Obrigação herda apenas due_day. Sem due_day válido, fica null (sem prazo).
+    const due =
+      typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+        ? rec.dueDay
+        : null;
+    const { data, error } = await supabase
+      .from('monthly_obligations')
+      .insert({
+        user_id: user.id,
+        recurring_expense_id: rec.id,
+        month: currentMonth,
+        amount: rec.amount,
+        description: rec.description,
+        category: rec.category,
+        due_day: due,
+        status: 'pending',
+      })
+      .select()
+      .single();
 
-  if (error) return null;
-  invalidate('obligations');
-  return toMonthlyObligation(data);
+    if (error) return null;
+    return toMonthlyObligation(data);
+  });
 }
 
 // Remove as obrigações do mês atual de um conjunto de recorrentes. Usado pelo
@@ -999,19 +1043,20 @@ export async function deleteObligationsByRecurringIds(
   recurringIds: string[]
 ): Promise<void> {
   if (recurringIds.length === 0) return;
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  await supabase
-    .from('monthly_obligations')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('month', currentMonth)
-    .in('recurring_expense_id', recurringIds);
-  invalidate('obligations');
+  return withCacheInvalidation('monthly_obligations', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    await supabase
+      .from('monthly_obligations')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('month', currentMonth)
+      .in('recurring_expense_id', recurringIds);
+  });
 }
 
 // ─── Cartões de Crédito ───────────────────────────────────────────────────────
@@ -1066,83 +1111,86 @@ export async function getCreditCards(): Promise<CreditCard[]> {
 export async function addCreditCard(
   data: Omit<CreditCard, 'id' | 'userId' | 'createdAt'>
 ): Promise<CreditCard> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('credit_cards', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const { error: insertError } = await supabase
-    .from('credit_cards')
-    .insert({
-      user_id: user.id,
-      nome: data.nome,
-      limite: data.limite,
-      dia_fechamento: data.diaFechamento,
-      dia_vencimento: data.diaVencimento,
-      ativo: data.ativo,
-    });
+    const { error: insertError } = await supabase
+      .from('credit_cards')
+      .insert({
+        user_id: user.id,
+        nome: data.nome,
+        limite: data.limite,
+        dia_fechamento: data.diaFechamento,
+        dia_vencimento: data.diaVencimento,
+        ativo: data.ativo,
+      });
 
-  if (insertError) throw insertError;
+    if (insertError) throw insertError;
 
-  // Fetch the newly created card separately — avoids RLS edge cases where
-  // INSERT RETURNING is blocked even though the row was committed.
-  const { data: row, error: selectError } = await supabase
-    .from('credit_cards')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('ativo', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+    // Fetch the newly created card separately — avoids RLS edge cases where
+    // INSERT RETURNING is blocked even though the row was committed.
+    const { data: row, error: selectError } = await supabase
+      .from('credit_cards')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('ativo', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
 
-  if (selectError) throw selectError;
-  invalidate('creditCards');
-  return toCreditCard(row);
+    if (selectError) throw selectError;
+    return toCreditCard(row);
+  });
 }
 
 export async function updateCreditCard(
   id: string,
   data: Partial<Omit<CreditCard, 'id' | 'userId' | 'createdAt'>>
 ): Promise<CreditCard> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  return withCacheInvalidation('credit_cards', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  const patch: Record<string, unknown> = {};
-  if (data.nome !== undefined) patch.nome = data.nome;
-  if (data.limite !== undefined) patch.limite = data.limite;
-  if (data.diaFechamento !== undefined) patch.dia_fechamento = data.diaFechamento;
-  if (data.diaVencimento !== undefined) patch.dia_vencimento = data.diaVencimento;
-  if (data.ativo !== undefined) patch.ativo = data.ativo;
+    const patch: Record<string, unknown> = {};
+    if (data.nome !== undefined) patch.nome = data.nome;
+    if (data.limite !== undefined) patch.limite = data.limite;
+    if (data.diaFechamento !== undefined) patch.dia_fechamento = data.diaFechamento;
+    if (data.diaVencimento !== undefined) patch.dia_vencimento = data.diaVencimento;
+    if (data.ativo !== undefined) patch.ativo = data.ativo;
 
-  const { data: row, error } = await supabase
-    .from('credit_cards')
-    .update(patch)
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
+    const { data: row, error } = await supabase
+      .from('credit_cards')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
 
-  if (error) throw error;
-  invalidate('creditCards');
-  return toCreditCard(row);
+    if (error) throw error;
+    return toCreditCard(row);
+  });
 }
 
 export async function deleteCreditCard(id: string): Promise<void> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase
-    .from('credit_cards')
-    .update({ ativo: false })
-    .eq('id', id)
-    .eq('user_id', user.id);
-  invalidate('creditCards');
+  return withCacheInvalidation('credit_cards', async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('credit_cards')
+      .update({ ativo: false })
+      .eq('id', id)
+      .eq('user_id', user.id);
+  });
 }
 
 export async function getCreditCardFatura(
@@ -1245,40 +1293,44 @@ export async function addGoalContribution(
   note?: string,
   date?: string
 ): Promise<Goal> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  // Insere em goal_contributions E atualiza goals (current_amount/status).
+  // Array garante que ambas as chaves derivadas (goalContributions + goals)
+  // sejam invalidadas no fim.
+  return withCacheInvalidation(['goal_contributions', 'goals'], async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-  await supabase.from('goal_contributions').insert({
-    user_id: user.id,
-    goal_id: goalId,
-    amount,
-    note: note ?? null,
-    date: date ?? new Date().toISOString().slice(0, 10),
+    await supabase.from('goal_contributions').insert({
+      user_id: user.id,
+      goal_id: goalId,
+      amount,
+      note: note ?? null,
+      date: date ?? new Date().toISOString().slice(0, 10),
+    });
+
+    const { data: current } = await supabase
+      .from('goals')
+      .select('current_amount, target_amount')
+      .eq('id', goalId)
+      .single();
+
+    const newAmount = (current?.current_amount ?? 0) + amount;
+    const newStatus = newAmount >= (current?.target_amount ?? Infinity) ? 'completed' : 'active';
+
+    const { data: row, error } = await supabase
+      .from('goals')
+      .update({ current_amount: newAmount, status: newStatus })
+      .eq('id', goalId)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if (error) {
+      console.error('addGoalContribution:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      throw new Error(error.message || 'Erro ao registrar aporte');
+    }
+    return toGoal(row);
   });
-  invalidate('goalContributions');
-
-  const { data: current } = await supabase
-    .from('goals')
-    .select('current_amount, target_amount')
-    .eq('id', goalId)
-    .single();
-
-  const newAmount = (current?.current_amount ?? 0) + amount;
-  const newStatus = newAmount >= (current?.target_amount ?? Infinity) ? 'completed' : 'active';
-
-  const { data: row, error } = await supabase
-    .from('goals')
-    .update({ current_amount: newAmount, status: newStatus })
-    .eq('id', goalId)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  if (error) {
-    console.error('addGoalContribution:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
-    throw new Error(error.message || 'Erro ao registrar aporte');
-  }
-  return toGoal(row);
 }

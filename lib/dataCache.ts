@@ -80,6 +80,65 @@ export function invalidateAll(): void {
   store.clear();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Invalidação automática: mapa table → cache keys a derrubar.
+//
+// O contrato anterior era frágil: TODA função nova em storage.ts precisava
+// lembrar de chamar invalidate(<chave>). Esquecer significava UI exibindo
+// dado velho por até TTL.LIST (60s). Aqui centralizamos a tabela do banco
+// como a única coisa que o autor da escrita precisa lembrar — o mapa abaixo
+// resolve as chaves derivadas.
+//
+// Algumas entradas (creditCardFaturas, profile, goals, assets, liabilities)
+// referenciam chaves que AINDA não são cacheadas. Listá-las aqui é forward-
+// thinking: `invalidate()` é no-op para chaves ausentes do store, e o dia
+// que essas leituras virarem `cachedFetch` a invalidação já está coberta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TABLE_INVALIDATIONS = {
+  expenses:            ['expenses', 'obligations', 'creditCardFaturas'],
+  recurring_expenses:  ['recurring', 'obligations'],
+  monthly_plans:       ['monthlyPlan'],
+  monthly_obligations: ['obligations', 'expenses'],
+  budgets:             ['budgets'],
+  credit_cards:        ['creditCards', 'creditCardFaturas'],
+  profiles:            ['profile'],
+  subscriptions:       ['subscription'],
+  goals:               ['goals', 'goalContributions'],
+  goal_contributions:  ['goalContributions', 'goals'],
+  assets:              ['assets'],
+  liabilities:         ['liabilities'],
+} as const;
+
+export type CacheTable = keyof typeof TABLE_INVALIDATIONS;
+
+// Envelopa uma escrita: executa, e se (e somente se) ela RESOLVER, invalida
+// todas as chaves derivadas da(s) tabela(s). Se o writeFn rejeitar, propaga
+// o erro normalmente e NÃO invalida — dado não mudou, cache permanece válido.
+//
+// Para escritas que tocam múltiplas tabelas (ex.: marcar obrigação como paga
+// cria uma despesa), passar um array: as chaves de todas as tabelas são
+// unionizadas e invalidadas uma única vez no caminho de sucesso.
+//
+// Observação para multi-step com falha parcial: se um INSERT bem-sucedido for
+// seguido por outro que rejeita dentro do mesmo writeFn, a invalidação não
+// roda — o estado parcial em cache será refrescado no próximo TTL (60s).
+// Aceitável: alternativas (try/finally invalidando sempre) gastariam queries
+// em todos os erros recuperáveis.
+export async function withCacheInvalidation<T>(
+  table: CacheTable | readonly CacheTable[],
+  writeFn: () => Promise<T>,
+): Promise<T> {
+  const result = await writeFn();
+  const tables: readonly CacheTable[] = Array.isArray(table) ? table : [table as CacheTable];
+  const keys = new Set<string>();
+  for (const t of tables) {
+    for (const k of TABLE_INVALIDATIONS[t]) keys.add(k);
+  }
+  for (const k of keys) invalidate(k);
+  return result;
+}
+
 // getUser() do supabase é SEMPRE um round-trip de rede (valida o token no
 // servidor). Era chamado 10–15× por load (useSubscription×3, Sidebar, Topbar,
 // loadUserAndProfile, checkAndGenerateObligations×4, cada escrita...).
