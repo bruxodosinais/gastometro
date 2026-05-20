@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, ChevronLeft, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
-import LoadingButton from '@/components/ui/LoadingButton';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { retryAsync } from '@/lib/retry';
@@ -29,16 +28,12 @@ import { createClient } from '@/lib/supabase/client';
 import {
   calculateTotalByType,
   formatCurrency,
-  formatCompact,
   getMonthKey,
-  getMonthLabel,
 } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import {
   Budget,
-  Category,
   CreditCard as CreditCardType,
   Expense,
   EXPENSE_CATEGORIES,
@@ -50,48 +45,14 @@ import {
 import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
 import { useSubscription } from '@/hooks/useSubscription';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function anim(delay: number, duration = 350): React.CSSProperties {
-  return {
-    animationName: 'up',
-    animationDuration: `${duration}ms`,
-    animationTimingFunction: 'ease-out',
-    animationFillMode: 'both',
-    animationDelay: `${delay}ms`,
-  };
-}
-const hidden: React.CSSProperties = { opacity: 0, transform: 'translateY(12px)' };
-
-function AutoValue({
-  value,
-  className = '',
-  style,
-}: {
-  value: number;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const [compact, setCompact] = useState(false);
-
-  useLayoutEffect(() => {
-    setCompact(false);
-  }, [value]);
-
-  useLayoutEffect(() => {
-    if (compact) return;
-    const el = ref.current;
-    if (el && el.scrollWidth > el.clientWidth) setCompact(true);
-  });
-
-  return (
-    <p ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`} style={style}>
-      {compact ? formatCompact(value) : formatCurrency(value)}
-    </p>
-  );
-}
+import { anim, hidden } from './_components/home/_anim';
+import SaldoCard from './_components/home/SaldoCard';
+import EntradaSaidaCards from './_components/home/EntradaSaidaCards';
+import FaturaAlertCard from './_components/home/FaturaAlertCard';
+import OrcamentoCard from './_components/home/OrcamentoCard';
+import ContasDoMes from './_components/home/ContasDoMes';
+import InsightsCard from './_components/home/InsightsCard';
+import HomeModals from './_components/home/HomeModals';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -1008,979 +969,83 @@ export default function HomePage() {
       <div className="home-left-col">
 
       {/* ── 4. SALDO HERO CARD ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          margin: '12px 16px 0',
-          background: 'var(--accent)',
-          borderRadius: 'var(--r)',
-          padding: '22px 20px 20px',
-          boxShadow: '0 8px 24px var(--accent-shadow)',
-          position: 'relative',
-          overflow: 'hidden',
-          ...(mounted ? anim(150) : hidden),
-        }}
-      >
-        {/* decorative circles */}
-        <div
-          style={{
-            position: 'absolute',
-            width: 160,
-            height: 160,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            top: -40,
-            right: -30,
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            width: 90,
-            height: 90,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)',
-            bottom: -20,
-            left: 30,
-            pointerEvents: 'none',
-          }}
-        />
-
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'rgba(255,255,255,0.6)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            marginBottom: 4,
-            position: 'relative',
-          }}
-        >
-          SALDO EM CONTA
-        </p>
-        <p
-          style={{
-            fontSize: 40,
-            fontWeight: 900,
-            color: 'white',
-            letterSpacing: '-0.03em',
-            lineHeight: 1.1,
-            marginBottom: 6,
-            position: 'relative',
-          }}
-        >
-          {formatCurrency(debitBalance)}
-        </p>
-
-        {(() => {
-          const monthResult = income - spent;
-          const positive = monthResult >= 0;
-          return (
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: positive ? '#A6F5D5' : '#FFB3B3',
-                marginBottom: 14,
-                position: 'relative',
-              }}
-            >
-              resultado do mês: {positive ? '' : '−'}{formatCurrency(Math.abs(monthResult))}
-            </p>
-          );
-        })()}
-
-        {faturasTotal > 0 && (
-          <>
-            <div
-              style={{
-                height: 1,
-                background: 'rgba(255,255,255,0.15)',
-                marginBottom: 12,
-                position: 'relative',
-              }}
-            />
-            <Link
-              href={faturaHref}
-              aria-label="Ver faturas dos cartões"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                position: 'relative',
-                textDecoration: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Fatura atual</span>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#FFB3B3',
-                }}
-              >
-                −{formatCurrency(faturasTotal)}
-                <ChevronRight size={14} color="rgba(255,255,255,0.55)" aria-hidden="true" />
-              </span>
-            </Link>
-          </>
-        )}
-      </div>
+      <SaldoCard
+        debitBalance={debitBalance}
+        income={income}
+        spent={spent}
+        faturasTotal={faturasTotal}
+        faturaHref={faturaHref}
+        mounted={mounted}
+      />
 
       {/* ── 5. GRID RECEITA / DESPESA ───────────────────────────────────────── */}
-      <div
-        style={{
-          margin: '10px 16px 0',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 10,
-          ...(mounted ? anim(200) : hidden),
-        }}
-      >
-        {/* Entrou */}
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--r)',
-            padding: '14px 16px',
-            boxShadow: 'var(--card-shadow)',
-          }}
-        >
-          <div
-            className="eio-icon"
-            style={{
-              width: 32,
-              height: 32,
-              background: 'var(--green-bg)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              marginBottom: 8,
-            }}
-          >
-            💰
-          </div>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--text-3)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: 2,
-            }}
-          >
-            ENTROU
-          </p>
-          <AutoValue
-            value={income}
-            style={{ fontSize: 19, fontWeight: 800, color: 'var(--green)', margin: 0 }}
-          />
-          <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>esse mês</p>
-        </div>
-
-        {/* Saiu */}
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--r)',
-            padding: '14px 16px',
-            boxShadow: 'var(--card-shadow)',
-          }}
-        >
-          <div
-            className="eio-icon"
-            style={{
-              width: 32,
-              height: 32,
-              background: 'var(--red-bg)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              marginBottom: 8,
-            }}
-          >
-            💸
-          </div>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--text-3)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: 2,
-            }}
-          >
-            SAIU
-          </p>
-          <AutoValue
-            value={spent}
-            style={{ fontSize: 19, fontWeight: 800, color: 'var(--red)', margin: 0 }}
-          />
-          <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>lançados</p>
-        </div>
-      </div>
+      <EntradaSaidaCards income={income} spent={spent} mounted={mounted} />
 
       {/* ── 6. ALERTA CONTAS PENDENTES ──────────────────────────────────────── */}
       {isCurrentMonth && pendingObligations.length > 0 && (
-        <div
-          style={{
-            margin: '10px 16px 0',
-            background: 'var(--yellow-bg)',
-            border: '1.5px solid rgba(255,184,0,0.25)',
-            borderRadius: 'var(--r-sm)',
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            cursor: 'pointer',
-            ...(mounted ? anim(250) : hidden),
-          }}
+        <FaturaAlertCard
+          pendingTotal={pendingTotal}
+          pendingCount={pendingObligations.length}
+          mounted={mounted}
           onClick={() => {
             contasMesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             setHighlighting(true);
             setTimeout(() => setHighlighting(false), 2000);
           }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              background: 'rgba(255,184,0,0.15)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            ⚠️
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'var(--yellow-text)',
-                margin: 0,
-              }}
-            >
-              {formatCurrency(pendingTotal)} pra pagar ainda
-            </p>
-            <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-              {pendingObligations.length} conta
-              {pendingObligations.length > 1 ? 's' : ''} aguarda
-              {pendingObligations.length > 1 ? 'm' : ''} confirmação
-            </p>
-          </div>
-          <ChevronRight size={14} color="var(--yellow)" style={{ flexShrink: 0 }} />
-        </div>
+        />
       )}
 
       {/* ── 7. ORÇAMENTO CARD ───────────────────────────────────────────────── */}
-      {(() => {
-        const hasBudget = valorLivreParaGastarPlanejado > 0;
-        const isZeroed = hasBudget ? orcamentoRestante <= 0 : debitSpent > 0;
-        const showNeutral = !hasBudget && debitSpent === 0;
-        const barColor = isZeroed ? 'var(--red)' : 'var(--green)';
-        const availableValue = Math.max(orcamentoRestante, 0);
-
-        return (
-          <div
-            style={{
-              margin: '10px 16px 0',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--r)',
-              padding: '18px 20px',
-              boxShadow: 'var(--card-shadow)',
-              ...(mounted ? anim(300) : hidden),
-            }}
-          >
-            {showNeutral ? (
-              <>
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-3)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    marginBottom: 4,
-                  }}
-                >
-                  ORÇAMENTO LIVRE
-                </p>
-                <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '8px 0 4px' }}>
-                  Configure seu orçamento
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 14 }}>
-                  Informe sua renda mensal para acompanhar seus gastos.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBudgetError('');
-                    setBudgetIncomeInput(
-                      monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
-                    );
-                    setBudgetGoalInput(
-                      monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
-                    );
-                    setBudgetModalOpen(true);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'var(--accent)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 'var(--r-sm)',
-                    padding: '10px 18px',
-                    fontSize: 13,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Configurar agora
-                </button>
-              </>
-            ) : (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: 4,
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--text-3)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      margin: 0,
-                    }}
-                  >
-                    ORÇAMENTO LIVRE
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBudgetError('');
-                      setBudgetIncomeInput(
-                        monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
-                      );
-                      setBudgetGoalInput(
-                        monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
-                      );
-                      setBudgetModalOpen(true);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: '#5B5BD6',
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    Editar
-                  </button>
-                </div>
-                <div
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
-                >
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 26,
-                        fontWeight: 900,
-                        color: isZeroed ? 'var(--red)' : 'var(--green)',
-                        margin: 0,
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {formatCurrency(availableValue)}
-                    </p>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
-                      disponível
-                    </p>
-                    <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
-                      {valorLivreParaGastarPlanejado > 0
-                        ? `de ${formatCurrency(valorLivreParaGastarPlanejado)} orçados`
-                        : valorLivreParaGastarPlanejado < 0
-                        ? `custos fixos + meta superam a renda em ${formatCurrency(
-                            -valorLivreParaGastarPlanejado
-                          )}`
-                        : 'sem margem livre no orçamento'}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p
-                      style={{ fontSize: 20, fontWeight: 800, color: isZeroed ? 'var(--red)' : 'var(--text-2)', margin: 0, lineHeight: 1.1 }}
-                    >
-                      {Math.round(Math.min(budgetPct, 100))}%
-                    </p>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
-                      usado
-                    </p>
-                    {isCurrentMonth && (
-                      <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                        {daysRemaining} dia{daysRemaining !== 1 ? 's' : ''} restante
-                        {daysRemaining !== 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    height: 6,
-                    background: 'var(--border-2)',
-                    borderRadius: 3,
-                    marginTop: 14,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      borderRadius: 3,
-                      width: mounted ? `${Math.min(budgetPct, 100)}%` : '0%',
-                      background: barColor,
-                      transition: 'width 600ms ease',
-                    }}
-                  />
-                </div>
-
-                {isZeroed ? (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      background: 'var(--red-bg)',
-                      border: '1.5px solid rgba(255,71,87,0.25)',
-                      borderRadius: 8,
-                      padding: '8px 12px',
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--red)',
-                        margin: 0,
-                      }}
-                    >
-                      Eita! Orçamento zerado.
-                    </p>
-                  </div>
-                ) : budgetOverflows.length > 0 ? (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      background: 'var(--red-bg)',
-                      border: '1.5px solid rgba(255,71,87,0.25)',
-                      borderRadius: 8,
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                    }}
-                  >
-                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', margin: 0 }}>
-                      {budgetOverflows.length === 1
-                        ? '⚠️ 1 categoria com orçamento estourado'
-                        : `⚠️ ${budgetOverflows[0].category} e ${budgetOverflows[1].category} estouraram o orçamento`}
-                    </p>
-                    <Link
-                      href="/categorias"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        flexShrink: 0,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--accent)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Ver categorias
-                      <ChevronRight size={13} />
-                    </Link>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-                    {isCurrentMonth
-                      ? `Tudo certo! Faltam ${daysRemaining} dia${daysRemaining !== 1 ? 's' : ''}.`
-                      : 'Orçamento do mês.'}
-                  </p>
-                )}
-                {/* P4: contas fixas pendentes não entram no cálculo do
-                    Orçamento Livre. Apenas informa — não mexe na barra nem
-                    no percentual. Só aparece com despesas recorrentes não
-                    pagas no mês atual e total > 0. */}
-                {isCurrentMonth && pendingObligations.length > 0 && pendingTotal > 0 && (
-                  <p
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--yellow-text)',
-                      marginTop: 8,
-                    }}
-                  >
-                    ⚠️ {formatCurrency(pendingTotal)} em contas fixas pendentes não
-                    incluídas
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        );
-      })()}
+      <OrcamentoCard
+        valorLivreParaGastarPlanejado={valorLivreParaGastarPlanejado}
+        orcamentoRestante={orcamentoRestante}
+        debitSpent={debitSpent}
+        budgetPct={budgetPct}
+        monthlyPlan={monthlyPlan}
+        isCurrentMonth={isCurrentMonth}
+        daysRemaining={daysRemaining}
+        budgetOverflows={budgetOverflows}
+        pendingObligations={pendingObligations}
+        pendingTotal={pendingTotal}
+        mounted={mounted}
+        onOpenBudgetModal={() => {
+          setBudgetError('');
+          setBudgetIncomeInput(
+            monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
+          );
+          setBudgetGoalInput(
+            monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
+          );
+          setBudgetModalOpen(true);
+        }}
+      />
 
       </div>{/* /home-left-col */}
       <div className="home-right-col">
 
       {/* ── 8. CONTAS DO MÊS ────────────────────────────────────────────────── */}
       {isCurrentMonth && (obligations.length > 0 || activeIncomeRecs.length > 0) && (
-        <div
-          ref={contasMesRef}
-          style={{ margin: '16px 16px 0', ...(mounted ? anim(350) : hidden) }}
-        >
-          {/* Section header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 10,
-            }}
-          >
-            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-              Contas do mês
-            </p>
-            {/* Badge conta apenas despesas fixas pendentes — receitas como
-                Salário aparecem na lista, mas nunca no count de pendentes. */}
-            {pendingObligations.length > 0 && (
-              <span
-                style={{
-                  background: 'var(--yellow-bg)',
-                  color: 'var(--yellow-text)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '3px 10px',
-                  borderRadius: 20,
-                }}
-              >
-                {pendingObligations.length} pendente
-                {pendingObligations.length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-
-          {/* Card list */}
-          <div
-            style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--r)',
-              overflow: 'hidden',
-            }}
-          >
-            {(() => {
-              type RowItem =
-                | { kind: 'obligation'; ob: MonthlyObligation }
-                | { kind: 'income'; rec: RecurringExpense; received: boolean };
-
-              const sortByDay = (a: RecurringExpense, b: RecurringExpense) =>
-                (a.dayOfMonth ?? 99) - (b.dayOfMonth ?? 99);
-              const sortObByDue = (a: MonthlyObligation, b: MonthlyObligation) =>
-                (a.dueDay ?? 99) - (b.dueDay ?? 99);
-
-              const pendingObligationsRows = pendingObligations.slice().sort(sortObByDue);
-
-              const pendingIncomeRows = activeIncomeRecs
-                .filter((r) => !receivedIncomeRecIds.has(r.id))
-                .filter((r) => isDayReachedForRec(r.dayOfMonth))
-                .sort(sortByDay);
-
-              const rows: RowItem[] = [
-                ...pendingIncomeRows.map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
-                ...pendingObligationsRows.map((o): RowItem => ({ kind: 'obligation', ob: o })),
-                ...activeIncomeRecs
-                  .filter((r) => receivedIncomeRecIds.has(r.id))
-                  .sort(sortByDay)
-                  .map((r): RowItem => ({ kind: 'income', rec: r, received: true })),
-                ...obligations
-                  .filter((o) => o.status === 'paid')
-                  .sort(sortObByDue)
-                  .map((o): RowItem => ({ kind: 'obligation', ob: o })),
-              ];
-              const visible = rows.slice(0, 3);
-
-              return (
-                <>
-                  <div>
-                    {visible.map((item, idx) => {
-                      const isLast = idx === visible.length - 1 && rows.length <= 3;
-                      const borderStyle = isLast
-                        ? {}
-                        : { borderBottom: '1px solid var(--border-2)' };
-
-                      if (item.kind === 'income') {
-                        const { rec, received } = item;
-                        const cfg = CATEGORY_CONFIG[rec.category as Category];
-                        const isReceiving = receivingIds.has(rec.id);
-                        return (
-                          <div
-                            key={`income-${rec.id}`}
-                            style={{
-                              padding: '13px 16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 12,
-                              opacity: received ? 0.45 : 1,
-                              transition: 'opacity 0.2s',
-                              ...borderStyle,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 10,
-                                background: 'var(--logo-bg)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 18,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {cfg?.icon ?? '💰'}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: 'var(--text)',
-                                  margin: 0,
-                                  textDecoration: received ? 'line-through' : 'none',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {rec.description
-                                  ? rec.description.charAt(0).toUpperCase() +
-                                    rec.description.slice(1)
-                                  : ''}
-                              </p>
-                              {!received && (
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    color: 'var(--text-3)',
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  {typeof rec.dayOfMonth === 'number' &&
-                                  rec.dayOfMonth >= 1 &&
-                                  rec.dayOfMonth <= 31
-                                    ? `Recebimento dia ${rec.dayOfMonth}`
-                                    : 'Recebimento mensal'}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 800,
-                                color: received ? 'var(--text-3)' : 'var(--green)',
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                                textDecoration: received ? 'line-through' : 'none',
-                              }}
-                            >
-                              +{formatCurrency(rec.amount)}
-                            </span>
-                            {received ? (
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  color: 'var(--green)',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                Pago ✓
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleConfirmIncome(rec)}
-                                disabled={isReceiving}
-                                style={{
-                                  width: 27,
-                                  height: 27,
-                                  borderRadius: '50%',
-                                  background: 'var(--green-bg)',
-                                  border: 'none',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer',
-                                  flexShrink: 0,
-                                  opacity: isReceiving ? 0.5 : 1,
-                                }}
-                                title="Confirmar recebimento"
-                              >
-                                {isReceiving ? (
-                                  <Loader2 size={13} color="var(--green)" className="animate-spin" />
-                                ) : (
-                                  <Check size={13} color="var(--green)" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      const { ob } = item;
-                      const cfg = CATEGORY_CONFIG[ob.category as Category];
-                      const isPaid = ob.status === 'paid';
-                      const isPaying = payingIds.has(ob.id);
-                      const hasDueDay =
-                        typeof ob.dueDay === 'number' && ob.dueDay >= 1 && ob.dueDay <= 31;
-                      const daysLate =
-                        !isPaid && hasDueDay && todayDay > ob.dueDay!
-                          ? todayDay - ob.dueDay!
-                          : 0;
-                      const dueToday = !isPaid && hasDueDay && todayDay === ob.dueDay;
-                      const dueTomorrow = !isPaid && hasDueDay && ob.dueDay === todayDay + 1;
-                      const dueLabelText = isPaid
-                        ? ''
-                        : !hasDueDay
-                        ? '' // sem prazo definido — não mostra "Vence dia X"
-                        : daysLate > 0
-                        ? `Venceu há ${daysLate} dia${daysLate > 1 ? 's' : ''}`
-                        : dueToday
-                        ? 'Vence hoje'
-                        : dueTomorrow
-                        ? 'Vence amanhã'
-                        : `Vence dia ${ob.dueDay}`;
-                      const dueLabelColor =
-                        daysLate > 0
-                          ? 'var(--red)'
-                          : dueToday
-                          ? 'var(--yellow-text)'
-                          : 'var(--text-3)';
-                      const obRec = recurringExpenses.find(
-                        (r) => r.id === ob.recurringExpenseId
-                      );
-                      const obCardName =
-                        obRec?.isCredit && obRec.creditCardId
-                          ? creditCards.find((c) => c.id === obRec.creditCardId)?.nome
-                          : undefined;
-
-                      return (
-                        <div
-                          key={ob.id}
-                          style={{
-                            padding: '13px 16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            opacity: isPaid ? 0.45 : 1,
-                            transition: 'opacity 0.2s',
-                            ...(highlighting && !isPaid
-                              ? {
-                                  background: 'rgba(255,184,0,0.06)',
-                                }
-                              : {}),
-                            ...borderStyle,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: 10,
-                              background: 'var(--logo-bg)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {cfg?.icon ?? '💸'}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                color: 'var(--text)',
-                                margin: 0,
-                                textDecoration: isPaid ? 'line-through' : 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {ob.description
-                                ? ob.description.charAt(0).toUpperCase() +
-                                  ob.description.slice(1)
-                                : ''}
-                            </p>
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                flexWrap: 'wrap',
-                                marginTop: 2,
-                              }}
-                            >
-                              {!isPaid && (
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    color: dueLabelColor,
-                                    margin: 0,
-                                  }}
-                                >
-                                  {dueLabelText}
-                                </p>
-                              )}
-                              {obCardName && (
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    padding: '2px 6px',
-                                    borderRadius: 4,
-                                    background: 'var(--accent-bg)',
-                                    color: 'var(--accent)',
-                                  }}
-                                >
-                                  {obCardName}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <span
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 800,
-                              color: isPaid ? 'var(--text-3)' : 'var(--text)',
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                              textDecoration: isPaid ? 'line-through' : 'none',
-                            }}
-                          >
-                            {formatCurrency(ob.amount)}
-                          </span>
-                          {isPaid ? (
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: 'var(--green)',
-                                flexShrink: 0,
-                              }}
-                            >
-                              Pago ✓
-                            </span>
-                          ) : (
-                            <LoadingButton
-                              onClick={() => {
-                                const rec = recurringExpenses.find(
-                                  (r) => r.id === ob.recurringExpenseId
-                                );
-                                if (rec?.isVariable) {
-                                  setVariablePayModal({
-                                    obligationId: ob.id,
-                                    estimatedAmount: ob.amount,
-                                  });
-                                  setVariableAmount(String(ob.amount));
-                                } else {
-                                  handleMarkObligationPaid(ob.id);
-                                }
-                              }}
-                              loading={isPaying}
-                              spinnerSize={13}
-                              spinnerColor="var(--accent)"
-                              style={{
-                                width: 27,
-                                height: 27,
-                                borderRadius: '50%',
-                                background: 'var(--accent-bg)',
-                                border: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                flexShrink: 0,
-                                opacity: isPaying ? 0.5 : 1,
-                              }}
-                              title="Marcar como pago"
-                            >
-                              <Check size={13} color="var(--accent)" />
-                            </LoadingButton>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {rows.length > 3 && (
-                    <Link
-                      href="/recorrentes"
-                      style={{
-                        display: 'block',
-                        padding: '12px 16px',
-                        color: 'var(--accent)',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textDecoration: 'none',
-                        borderTop: '1px solid var(--border-2)',
-                      }}
-                    >
-                      Ver todas as {rows.length} contas →
-                    </Link>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        <ContasDoMes
+          obligations={obligations}
+          pendingObligations={pendingObligations}
+          activeIncomeRecs={activeIncomeRecs}
+          recurringExpenses={recurringExpenses}
+          creditCards={creditCards}
+          receivedIncomeRecIds={receivedIncomeRecIds}
+          todayDay={todayDay}
+          payingIds={payingIds}
+          receivingIds={receivingIds}
+          highlighting={highlighting}
+          mounted={mounted}
+          sectionRef={contasMesRef}
+          onConfirmIncome={handleConfirmIncome}
+          onMarkObligationPaid={handleMarkObligationPaid}
+          onOpenVariablePay={(obligationId, estimatedAmount) => {
+            setVariablePayModal({ obligationId, estimatedAmount });
+            setVariableAmount(String(estimatedAmount));
+          }}
+        />
       )}
-
       {/* ── 8B. TOP GASTOS (desktop only) ───────────────────────────────────── */}
       {topExpenses.length > 0 && (
         <div
@@ -2075,70 +1140,7 @@ export default function HomePage() {
 
       {/* ── 9. INSIGHTS PERSONALIZADOS ──────────────────────────────────────── */}
       {isCurrentMonth && (
-        <div
-          style={{
-            margin: '12px 16px 0',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--r-sm)',
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-            ...(mounted ? anim(400) : hidden),
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: 'var(--accent-bg)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              fontSize: 15,
-            }}
-          >
-            💡
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: 'var(--text)',
-                margin: 0,
-                marginBottom: monthInsights.length > 0 ? 6 : 4,
-              }}
-            >
-              Seu mês em números
-            </p>
-            {monthInsights.length > 0 ? (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {monthInsights.map((text, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: 'var(--text-2)',
-                      marginTop: i === 0 ? 0 : 4,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    • {text}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', margin: 0, lineHeight: 1.4 }}>
-                Lance seus primeiros gastos para ver insights personalizados.
-              </p>
-            )}
-          </div>
-        </div>
+        <InsightsCard monthInsights={monthInsights} mounted={mounted} />
       )}
 
       {!subLoading && isFree && (
@@ -2200,341 +1202,33 @@ export default function HomePage() {
       </div>{/* /home-right-col */}
       </div>{/* /home-content-wrap */}
 
-      {/* ── MODAL: Valor real para despesa variável ──────────────────────────── */}
-      {variablePayModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          style={{ padding: 16 }}
-          onClick={() => setVariablePayModal(null)}
-        >
-          <div
-            style={{
-              background: 'var(--surface)',
-              borderRadius: 20,
-              width: '90%',
-              maxWidth: 400,
-              padding: 24,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: 'var(--text)',
-                marginBottom: 4,
-              }}
-            >
-              Confirmar pagamento
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
-              Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o
-              valor real pago
-            </p>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--text-2)',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              Valor pago (R$)
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              autoFocus
-              value={variableAmount}
-              onChange={(e) => setVariableAmount(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: 16,
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setVariablePayModal(null)}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-2)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  const parsed = parseFloat(variableAmount.replace(',', '.'));
-                  if (!parsed || parsed <= 0) return;
-                  const id = variablePayModal.obligationId;
-                  setVariablePayModal(null);
-                  handleMarkObligationPaid(id, parsed);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--accent)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Confirmar pagamento
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: Configurar orçamento (P5) ─────────────────────────────────── */}
-      {budgetModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          style={{ padding: 16 }}
-          onClick={() => !savingBudget && setBudgetModalOpen(false)}
-        >
-          <div
-            style={{
-              background: 'var(--surface)',
-              borderRadius: 20,
-              width: '90%',
-              maxWidth: 400,
-              padding: 24,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>
-              Configurar orçamento
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
-              {getMonthLabel(period)}
-            </p>
-
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--text-2)',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              Renda esperada (R$)
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              autoFocus
-              value={budgetIncomeInput}
-              onChange={(e) => setBudgetIncomeInput(e.target.value)}
-              placeholder="0,00"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: 14,
-              }}
-            />
-
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--text-2)',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              Meta de poupança (R$){' '}
-              <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· opcional</span>
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              value={budgetGoalInput}
-              onChange={(e) => setBudgetGoalInput(e.target.value)}
-              placeholder="0,00"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: 14,
-              }}
-            />
-
-            {budgetError && (
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'var(--red)',
-                  background: 'var(--red-bg)',
-                  borderRadius: 'var(--r-sm)',
-                  padding: '10px 14px',
-                  textAlign: 'center',
-                  marginBottom: 14,
-                }}
-              >
-                {budgetError}
-              </p>
-            )}
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setBudgetModalOpen(false)}
-                disabled={savingBudget}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-2)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: savingBudget ? 'default' : 'pointer',
-                  opacity: savingBudget ? 0.6 : 1,
-                }}
-              >
-                Cancelar
-              </button>
-              <LoadingButton
-                onClick={handleSaveBudget}
-                loading={savingBudget}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--accent)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: savingBudget ? 'default' : 'pointer',
-                  opacity: savingBudget ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                Salvar
-              </LoadingButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: Fatura vence hoje ─────────────────────────────────────────── */}
-      {cardVencimentoAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div
-            style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 20,
-              padding: 24,
-              width: '100%',
-              maxWidth: 360,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: 'var(--text)',
-                marginBottom: 4,
-              }}
-            >
-              💳 Fatura do {cardVencimentoAlert.card.nome} vence hoje
-            </p>
-            <p
-              style={{
-                fontSize: 14,
-                color: 'var(--text-2)',
-                marginBottom: 20,
-              }}
-            >
-              {formatCurrency(cardVencimentoAlert.fatura)} — deseja registrar o pagamento?
-            </p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setCardVencimentoAlert(null)}
-                style={{
-                  flex: 1,
-                  padding: '11px 0',
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface)',
-                  color: 'var(--text-2)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Lembrar depois
-              </button>
-              <button
-                onClick={() =>
-                  handlePayFatura(cardVencimentoAlert.card, cardVencimentoAlert.fatura)
-                }
-                style={{
-                  flex: 1,
-                  padding: '11px 0',
-                  borderRadius: 12,
-                  background: 'var(--accent)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Pagar agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <HomeModals
+        variablePayModal={variablePayModal}
+        variableAmount={variableAmount}
+        onVariableAmountChange={setVariableAmount}
+        onCancelVariablePay={() => setVariablePayModal(null)}
+        onConfirmVariablePay={() => {
+          if (!variablePayModal) return;
+          const parsed = parseFloat(variableAmount.replace(',', '.'));
+          if (!parsed || parsed <= 0) return;
+          const id = variablePayModal.obligationId;
+          setVariablePayModal(null);
+          handleMarkObligationPaid(id, parsed);
+        }}
+        budgetModalOpen={budgetModalOpen}
+        budgetIncomeInput={budgetIncomeInput}
+        budgetGoalInput={budgetGoalInput}
+        onBudgetIncomeChange={setBudgetIncomeInput}
+        onBudgetGoalChange={setBudgetGoalInput}
+        budgetError={budgetError}
+        savingBudget={savingBudget}
+        onCancelBudget={() => setBudgetModalOpen(false)}
+        onSaveBudget={handleSaveBudget}
+        period={period}
+        cardVencimentoAlert={cardVencimentoAlert}
+        onDismissCardAlert={() => setCardVencimentoAlert(null)}
+        onPayFatura={handlePayFatura}
+      />
 
       {/* ── DRAWER: Notificações ─────────────────────────────────────────────── */}
       <NotificationsDrawer
