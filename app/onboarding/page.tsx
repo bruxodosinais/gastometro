@@ -23,6 +23,7 @@ import {
   markObligationAsPaid,
 } from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
+import { Info } from 'lucide-react';
 import type { ExpenseCategory, MonthlyObligation, RecurringExpense } from '@/lib/types';
 
 // ─── Dados dos chips de contas fixas ─────────────────────────────────────────
@@ -1251,6 +1252,13 @@ export default function OnboardingPage() {
             </p>
             <BigCurrencyInput value={balance} onChange={setBalance} />
 
+            <div className="mt-3 flex items-start gap-1.5 text-sm" style={{ color: '#6b7280' }}>
+              <Info size={14} className="flex-shrink-0 mt-0.5" />
+              <span className="leading-snug">
+                Informe o valor que você tem na conta agora, já considerando tudo que recebeu e pagou este mês.
+              </span>
+            </div>
+
             <div className="h-6" />
             <p className="text-xs font-semibold text-gray-500 mb-1">
               Reserva de emergência{' '}
@@ -1304,6 +1312,14 @@ export default function OnboardingPage() {
               <p className="text-sm text-gray-400 text-center py-8">Carregando…</p>
             ) : (
               <div className="space-y-4">
+                {(salaryRec || obligations.length > 0) && (
+                  <div className="flex items-start gap-1.5 text-sm" style={{ color: '#6b7280' }}>
+                    <Info size={14} className="flex-shrink-0 mt-0.5" />
+                    <span className="leading-snug">
+                      Marque apenas o que ainda não está refletido no saldo informado acima.
+                    </span>
+                  </div>
+                )}
                 {salaryRec && (
                   <div className="rounded-xl border border-gray-100 p-3" style={{ background: '#f9fafb' }}>
                     <p className="text-sm font-medium text-gray-700 mb-2">
