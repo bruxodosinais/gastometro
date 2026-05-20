@@ -295,6 +295,7 @@ export default function OnboardingPage() {
   const [paidObligationIds, setPaidObligationIds] = useState<Set<string>>(new Set());
   const [loadingB, setLoadingB] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   // Resumo
   const [savedIncome, setSavedIncome] = useState(0);
@@ -609,11 +610,15 @@ export default function OnboardingPage() {
   // Cada escrita é idempotente para suportar voltar/avançar sem duplicar.
   async function handleFinish() {
     if (committing) return;
+    // commitError reflete tentativa anterior (não-null = user já viu o aviso e
+    // está clicando "Começar organizado" de novo para seguir mesmo assim).
+    const isRetry = commitError !== null;
     setCommitting(true);
     const today = new Date().toISOString().slice(0, 10);
     const currentMonth = today.slice(0, 7);
 
     const bal = parseAmount(balance);
+    let saldoInicialFailed = false;
     if (bal > 0) {
       try {
         const all = await getExpenses();
@@ -644,7 +649,15 @@ export default function OnboardingPage() {
           });
         }
       } catch (e) {
+        // Causa típica: migration `20260517_add_saldo_inicial_to_category_check.sql`
+        // não aplicada → expenses_category_check rejeita 'Saldo inicial'. Antes
+        // caía silencioso e o saldo do beta tester ficava negativo. Agora avisa.
         console.error('Onboarding: erro ao salvar saldo inicial:', e);
+        const msg = e instanceof Error ? e.message : String(e);
+        setCommitError(
+          `Não consegui salvar seu saldo inicial (${msg}). Continuamos sem ele — você pode lançar manualmente depois em Lançamentos.`,
+        );
+        saldoInicialFailed = true;
       }
     }
 
@@ -705,6 +718,13 @@ export default function OnboardingPage() {
       } catch (e) {
         console.error(`Onboarding: erro ao marcar "${ob.description}" como paga:`, e);
       }
+    }
+
+    // Se o saldo inicial falhou na PRIMEIRA tentativa, pausa antes de navegar
+    // para que o aviso fique visível. Segundo clique (isRetry=true) segue.
+    if (saldoInicialFailed && !isRetry) {
+      setCommitting(false);
+      return;
     }
 
     // Sem setCommitting(false): completeOnboarding navega para fora da página.
@@ -1522,10 +1542,19 @@ export default function OnboardingPage() {
               </div>
             )}
 
+            {commitError && (
+              <div
+                role="alert"
+                className="mt-4 mb-2 text-xs leading-relaxed text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5"
+              >
+                {commitError}{' '}
+                <span className="font-medium">Clique de novo para continuar mesmo assim.</span>
+              </div>
+            )}
             <NavRow
               onBack={goBack}
               onPrimary={handleFinish}
-              primaryLabel="Começar organizado"
+              primaryLabel={commitError ? 'Continuar mesmo assim' : 'Começar organizado'}
               loading={committing}
             />
             <SkipLink label="Pular por agora" onSkip={handleSkipFinance} />

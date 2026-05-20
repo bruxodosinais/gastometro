@@ -880,6 +880,108 @@ async function runCheckAndGenerateObligations(): Promise<void> {
   }
 }
 
+// Espelha checkAndGenerateObligations, mas para RECEITAS recorrentes (income).
+// Quando o dayOfMonth de um recorrente income ativo já chegou e ainda não foi
+// lançado no mês corrente, cria a entry automaticamente. Antes disso o salário
+// só virava entry via "marcar como recebido" no card, e usuários que não
+// achavam o botão viam o saldo zerar enquanto as despesas marcadas como pagas
+// já tinham virado expense.
+let incomeEntriesInflight: Promise<void> | null = null;
+export function checkAndGenerateIncomeEntries(): Promise<void> {
+  if (incomeEntriesInflight) return incomeEntriesInflight;
+  incomeEntriesInflight = runCheckAndGenerateIncomeEntries().finally(() => {
+    incomeEntriesInflight = null;
+  });
+  return incomeEntriesInflight;
+}
+
+async function runCheckAndGenerateIncomeEntries(): Promise<void> {
+  const today = new Date();
+  const currentMonth = today.toISOString().slice(0, 7);
+  const todayDay = today.getDate();
+  const sessionKey = `income_entries_generated_${currentMonth}`;
+
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) return;
+
+  const user = await getCachedUser();
+  if (!user) return;
+
+  const recurring = (await getRecurringExpenses()).filter(
+    (r) => r.active && r.type === 'income'
+  );
+
+  if (!recurring.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  // Só gera para recorrentes cujo dayOfMonth já chegou. dayOfMonth ausente
+  // (undefined) é tratado como "sem data definida" → não auto-lança para não
+  // adivinhar uma data que o user não informou (consistente com Contas do mês,
+  // que exibe esses itens como "Dia não definido" e não vence sozinho).
+  const due = recurring.filter(
+    (r) => typeof r.dayOfMonth === 'number' && (r.dayOfMonth as number) <= todayDay
+  );
+
+  if (!due.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  const supabase = createClient();
+
+  // Lista entries já existentes neste mês para os recorrentes alvo, em UMA query.
+  const dueIds = due.map((r) => r.id);
+  const { data: existing, error: existingErr } = await supabase
+    .from('expenses')
+    .select('recurring_expense_id')
+    .eq('user_id', user.id)
+    .in('recurring_expense_id', dueIds)
+    .gte('date', `${currentMonth}-01`)
+    .lte('date', `${currentMonth}-31`);
+
+  if (existingErr) return; // tabela ausente/erro: não marca sessionStorage, retenta
+
+  const alreadyLogged = new Set(
+    (existing ?? []).map((row) => (row as { recurring_expense_id: string }).recurring_expense_id)
+  );
+  const toCreate = due.filter((r) => !alreadyLogged.has(r.id));
+
+  if (!toCreate.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  // Data do lançamento = dia do mês corrente em que o recorrente vence (não
+  // hoje), espelhando como o user lançaria manualmente. Se dayOfMonth > último
+  // dia do mês (ex.: dia 31 em fev), usa o último dia.
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const rows = toCreate.map((rec) => {
+    const dom = Math.min(rec.dayOfMonth as number, lastDay);
+    const dd = String(dom).padStart(2, '0');
+    return {
+      user_id: user.id,
+      type: 'income' as const,
+      amount: rec.amount,
+      description: rec.description,
+      category: rec.category,
+      date: `${currentMonth}-${dd}`,
+      recurring_expense_id: rec.id,
+      is_credit: false,
+    };
+  });
+
+  try {
+    await withCacheInvalidation('expenses', async () => {
+      const { error } = await supabase.from('expenses').insert(rows);
+      if (error) throw error;
+    });
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+  } catch {
+    // sem marcar sessionStorage — próximo load tenta de novo
+  }
+}
+
 export async function markObligationAsPaid(
   obligationId: string,
   obligation: MonthlyObligation,

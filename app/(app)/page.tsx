@@ -17,6 +17,7 @@ import {
   upsertMonthlyPlan,
   getMonthlyObligations,
   checkAndGenerateObligations,
+  checkAndGenerateIncomeEntries,
   markObligationAsPaid,
   addExpense,
   getAllGoalContributions,
@@ -115,7 +116,9 @@ export default function HomePage() {
     try {
       const [exp, bud, rec, obs, contrib, cards] = await retryAsync(() =>
         Promise.all([
-          getExpenses(),
+          // checkAndGenerateIncomeEntries roda antes de getExpenses para que
+          // o salário recorrente vencido apareça já no primeiro render.
+          checkAndGenerateIncomeEntries().then(() => getExpenses()),
           getBudgets(),
           getRecurringExpenses(),
           checkAndGenerateObligations().then(() => getMonthlyObligations(currentMonth)),
@@ -408,9 +411,68 @@ export default function HomePage() {
     .filter((e) => e.type === 'expense' && e.isCredit === true)
     .reduce((s, e) => s + e.amount, 0);
   const debitSpent = spent - periodCreditTotal;
-  const debitBalance = income - debitSpent;
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
+
+  // "SALDO EM CONTA" é CUMULATIVO, não mensal: representa quanto o user tem em
+  // conta ao fim do período em vista, somando todas as entries lançadas (incl.
+  // saldo inicial gravado em outro mês). O cálculo antigo `income - debitSpent`
+  // do mês isolava o resultado mensal — útil pra "resultado do mês", inútil
+  // pra saldo: se o user marcava obrigações como pagas mas o salário ainda
+  // estava só como recorrente, ele via saldo negativo (bug do beta tester).
+  const todayStr = now.toISOString().slice(0, 10);
+  const periodLastDay = `${period}-${String(totalDaysInMonth).padStart(2, '0')}`;
+  const currentMonthKey = getMonthKey(now);
+  // Fronteira de "realizado": mês passado → fim daquele mês; mês corrente/
+  // futuro → hoje. Pra mês futuro, projetamos o restante depois.
+  const realizedBoundary = period < currentMonthKey ? periodLastDay : todayStr;
+  const cumulativeEntries = expenses.filter((e) => e.date <= realizedBoundary);
+  const cumulativeIncome = calculateTotalByType(cumulativeEntries, 'income');
+  const cumulativeSpent = calculateTotalByType(cumulativeEntries, 'expense');
+  const cumulativeCreditTotal = cumulativeEntries
+    .filter((e) => e.type === 'expense' && e.isCredit === true)
+    .reduce((s, e) => s + e.amount, 0);
+  const cumulativeDebitSpent = cumulativeSpent - cumulativeCreditTotal;
+  const realizedBalance = cumulativeIncome - cumulativeDebitSpent;
+
+  // Projeção para mês futuro: soma receitas recorrentes esperadas e subtrai
+  // despesas recorrentes esperadas em cada mês entre o corrente e o period
+  // (inclusive), descontando o que já foi lançado em cada mês. No mês
+  // corrente, só conta o que ainda vai vencer (dayOfMonth > hoje) — o que já
+  // venceu virou entry via checkAndGenerateIncomeEntries / obligations.
+  let projectedIncome = 0;
+  let projectedSpent = 0;
+  if (isFutureMonth) {
+    const months: string[] = [];
+    const cur = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(periodYear, periodMonth - 1, 1);
+    while (cur <= end) {
+      months.push(getMonthKey(cur));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    const activeRec = recurringExpenses.filter((r) => r.active);
+    for (const m of months) {
+      const isCur = m === currentMonthKey;
+      const loggedIds = new Set(
+        expenses
+          .filter((e) => e.date.slice(0, 7) === m && e.recurringExpenseId)
+          .map((e) => e.recurringExpenseId as string),
+      );
+      for (const r of activeRec) {
+        if (loggedIds.has(r.id)) continue;
+        if (isCur && typeof r.dayOfMonth === 'number' && r.dayOfMonth <= now.getDate()) {
+          // Já passou do dia neste mês e ainda não foi lançado — não projeta
+          // (assume que o user vai marcar manualmente; auto-gen tenta cobrir
+          // o caso de income vencido).
+          continue;
+        }
+        if (r.type === 'income') projectedIncome += r.amount;
+        else projectedSpent += r.amount;
+      }
+    }
+  }
+
+  const debitBalance = realizedBalance + projectedIncome - projectedSpent;
 
   // "Fatura atual" = soma das faturas em aberto de TODOS os cartões.
   // cardFaturas vem de getCreditCardFatura (mês corrente), que já abate os
