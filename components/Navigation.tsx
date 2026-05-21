@@ -6,8 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, LayoutGrid,
   Target, Bot, TrendingUp, UserCircle, X, CreditCard, Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { openFeedback } from '@/components/FeedbackButton';
 
 const ACTIVE = 'var(--accent)';
 const INACTIVE = '#9CA3AF';
@@ -194,6 +196,40 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSheetOpen(false);
+                  openFeedback();
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  background: 'var(--surface)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 'var(--r)',
+                  padding: '20px 16px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'border-color 150ms',
+                }}
+              >
+                <div
+                  style={{
+                    width: 40, height: 40,
+                    background: 'var(--accent-bg)',
+                    borderRadius: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <MessageSquare size={20} color="var(--accent)" />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 10, textAlign: 'center' }}>
+                  Enviar feedback
+                </span>
+              </button>
 
               {!subLoading && isFree && (
                 <Link

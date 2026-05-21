@@ -16,6 +16,14 @@ const CATEGORIES: { value: Category; emoji: string; label: string }[] = [
 const MIN_LEN = 10;
 const MAX_LEN = 500;
 
+export const FEEDBACK_EVENT = 'open-feedback';
+
+export function openFeedback() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FEEDBACK_EVENT));
+  }
+}
+
 export default function FeedbackButton() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -24,6 +32,12 @@ export default function FeedbackButton() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    function onOpen() { setOpen(true); }
+    window.addEventListener(FEEDBACK_EVENT, onOpen);
+    return () => window.removeEventListener(FEEDBACK_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -87,40 +101,11 @@ export default function FeedbackButton() {
     }
   }
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Dar feedback"
-        style={{
-          position: 'fixed',
-          bottom: 'calc(80px + env(safe-area-inset-bottom))',
-          right: 16,
-          zIndex: 40,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '10px 16px',
-          background: 'var(--accent)',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: 20,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontWeight: 700,
-          fontSize: 14,
-          boxShadow: '0 4px 16px rgba(91,91,214,0.32)',
-        }}
-        className="feedback-fab"
-      >
-        <span aria-hidden="true">💬</span>
-        <span>Feedback</span>
-      </button>
+  if (!open) return null;
 
-      {open && (
-        <div
-          onClick={closeModal}
+  return (
+    <div
+      onClick={closeModal}
           style={{
             position: 'fixed',
             inset: 0,
@@ -301,7 +286,5 @@ export default function FeedbackButton() {
             )}
           </div>
         </div>
-      )}
-    </>
   );
 }

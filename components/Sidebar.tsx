@@ -6,8 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
+import { openFeedback } from '@/components/FeedbackButton';
 import {
   getMonthlyObligations,
   getRecurringExpenses,
@@ -349,8 +351,48 @@ export default function Sidebar() {
         style={{
           borderTop: '1px solid var(--border)',
           padding: '8px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
         }}
       >
+        <button
+          type="button"
+          onClick={() => openFeedback()}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 10px',
+            borderRadius: 10,
+            background: 'transparent',
+            color: 'var(--text-2)',
+            fontSize: 13,
+            fontWeight: 700,
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            transition: 'background 120ms',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <MessageSquare size={16} color="var(--text-2)" />
+          </span>
+          <span style={{ flex: 1 }}>Enviar feedback</span>
+        </button>
         <NavItem
           href="/perfil"
           label="Perfil"
