@@ -208,7 +208,7 @@ export default function CartaoDetailPage() {
               {isPaid ? (
                 <span
                   className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: '#dcfce7', color: '#16a34a' }}
+                  style={{ background: 'var(--green-bg)', color: 'var(--green-text)' }}
                 >
                   ✓ Fatura paga
                 </span>
@@ -251,12 +251,12 @@ export default function CartaoDetailPage() {
             {isPaid && payment && (
               <div
                 className="flex items-center justify-between rounded-xl px-4 py-3"
-                style={{ background: '#f0fdf4', border: '1px solid #dcfce7' }}
+                style={{ background: 'var(--green-bg)', border: '1px solid rgba(0,195,122,0.18)' }}
               >
                 <span className="text-xs text-gray-500">
                   Pago em {formatDateBR(payment.lastDate)}
                 </span>
-                <span className="text-sm font-bold" style={{ color: '#16a34a' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--green-text)' }}>
                   {formatCurrency(payment.total)}
                 </span>
               </div>
