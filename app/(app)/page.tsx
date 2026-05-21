@@ -641,51 +641,6 @@ export default function HomePage() {
     return null;
   })();
 
-  // ── Insights personalizados ───────────────────────────────────────────────
-  const monthInsights: string[] = (() => {
-    if (periodExpenses.length === 0) return [];
-    const out: string[] = [];
-
-    // Maior categoria do mês
-    const totalsByCat = EXPENSE_CATEGORIES.map((cat) => ({
-      cat,
-      total: periodExpenses
-        .filter((e) => e.category === cat)
-        .reduce((s, e) => s + e.amount, 0),
-    }))
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total);
-    const topCat = totalsByCat[0];
-    if (topCat) {
-      out.push(`${topCat.cat} foi sua maior categoria: ${formatCurrency(topCat.total)}`);
-    }
-
-    // Comparação com mês anterior
-    if (prevMonthSpent > 0 && spent > 0) {
-      const diff = spent - prevMonthSpent;
-      if (Math.abs(diff) >= 0.01) {
-        if (diff > 0) {
-          out.push(`Você gastou ${formatCurrency(diff)} a mais que em ${prevMonthLabel}`);
-        } else {
-          out.push(`Você gastou ${formatCurrency(Math.abs(diff))} a menos que em ${prevMonthLabel}`);
-        }
-      }
-    }
-
-    // Maior despesa individual
-    const biggest = periodExpenses.reduce(
-      (max, e) => (e.amount > (max?.amount ?? 0) ? e : max),
-      null as null | (typeof periodExpenses)[number]
-    );
-    if (biggest && out.length < 2) {
-      const desc = (biggest.description || biggest.category).trim();
-      const descCap = desc.charAt(0).toUpperCase() + desc.slice(1);
-      out.push(`Sua maior despesa foi ${descCap}: ${formatCurrency(biggest.amount)}`);
-    }
-
-    return out.slice(0, 2);
-  })();
-
   // ── Monthly close handlers ─────────────────────────────────────────────────
   function handleCloseMonthlyClose() {
     localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
@@ -1207,7 +1162,14 @@ export default function HomePage() {
 
       {/* ── 9. INSIGHTS PERSONALIZADOS ──────────────────────────────────────── */}
       {isCurrentMonth && (
-        <InsightsCard monthInsights={monthInsights} mounted={mounted} />
+        <InsightsCard
+          expenses={expenses}
+          period={period}
+          income={income}
+          debitSpent={debitSpent}
+          budgetPct={budgetPct}
+          mounted={mounted}
+        />
       )}
 
       {!subLoading && isFree && (
