@@ -400,7 +400,12 @@ export default function HomePage() {
     ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1
     : 0;
 
-  const periodEntries = expenses.filter((e) => e.date.slice(0, 7) === period);
+  // 'Saldo inicial' é uma âncora de sistema (positiva ou negativa) que ajusta
+  // o saldo cumulativo para bater com o que o user informou no onboarding —
+  // não é um movimento real do mês e portanto fica de fora de ENTROU/SAIU.
+  const periodEntries = expenses.filter(
+    (e) => e.date.slice(0, 7) === period && e.category !== 'Saldo inicial',
+  );
   const income = calculateTotalByType(periodEntries, 'income');
   const spent = calculateTotalByType(periodEntries, 'expense');
   // Soma das COMPRAS no crédito do período. NÃO incluir o pagamento de
