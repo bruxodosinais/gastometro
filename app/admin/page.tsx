@@ -1,243 +1,25 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
-
-/* ── Tipos ─────────────────────────────────────────────────────────────── */
-
-interface Stats {
-  users: {
-    total: number; confirmed: number; unconfirmed: number;
-    today: number; thisWeek: number; thisMonth: number;
-    completedOnboarding: number; skippedOnboarding: number;
-    withRecurring: number; withCreditCard: number; withCSVImport: number;
-    neverLaunched: number; inactiveRisk: number;
-  };
-  launches: { total: number; avgPerUser: number; byDayOfWeek: number[]; weekGrowth: number };
-  cards: { total: number };
-  revenue: {
-    mrr: number;
-    mrrMonthly: number;
-    mrrAnnual: number;
-    totalProActive: number;
-    breakdown: { monthly: number; annual: number; manual: number; beta: number; coupon: number };
-    conversionRate: number;
-    churnedThisMonth: number;
-  };
-  churn: {
-    neverLaunched: { user_id: string; email: string; created_at: string }[];
-    inactiveRisk: { user_id: string; email: string; created_at: string; lastLaunch: string | null }[];
-  };
-}
-
-type ActivityType = 'signup' | 'upgrade' | 'cancel' | 'feedback';
-
-interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  email: string | null;
-  description: string;
-  meta?: string | null;
-  created_at: string;
-}
-
-interface Coupon {
-  id: string;
-  code: string;
-  days: number;
-  max_uses: number;
-  uses: number;
-  active: boolean;
-  created_at: string;
-  expires_at: string | null;
-}
-
-interface PushHistoryItem {
-  id: string;
-  title: string;
-  message: string;
-  target: string;
-  sent_count: number;
-  failed_count: number;
-  created_at: string;
-}
-
-interface UserRow {
-  id: string; email: string; created_at: string;
-  last_sign_in_at: string | null; email_confirmed_at: string | null;
-  launches_count: number; has_recurring: boolean; has_credit_card: boolean;
-  is_blocked: boolean;
-  plan: string;
-  billing_cycle: string | null;
-}
-
-interface UserDetail extends UserRow { /* same shape */ }
-
-interface Subscription {
-  plan: string;
-  status: string;
-  billing_cycle: string | null;
-  current_period_end: string | null;
-  kiwify_order_id: string | null;
-  kiwify_subscription_id: string | null;
-  updated_at: string | null;
-}
-
-type FeedbackCategory = 'bug' | 'sugestao' | 'elogio' | 'outro';
-
-interface FeedbackItem {
-  id: string;
-  user_id: string | null;
-  email: string | null;
-  category: FeedbackCategory;
-  message: string;
-  page: string | null;
-  created_at: string;
-}
-
-const FEEDBACK_META: Record<FeedbackCategory, { emoji: string; label: string; color: string; bg: string }> = {
-  bug: { emoji: '🐛', label: 'Bug', color: '#c0392b', bg: '#FEE2E2' },
-  sugestao: { emoji: '💡', label: 'Sugestão', color: '#92400e', bg: '#FEF3C7' },
-  elogio: { emoji: '❤️', label: 'Elogio', color: '#9d174d', bg: '#FCE7F3' },
-  outro: { emoji: '💬', label: 'Outro', color: '#3730a3', bg: '#E0E7FF' },
-};
-
-/* ── Utilitários ───────────────────────────────────────────────────────── */
-
-function fmt(d: string | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-}
-
-function fmtRelative(d: string | null | undefined): string {
-  if (!d) return '—';
-  const diff = Date.now() - new Date(d).getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return 'agora';
-  if (min < 60) return `há ${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `há ${h}h`;
-  const days = Math.floor(h / 24);
-  if (days < 30) return `há ${days} dia${days === 1 ? '' : 's'}`;
-  const months = Math.floor(days / 30);
-  return `há ${months} m${months === 1 ? 'ês' : 'eses'}`;
-}
-
-function fmtBRL(v: number): string {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function fmtDateTime(d: string | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function initial(value: string | null | undefined): string {
-  if (!value) return '?';
-  const trimmed = value.trim();
-  return trimmed ? trimmed.charAt(0).toUpperCase() : '?';
-}
-
-function pct(n: number, total: number) {
-  if (!total) return 0;
-  return Math.round((n / total) * 100);
-}
-
-const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-/* ── Componentes menores ────────────────────────────────────────────────── */
-
-function MetricCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
-  return (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 'var(--r)', padding: '20px 20px 16px',
-      border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)',
-    }}>
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: color ?? 'var(--text)' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function ProgressBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
-  const p = pct(value, total);
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-        <span style={{ color: 'var(--text-2)' }}>{label}</span>
-        <span style={{ fontWeight: 700, color: 'var(--text)' }}>{value} <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>({p}%)</span></span>
-      </div>
-      <div style={{ background: 'var(--border)', borderRadius: 4, height: 8 }}>
-        <div style={{ width: `${p}%`, background: color, borderRadius: 4, height: 8, transition: 'width 0.5s' }} />
-      </div>
-    </div>
-  );
-}
-
-function Chip({ label, color, bg }: { label: string; color: string; bg: string }) {
-  return (
-    <span style={{ background: bg, color, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-      {label}
-    </span>
-  );
-}
-
-function PlanBadge({ plan, billingCycle }: { plan: string; billingCycle: string | null }) {
-  if (plan === 'pro' && billingCycle === 'beta') {
-    return <Chip label="BETA" color="#ffffff" bg="#6366F1" />;
-  }
-  if (plan === 'pro' && billingCycle === 'manual') {
-    return <Chip label="PRO manual" color="#7a5d00" bg="#FFF4CC" />;
-  }
-  if (plan === 'pro') {
-    return <Chip label="PRO Kiwify" color="#3730a3" bg="#E0E7FF" />;
-  }
-  return <Chip label="FREE" color="#4b5563" bg="#E5E7EB" />;
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: '32px 0 16px' }}>
-      {children}
-    </h2>
-  );
-}
-
-/* ── Modal ─────────────────────────────────────────────────────────────── */
-
-function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--surface)', borderRadius: 'var(--r)', padding: 28,
-          maxWidth: 500, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          maxHeight: '90vh', overflowY: 'auto',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ── Dashboard principal ────────────────────────────────────────────────── */
+import { AdminHeader } from './_components/AdminHeader';
+import { AdminTabs } from './_components/AdminTabs';
+import { AdminOverview } from './_components/AdminOverview';
+import { AdminUsuarios } from './_components/AdminUsuarios';
+import { AdminGrafico } from './_components/AdminGrafico';
+import { AdminAtividade } from './_components/AdminAtividade';
+import { AdminFeedback } from './_components/AdminFeedback';
+import { AdminCupons } from './_components/AdminCupons';
+import { AdminNotificacoes } from './_components/AdminNotificacoes';
+import { Modal, PlanBadge, Row } from './_components/shared';
+import { DAYS, fmt } from './_components/utils';
+import type {
+  ActivityItem, Coupon, EmailSegment, FeedbackCategory, FeedbackItem,
+  PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
+  TabKey, UserDetail, UserRow,
+} from './_components/types';
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'overview' | 'users' | 'growth' | 'activity' | 'feedback' | 'coupons' | 'notifications'>('overview');
+  const [tab, setTab] = useState<TabKey>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -268,7 +50,7 @@ export default function AdminPage() {
   // Plano e Assinatura
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [subLoading, setSubLoading] = useState(false);
-  const [subMsg, setSubMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [subMsg, setSubMsg] = useState<StatusMessage | null>(null);
   const [grantOpen, setGrantOpen] = useState(false);
   const [grantDays, setGrantDays] = useState(30);
   const [grantLoading, setGrantLoading] = useState(false);
@@ -285,11 +67,11 @@ export default function AdminPage() {
   const [activityVisible, setActivityVisible] = useState(20);
 
   // E-mail em massa
-  const [emailSegment, setEmailSegment] = useState<'all' | 'free' | 'pro' | 'inactive'>('all');
+  const [emailSegment, setEmailSegment] = useState<EmailSegment>('all');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [emailSending, setEmailSending] = useState(false);
-  const [emailResult, setEmailResult] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [emailResult, setEmailResult] = useState<StatusMessage | null>(null);
 
   // Cupons
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -298,16 +80,16 @@ export default function AdminPage() {
   const [newCouponDays, setNewCouponDays] = useState(30);
   const [newCouponMaxUses, setNewCouponMaxUses] = useState(1);
   const [newCouponExpires, setNewCouponExpires] = useState('');
-  const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [couponMsg, setCouponMsg] = useState<StatusMessage | null>(null);
   const [creatingCoupon, setCreatingCoupon] = useState(false);
 
   // Push notifications
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
   const [pushUrl, setPushUrl] = useState('');
-  const [pushTarget, setPushTarget] = useState<'all' | 'pro' | 'free'>('all');
+  const [pushTarget, setPushTarget] = useState<PushTarget>('all');
   const [pushSending, setPushSending] = useState(false);
-  const [pushResult, setPushResult] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [pushResult, setPushResult] = useState<StatusMessage | null>(null);
   const [pushHistory, setPushHistory] = useState<PushHistoryItem[]>([]);
   const [pushHistoryLoading, setPushHistoryLoading] = useState(false);
 
@@ -599,908 +381,120 @@ export default function AdminPage() {
   /* Growth data — cadastros por semana (últimas 8 semanas) */
   const growthData = (() => {
     if (!stats) return [];
-    // Vamos usar os dados que temos — semanas relativas ao total conhecido
-    // Precisaria de endpoint separado, mas o stats já tem thisWeek / thisMonth
-    // Vamos exibir barras por dia da semana de lançamentos como proxy de crescimento
     return DAYS.map((d, i) => ({
       name: d,
       lançamentos: stats.launches.byDayOfWeek[i] ?? 0,
     }));
   })();
 
-  /* ── Render ─────────────────────────────────────────────────────────── */
-
-  const NAV_TABS = [
-    { key: 'overview', label: 'Visão Geral' },
-    { key: 'users', label: 'Usuários' },
-    { key: 'growth', label: 'Gráfico' },
-    { key: 'activity', label: 'Atividade' },
-    { key: 'feedback', label: 'Feedback' },
-    { key: 'coupons', label: 'Cupons' },
-    { key: 'notifications', label: 'Notificações' },
-  ] as const;
-
-  const filteredFeedback = feedbackFilter === 'all'
-    ? feedbackItems
-    : feedbackItems.filter(f => f.category === feedbackFilter);
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar desktop */}
-      <aside style={{
-        width: 220, background: 'var(--surface)', borderRight: '1px solid var(--border)',
-        padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 4,
-        position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 10,
-      }} className="admin-sidebar">
-        <div style={{ padding: '0 20px 24px', fontWeight: 900, fontSize: 18, color: 'var(--accent)' }}>
-          Admin
-        </div>
-        {NAV_TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            textAlign: 'left', padding: '10px 20px', border: 'none', background: 'none',
-            cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: tab === t.key ? 700 : 500,
-            color: tab === t.key ? 'var(--accent)' : 'var(--text-2)',
-            borderLeft: tab === t.key ? '3px solid var(--accent)' : '3px solid transparent',
-            transition: 'all 0.15s',
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            <span>{t.label}</span>
-            {t.key === 'feedback' && feedbackUnread > 0 && (
-              <span style={{
-                background: 'var(--accent)', color: '#fff', borderRadius: 999,
-                fontSize: 11, fontWeight: 800, padding: '2px 7px', minWidth: 20, textAlign: 'center',
-              }}>
-                {feedbackUnread}
-              </span>
-            )}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        <a href="/" style={{
-          padding: '10px 20px', color: 'var(--text-3)', fontSize: 13, textDecoration: 'none',
-        }}>← Voltar ao app</a>
-      </aside>
+      <AdminHeader tab={tab} setTab={setTab} feedbackUnread={feedbackUnread} />
 
-      {/* Main */}
       <main style={{ flex: 1, marginLeft: 220, padding: '32px 28px', maxWidth: 1100 }} className="admin-main">
-        {/* Mobile tabs */}
-        <div className="admin-mobile-tabs" style={{ display: 'none', gap: 8, marginBottom: 20, overflowX: 'auto' }}>
-          {NAV_TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
-              background: tab === t.key ? 'var(--accent)' : 'var(--surface)',
-              color: tab === t.key ? '#fff' : 'var(--text-2)',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-              <span>{t.label}</span>
-              {t.key === 'feedback' && feedbackUnread > 0 && (
-                <span style={{
-                  background: tab === t.key ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
-                  color: '#fff', borderRadius: 999,
-                  fontSize: 11, fontWeight: 800, padding: '1px 6px', minWidth: 18, textAlign: 'center',
-                }}>
-                  {feedbackUnread}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <AdminTabs tab={tab} setTab={setTab} feedbackUnread={feedbackUnread} />
 
-        {/* ── SEÇÃO 1: VISÃO GERAL ── */}
         {tab === 'overview' && (
-          <>
-            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Visão Geral</h1>
-
-            {loadingStats ? (
-              <p style={{ color: 'var(--text-3)' }}>Carregando métricas…</p>
-            ) : stats ? (
-              <>
-                {/* Row 1 — Usuários */}
-                <SectionTitle>Usuários</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  <MetricCard label="Total de usuários" value={stats.users.total} />
-                  <MetricCard label="Hoje" value={stats.users.today} color="var(--accent)" />
-                  <MetricCard label="Esta semana" value={stats.users.thisWeek} color="var(--accent)" />
-                  <MetricCard label="Este mês" value={stats.users.thisMonth} color="var(--accent)" />
-                </div>
-                <div style={{
-                  background: 'var(--surface)', borderRadius: 'var(--r)', padding: '20px',
-                  border: '1px solid var(--border)', marginTop: 12,
-                }}>
-                  <ProgressBar label="Confirmados" value={stats.users.confirmed} total={stats.users.total} color="var(--green)" />
-                  <ProgressBar label="Não confirmados" value={stats.users.unconfirmed} total={stats.users.total} color="var(--yellow)" />
-                </div>
-
-                {/* Row 2 — Engajamento */}
-                <SectionTitle>Engajamento</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  <MetricCard label="Onboarding completo" value={stats.users.completedOnboarding}
-                    sub={`${pct(stats.users.completedOnboarding, stats.users.total)}% do total`} />
-                  <MetricCard label="Pularam onboarding" value={stats.users.skippedOnboarding}
-                    sub={`${pct(stats.users.skippedOnboarding, stats.users.total)}% do total`} />
-                  <MetricCard label="Com recorrente" value={stats.users.withRecurring}
-                    sub={`${pct(stats.users.withRecurring, stats.users.total)}%`} color="var(--green)" />
-                  <MetricCard label="Com cartão" value={stats.users.withCreditCard}
-                    sub={`${pct(stats.users.withCreditCard, stats.users.total)}%`} />
-                  <MetricCard label="Com importação CSV" value={stats.users.withCSVImport}
-                    sub={`${pct(stats.users.withCSVImport, stats.users.total)}%`} />
-                </div>
-
-                {/* Row 3 — Lançamentos */}
-                <SectionTitle>Lançamentos</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  <MetricCard label="Total de lançamentos" value={stats.launches.total.toLocaleString('pt-BR')} />
-                  <MetricCard label="Média por usuário" value={stats.launches.avgPerUser} />
-                  <MetricCard
-                    label="Crescimento semanal"
-                    value={`${stats.launches.weekGrowth > 0 ? '↑' : stats.launches.weekGrowth < 0 ? '↓' : '—'} ${Math.abs(stats.launches.weekGrowth)}%`}
-                    color={stats.launches.weekGrowth >= 0 ? 'var(--green)' : 'var(--red)'}
-                  />
-                  <MetricCard
-                    label="Dia mais ativo"
-                    value={DAYS[stats.launches.byDayOfWeek.indexOf(Math.max(...stats.launches.byDayOfWeek))]}
-                  />
-                </div>
-
-                {/* Row 4 — Saúde / Churn */}
-                <SectionTitle>Saúde</SectionTitle>
-                {/* (Saúde original — Receita e Comunicação vêm logo abaixo) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {/* Nunca lançaram */}
-                  <div style={{
-                    background: stats.users.neverLaunched > 5 ? 'var(--red-bg)' : 'var(--surface)',
-                    borderRadius: 'var(--r)', padding: 20, border: '1px solid var(--border)',
-                  }}>
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>Nunca lançaram</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: stats.users.neverLaunched > 5 ? 'var(--red)' : 'var(--text)' }}>
-                      {stats.users.neverLaunched}
-                    </div>
-                    {stats.churn.neverLaunched.length > 0 && (
-                      <button onClick={() => setNeverExpanded(v => !v)} style={{
-                        background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
-                        color: 'var(--accent)', padding: 0, marginTop: 8,
-                      }}>
-                        {neverExpanded ? 'Ocultar lista ▲' : 'Ver lista ▼'}
-                      </button>
-                    )}
-                    {neverExpanded && (
-                      <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
-                        {stats.churn.neverLaunched.map(u => (
-                          <div key={u.user_id} style={{ fontSize: 12, color: 'var(--text-2)', padding: '2px 0', borderBottom: '1px solid var(--border-2)' }}>
-                            {u.email} <span style={{ color: 'var(--text-3)' }}>({fmt(u.created_at)})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Risco de churn */}
-                  <div style={{
-                    background: stats.users.inactiveRisk > 3 ? '#FFF8E6' : 'var(--surface)',
-                    borderRadius: 'var(--r)', padding: 20, border: '1px solid var(--border)',
-                  }}>
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>Risco de churn (7+ dias sem lançar)</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: stats.users.inactiveRisk > 3 ? 'var(--yellow)' : 'var(--text)' }}>
-                      {stats.users.inactiveRisk}
-                    </div>
-                    {stats.churn.inactiveRisk.length > 0 && (
-                      <button onClick={() => setRiskExpanded(v => !v)} style={{
-                        background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
-                        color: 'var(--accent)', padding: 0, marginTop: 8,
-                      }}>
-                        {riskExpanded ? 'Ocultar lista ▲' : 'Ver lista ▼'}
-                      </button>
-                    )}
-                    {riskExpanded && (
-                      <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
-                        {stats.churn.inactiveRisk.map(u => (
-                          <div key={u.user_id} style={{ fontSize: 12, color: 'var(--text-2)', padding: '2px 0', borderBottom: '1px solid var(--border-2)' }}>
-                            {u.email}
-                            <span style={{ color: 'var(--text-3)' }}> — último: {fmt(u.lastLaunch)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 5 — Receita */}
-                <SectionTitle>Receita</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  <MetricCard
-                    label="MRR (mensal recorrente)"
-                    value={fmtBRL(stats.revenue.mrr)}
-                    sub={`Mensais ${fmtBRL(stats.revenue.mrrMonthly)} + Anuais ${fmtBRL(stats.revenue.mrrAnnual)}`}
-                    color="var(--green)"
-                  />
-                  <MetricCard
-                    label="Pro ativos"
-                    value={stats.revenue.totalProActive}
-                    sub={`${stats.revenue.conversionRate}% de conversão`}
-                  />
-                  <MetricCard label="Mensais" value={stats.revenue.breakdown.monthly} sub="Kiwify mês" />
-                  <MetricCard label="Anuais" value={stats.revenue.breakdown.annual} sub="Kiwify ano" />
-                  <MetricCard label="Manual" value={stats.revenue.breakdown.manual} sub="concedido pelo admin" />
-                  <MetricCard label="Beta" value={stats.revenue.breakdown.beta} sub="?ref=beta" />
-                  <MetricCard label="Cupom" value={stats.revenue.breakdown.coupon} sub="trial via código" />
-                  <MetricCard
-                    label="Churn do mês"
-                    value={stats.revenue.churnedThisMonth}
-                    sub="cancelamentos"
-                    color={stats.revenue.churnedThisMonth > 0 ? 'var(--red)' : 'var(--text)'}
-                  />
-                </div>
-
-                {/* Row 6 — Comunicação */}
-                <SectionTitle>Comunicação</SectionTitle>
-                <div style={{
-                  background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
-                  border: '1px solid var(--border)',
-                }}>
-                  <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px' }}>
-                    Envie um e-mail em massa via Resend para um segmento de usuários. Limite de {50} destinatários por envio.
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
-                      Destinatário
-                      <select
-                        value={emailSegment}
-                        onChange={e => setEmailSegment(e.target.value as typeof emailSegment)}
-                        style={{
-                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                          background: 'var(--surface)', fontFamily: 'inherit', fontSize: 14,
-                        }}
-                      >
-                        <option value="all">Todos os usuários</option>
-                        <option value="free">Apenas Free</option>
-                        <option value="pro">Apenas Pro</option>
-                        <option value="inactive">Usuários inativos (7+ dias)</option>
-                      </select>
-                    </label>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
-                      Assunto *
-                      <input
-                        type="text" value={emailSubject}
-                        onChange={e => setEmailSubject(e.target.value)}
-                        placeholder="Assunto do e-mail"
-                        style={{
-                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                          fontFamily: 'inherit', fontSize: 14,
-                        }}
-                      />
-                    </label>
-                    <label style={{ fontSize: 13, fontWeight: 700 }}>
-                      Mensagem *
-                      <textarea
-                        value={emailMessage}
-                        onChange={e => setEmailMessage(e.target.value)}
-                        placeholder="Texto simples (sem HTML)…"
-                        rows={6}
-                        style={{
-                          display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                          borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                          fontFamily: 'inherit', fontSize: 14, resize: 'vertical',
-                        }}
-                      />
-                    </label>
-                    {emailResult && (
-                      <p style={{
-                        margin: 0, fontSize: 13,
-                        color: emailResult.kind === 'success' ? 'var(--green)' : 'var(--red)',
-                      }}>{emailResult.text}</p>
-                    )}
-                    <div>
-                      <button
-                        onClick={sendBulkEmail}
-                        disabled={emailSending || !emailSubject.trim() || !emailMessage.trim()}
-                        style={{
-                          padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
-                          borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
-                          fontWeight: 700, fontSize: 14,
-                          opacity: emailSending || !emailSubject.trim() || !emailMessage.trim() ? 0.6 : 1,
-                        }}
-                      >
-                        {emailSending ? 'Enviando…' : 'Enviar e-mail'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p style={{ color: 'var(--red)' }}>Erro ao carregar métricas.</p>
-            )}
-          </>
+          <AdminOverview
+            stats={stats}
+            loadingStats={loadingStats}
+            neverExpanded={neverExpanded}
+            setNeverExpanded={setNeverExpanded}
+            riskExpanded={riskExpanded}
+            setRiskExpanded={setRiskExpanded}
+            emailSegment={emailSegment}
+            setEmailSegment={setEmailSegment}
+            emailSubject={emailSubject}
+            setEmailSubject={setEmailSubject}
+            emailMessage={emailMessage}
+            setEmailMessage={setEmailMessage}
+            emailSending={emailSending}
+            emailResult={emailResult}
+            onSendBulkEmail={sendBulkEmail}
+          />
         )}
 
-        {/* ── SEÇÃO 2: USUÁRIOS ── */}
         {tab === 'users' && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Usuários</h1>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setInviteOpen(true)} style={{
-                  padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
-                  borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-                }}>+ Convidar usuário</button>
-                <a href="/api/admin/export" download style={{
-                  padding: '10px 18px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)',
-                  borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-                  textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-                }}>↓ Exportar CSV</a>
-              </div>
-            </div>
-
-            {/* Barra de busca + filtros */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              <input
-                type="text" placeholder="Buscar por e-mail…" value={userSearch}
-                onChange={e => { setUserSearch(e.target.value); setUserPage(1); }}
-                style={{
-                  padding: '10px 14px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                  background: 'var(--surface)', fontSize: 14, fontFamily: 'inherit', flex: 1, minWidth: 200,
-                }}
-              />
-              <select value={userFilter} onChange={e => { setUserFilter(e.target.value); setUserPage(1); }} style={{
-                padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                background: 'var(--surface)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
-              }}>
-                <option value="all">Todos</option>
-                <option value="confirmed">Confirmados</option>
-                <option value="unconfirmed">Não confirmados</option>
-                <option value="active">Ativos</option>
-                <option value="inactive">Inativos</option>
-                <option value="blocked">Bloqueados</option>
-              </select>
-              <select value={userOrder} onChange={e => { setUserOrder(e.target.value); setUserPage(1); }} style={{
-                padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                background: 'var(--surface)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
-              }}>
-                <option value="created_at">Cadastro</option>
-                <option value="last_sign_in_at">Último acesso</option>
-                <option value="launches">Lançamentos</option>
-              </select>
-              <button onClick={fetchUsers} style={{
-                padding: '10px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
-                borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-              }}>Buscar</button>
-            </div>
-
-            {/* Tabela */}
-            <div style={{ overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    {['E-mail', 'Cadastro', 'Último acesso', 'Lançamentos', 'Plano', 'Status', 'Ações'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingUsers ? (
-                    <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
-                  ) : users.length === 0 ? (
-                    <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum usuário encontrado.</td></tr>
-                  ) : users.map(u => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                      <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.email}
-                      </td>
-                      <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
-                      <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700 }}>{u.launches_count}</td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} />
-                      </td>
-                      <td style={{ padding: '10px 14px' }}>
-                        {u.is_blocked
-                          ? <Chip label="Bloqueado" color="#c0392b" bg="var(--red-bg)" />
-                          : u.email_confirmed_at
-                            ? <Chip label="Confirmado" color="var(--green-text)" bg="var(--green-bg)" />
-                            : <Chip label="Não confirmado" color="var(--yellow-text)" bg="var(--yellow-bg)" />
-                        }
-                      </td>
-                      <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                        <button onClick={() => openDetail(u.id)} style={btnStyle}>Detalhes</button>
-                        <button onClick={() => toggleBlock(u)} style={{ ...btnStyle, color: u.is_blocked ? 'var(--green)' : 'var(--yellow-text)' }}>
-                          {u.is_blocked ? 'Desbloquear' : 'Bloquear'}
-                        </button>
-                        <button onClick={() => setConfirmDelete(u.id)} style={{ ...btnStyle, color: 'var(--red)' }}>Excluir</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Paginação */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, alignItems: 'center', fontSize: 14 }}>
-              <button disabled={userPage <= 1} onClick={() => setUserPage(p => p - 1)} style={pageBtn}>← Anterior</button>
-              <span style={{ color: 'var(--text-2)' }}>
-                Página {userPage} de {Math.max(1, Math.ceil(usersTotal / 20))} ({usersTotal} usuários)
-              </span>
-              <button disabled={userPage >= Math.ceil(usersTotal / 20)} onClick={() => setUserPage(p => p + 1)} style={pageBtn}>Próxima →</button>
-            </div>
-          </>
+          <AdminUsuarios
+            users={users}
+            usersTotal={usersTotal}
+            userPage={userPage}
+            setUserPage={setUserPage}
+            userSearch={userSearch}
+            setUserSearch={setUserSearch}
+            userFilter={userFilter}
+            setUserFilter={setUserFilter}
+            userOrder={userOrder}
+            setUserOrder={setUserOrder}
+            loadingUsers={loadingUsers}
+            onFetchUsers={fetchUsers}
+            onOpenInvite={() => setInviteOpen(true)}
+            onOpenDetail={openDetail}
+            onToggleBlock={toggleBlock}
+            onConfirmDelete={setConfirmDelete}
+          />
         )}
 
-        {/* ── SEÇÃO 3: GRÁFICO ── */}
         {tab === 'growth' && (
-          <>
-            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Atividade por dia da semana</h1>
-            {loadingStats ? (
-              <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
-            ) : (
-              <div style={{ background: 'var(--surface)', borderRadius: 'var(--r)', padding: 24, border: '1px solid var(--border)' }}>
-                <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
-                  Distribuição de lançamentos por dia da semana (total histórico)
-                </p>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={growthData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 13, fill: 'var(--text-2)' }} />
-                    <YAxis tick={{ fontSize: 12, fill: 'var(--text-2)' }} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}
-                    />
-                    <Line type="monotone" dataKey="lançamentos" stroke="var(--accent)" strokeWidth={2.5} dot={{ fill: 'var(--accent)', r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </>
+          <AdminGrafico loadingStats={loadingStats} growthData={growthData} />
         )}
 
-        {/* ── SEÇÃO: ATIVIDADE ── */}
         {tab === 'activity' && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Atividade recente</h1>
-              <button onClick={fetchActivity} style={{
-                padding: '8px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
-                borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
-              }}>↻ Atualizar</button>
-            </div>
-            {activityLoading ? (
-              <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
-            ) : activityItems.length === 0 ? (
-              <div style={{
-                background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
-                color: 'var(--text-3)', border: '1px solid var(--border)',
-              }}>Nenhuma atividade nos últimos 30 dias.</div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {activityItems.slice(0, activityVisible).map(item => {
-                    const icon = item.type === 'signup' ? '👤'
-                      : item.type === 'upgrade' ? '⭐'
-                      : item.type === 'cancel' ? '❌' : '💬';
-                    const borderColor = item.type === 'signup' ? '#6366F1'
-                      : item.type === 'upgrade' ? '#10B981'
-                      : item.type === 'cancel' ? '#EF4444' : '#F59E0B';
-                    return (
-                      <div key={item.id} style={{
-                        background: 'var(--surface)', borderRadius: 'var(--r)',
-                        border: '1px solid var(--border)', borderLeft: `4px solid ${borderColor}`,
-                        padding: 14, display: 'flex', gap: 12, alignItems: 'center',
-                      }}>
-                        <div style={{ fontSize: 22, lineHeight: 1 }}>{icon}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            margin: 0, fontSize: 14, color: 'var(--text)', fontWeight: 600,
-                            wordBreak: 'break-word',
-                          }}>{item.description}</p>
-                        </div>
-                        <span style={{
-                          fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 600,
-                        }}>{fmtRelative(item.created_at)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {activityVisible < activityItems.length && (
-                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                    <button
-                      onClick={() => setActivityVisible(v => v + 20)}
-                      style={{
-                        padding: '10px 18px', background: 'var(--surface)', color: 'var(--accent)',
-                        border: '1px solid var(--border)', borderRadius: 'var(--r-sm)',
-                        cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
-                      }}
-                    >Ver mais ({activityItems.length - activityVisible} restantes)</button>
-                  </div>
-                )}
-              </>
-            )}
-          </>
+          <AdminAtividade
+            activityItems={activityItems}
+            activityLoading={activityLoading}
+            activityVisible={activityVisible}
+            setActivityVisible={setActivityVisible}
+            onFetchActivity={fetchActivity}
+          />
         )}
 
-        {/* ── SEÇÃO 4: FEEDBACK ── */}
         {tab === 'feedback' && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                Feedback
-                {feedbackUnread > 0 && (
-                  <span style={{
-                    background: 'var(--accent)', color: '#fff', borderRadius: 999,
-                    fontSize: 12, fontWeight: 800, padding: '3px 10px',
-                  }}>
-                    {feedbackUnread} novo{feedbackUnread === 1 ? '' : 's'}
-                  </span>
-                )}
-              </h1>
-              <button onClick={fetchFeedback} style={{
-                padding: '8px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
-                borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
-              }}>↻ Atualizar</button>
-            </div>
-
-            {/* Filtros */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              {([
-                { key: 'all', label: 'Todos' },
-                { key: 'bug', label: '🐛 Bug' },
-                { key: 'sugestao', label: '💡 Sugestão' },
-                { key: 'elogio', label: '❤️ Elogio' },
-                { key: 'outro', label: '💬 Outro' },
-              ] as const).map(f => {
-                const active = feedbackFilter === f.key;
-                return (
-                  <button key={f.key} onClick={() => setFeedbackFilter(f.key)} style={{
-                    padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
-                    fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                    background: active ? 'var(--accent)' : 'var(--surface)',
-                    color: active ? '#fff' : 'var(--text-2)',
-                    border: active ? '1px solid transparent' : '1px solid var(--border)',
-                  }}>
-                    {f.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {feedbackLoading ? (
-              <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
-            ) : filteredFeedback.length === 0 ? (
-              <div style={{
-                background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
-                color: 'var(--text-3)', border: '1px solid var(--border)',
-              }}>
-                Nenhum feedback {feedbackFilter !== 'all' ? 'nesta categoria' : 'ainda'}.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {filteredFeedback.map(f => {
-                  const meta = FEEDBACK_META[f.category] ?? FEEDBACK_META.outro;
-                  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-                  const isNew = new Date(f.created_at).getTime() >= sevenDaysAgo;
-                  return (
-                    <div key={f.id} style={{
-                      background: 'var(--surface)', borderRadius: 'var(--r)',
-                      border: '1px solid var(--border)', padding: 16,
-                      display: 'flex', gap: 12,
-                    }}>
-                      <div style={{
-                        width: 40, height: 40, borderRadius: '50%',
-                        background: 'var(--accent-bg)', color: 'var(--accent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 16, flexShrink: 0,
-                      }}>
-                        {initial(f.email)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                          <Chip label={`${meta.emoji} ${meta.label}`} color={meta.color} bg={meta.bg} />
-                          {isNew && <Chip label="NOVO" color="#fff" bg="var(--accent)" />}
-                          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>
-                            {f.email ?? 'Usuário removido'}
-                          </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 'auto' }}>
-                            {fmtDateTime(f.created_at)}
-                          </span>
-                        </div>
-                        <p style={{
-                          margin: '4px 0 6px', color: 'var(--text)', fontSize: 14,
-                          lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                        }}>
-                          {f.message}
-                        </p>
-                        {f.page && (
-                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
-                            <span style={{ fontWeight: 700 }}>Página:</span> {f.page}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+          <AdminFeedback
+            feedbackItems={feedbackItems}
+            feedbackUnread={feedbackUnread}
+            feedbackLoading={feedbackLoading}
+            feedbackFilter={feedbackFilter}
+            setFeedbackFilter={setFeedbackFilter}
+            onFetchFeedback={fetchFeedback}
+          />
         )}
 
-        {/* ── SEÇÃO: CUPONS ── */}
         {tab === 'coupons' && (
-          <>
-            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Cupons</h1>
-
-            <div style={{
-              background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
-              border: '1px solid var(--border)', marginBottom: 20,
-            }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Criar cupom</h2>
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12,
-              }}>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Código (opcional)
-                  <input
-                    type="text" value={newCouponCode}
-                    onChange={e => setNewCouponCode(e.target.value.toUpperCase())}
-                    placeholder="auto-gerado"
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Duração (dias)
-                  <input
-                    type="number" min={1} value={newCouponDays}
-                    onChange={e => setNewCouponDays(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Máx. usos (0 = ilimitado)
-                  <input
-                    type="number" min={0} value={newCouponMaxUses}
-                    onChange={e => setNewCouponMaxUses(Math.max(0, parseInt(e.target.value) || 0))}
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Expira em (opcional)
-                  <input
-                    type="date" value={newCouponExpires}
-                    onChange={e => setNewCouponExpires(e.target.value)}
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-              </div>
-              {couponMsg && (
-                <p style={{
-                  fontSize: 13, margin: '12px 0 0',
-                  color: couponMsg.kind === 'success' ? 'var(--green)' : 'var(--red)',
-                }}>{couponMsg.text}</p>
-              )}
-              <div style={{ marginTop: 14 }}>
-                <button
-                  onClick={createCoupon}
-                  disabled={creatingCoupon}
-                  style={{
-                    padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
-                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
-                    fontWeight: 700, fontSize: 14, opacity: creatingCoupon ? 0.6 : 1,
-                  }}
-                >{creatingCoupon ? 'Criando…' : 'Criar cupom'}</button>
-              </div>
-            </div>
-
-            <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Cupons cadastrados</h2>
-            <div style={{
-              overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
-              border: '1px solid var(--border)',
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    {['Código', 'Dias', 'Usos', 'Validade', 'Status', 'Ações'].map(h => (
-                      <th key={h} style={{
-                        textAlign: 'left', padding: '12px 14px', fontWeight: 700,
-                        color: 'var(--text-2)', whiteSpace: 'nowrap',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {couponsLoading ? (
-                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
-                  ) : coupons.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum cupom criado.</td></tr>
-                  ) : coupons.map(c => {
-                    const exhausted = c.max_uses > 0 && c.uses >= c.max_uses;
-                    const expired = c.expires_at != null && new Date(c.expires_at) < new Date();
-                    const showActive = c.active && !exhausted && !expired;
-                    return (
-                      <tr key={c.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 800 }}>
-                          {c.code}
-                        </td>
-                        <td style={{ padding: '10px 14px' }}>{c.days}</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          {c.uses}/{c.max_uses === 0 ? '∞' : c.max_uses}
-                        </td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>
-                          {c.expires_at ? fmt(c.expires_at) : '—'}
-                        </td>
-                        <td style={{ padding: '10px 14px' }}>
-                          {showActive
-                            ? <Chip label="Ativo" color="var(--green-text)" bg="var(--green-bg)" />
-                            : exhausted
-                              ? <Chip label="Esgotado" color="#4b5563" bg="#E5E7EB" />
-                              : expired
-                                ? <Chip label="Expirado" color="#4b5563" bg="#E5E7EB" />
-                                : <Chip label="Inativo" color="#4b5563" bg="#E5E7EB" />}
-                        </td>
-                        <td style={{ padding: '10px 14px' }}>
-                          {c.active && (
-                            <button
-                              onClick={() => deactivateCoupon(c.id)}
-                              style={{ ...btnStyle, color: 'var(--red)' }}
-                            >Desativar</button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <AdminCupons
+            coupons={coupons}
+            couponsLoading={couponsLoading}
+            newCouponCode={newCouponCode}
+            setNewCouponCode={setNewCouponCode}
+            newCouponDays={newCouponDays}
+            setNewCouponDays={setNewCouponDays}
+            newCouponMaxUses={newCouponMaxUses}
+            setNewCouponMaxUses={setNewCouponMaxUses}
+            newCouponExpires={newCouponExpires}
+            setNewCouponExpires={setNewCouponExpires}
+            couponMsg={couponMsg}
+            creatingCoupon={creatingCoupon}
+            onCreateCoupon={createCoupon}
+            onDeactivateCoupon={deactivateCoupon}
+          />
         )}
 
-        {/* ── SEÇÃO: NOTIFICAÇÕES PUSH ── */}
         {tab === 'notifications' && (
-          <>
-            <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Notificações</h1>
-
-            <div style={{
-              background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
-              border: '1px solid var(--border)', marginBottom: 20,
-            }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Enviar push manual</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px' }}>
-                Envia um push instantâneo para os usuários selecionados que tenham notificações ativadas.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Título * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushTitle.length}/50)</span>
-                  <input
-                    type="text" value={pushTitle} maxLength={50}
-                    onChange={e => setPushTitle(e.target.value)}
-                    placeholder="🎉 Nova feature disponível"
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Mensagem * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushMessage.length}/120)</span>
-                  <textarea
-                    value={pushMessage} maxLength={120}
-                    onChange={e => setPushMessage(e.target.value)}
-                    placeholder="Texto curto, direto ao ponto."
-                    rows={3}
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14, resize: 'vertical',
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  URL de destino (opcional)
-                  <input
-                    type="text" value={pushUrl}
-                    onChange={e => setPushUrl(e.target.value)}
-                    placeholder="/ (padrão)"
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  />
-                </label>
-                <label style={{ fontSize: 13, fontWeight: 700 }}>
-                  Destinatários
-                  <select
-                    value={pushTarget}
-                    onChange={e => setPushTarget(e.target.value as typeof pushTarget)}
-                    style={{
-                      display: 'block', marginTop: 4, width: '100%', padding: '10px 12px',
-                      borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
-                      background: 'var(--surface)', fontFamily: 'inherit', fontSize: 14,
-                    }}
-                  >
-                    <option value="all">Todos</option>
-                    <option value="pro">Só Pro</option>
-                    <option value="free">Só Free</option>
-                  </select>
-                </label>
-                {pushResult && (
-                  <p style={{
-                    margin: 0, fontSize: 13,
-                    color: pushResult.kind === 'success' ? 'var(--green)' : 'var(--red)',
-                  }}>{pushResult.text}</p>
-                )}
-                <div>
-                  <button
-                    onClick={sendPushManual}
-                    disabled={pushSending || !pushTitle.trim() || !pushMessage.trim()}
-                    style={{
-                      padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
-                      borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit',
-                      fontWeight: 700, fontSize: 14,
-                      opacity: pushSending || !pushTitle.trim() || !pushMessage.trim() ? 0.6 : 1,
-                    }}
-                  >
-                    {pushSending ? 'Enviando…' : 'Enviar push'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Histórico</h2>
-            <div style={{
-              overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
-              border: '1px solid var(--border)',
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    {['Data', 'Título', 'Destinatários', 'Enviados', 'Falhas'].map(h => (
-                      <th key={h} style={{
-                        textAlign: 'left', padding: '12px 14px', fontWeight: 700,
-                        color: 'var(--text-2)', whiteSpace: 'nowrap',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pushHistoryLoading ? (
-                    <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
-                  ) : pushHistory.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum push enviado ainda.</td></tr>
-                  ) : pushHistory.map(h => (
-                    <tr key={h.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                      <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDateTime(h.created_at)}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700 }}>{h.title}</td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <code style={{ fontSize: 12, background: 'var(--bg)', padding: '2px 6px', borderRadius: 4 }}>
-                          {h.target}
-                        </code>
-                      </td>
-                      <td style={{ padding: '10px 14px', color: 'var(--green)', fontWeight: 700 }}>{h.sent_count}</td>
-                      <td style={{
-                        padding: '10px 14px', fontWeight: 700,
-                        color: h.failed_count > 0 ? 'var(--red)' : 'var(--text-3)',
-                      }}>{h.failed_count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <AdminNotificacoes
+            pushTitle={pushTitle}
+            setPushTitle={setPushTitle}
+            pushMessage={pushMessage}
+            setPushMessage={setPushMessage}
+            pushUrl={pushUrl}
+            setPushUrl={setPushUrl}
+            pushTarget={pushTarget}
+            setPushTarget={setPushTarget}
+            pushSending={pushSending}
+            pushResult={pushResult}
+            pushHistory={pushHistory}
+            pushHistoryLoading={pushHistoryLoading}
+            onSendPushManual={sendPushManual}
+          />
         )}
       </main>
 
@@ -1716,27 +710,6 @@ export default function AdminPage() {
           .admin-mobile-tabs { display: flex !important; }
         }
       `}</style>
-    </div>
-  );
-}
-
-/* ── Estilos helper ─────────────────────────────────────────────────────── */
-
-const btnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
-  fontWeight: 700, color: 'var(--accent)', padding: '4px 6px', fontFamily: 'inherit',
-};
-
-const pageBtn: React.CSSProperties = {
-  padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 8,
-  background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-};
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, borderBottom: '1px solid var(--border-2)', paddingBottom: 8 }}>
-      <span style={{ color: 'var(--text-2)' }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
