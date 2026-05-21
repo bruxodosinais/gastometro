@@ -560,7 +560,11 @@ export default function HomePage() {
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
   const effectiveIncome = Math.max(recurringIncome, income);
-  const valorLivreParaGastarPlanejado = heroBase - fixedCosts - savingsGoal;
+  // Base do orçamento livre: receita real lançada (income). Quando ainda não há
+  // receita no mês, cai pro planejado (heroBase − fixedCosts) para o user que
+  // configurou renda esperada mas ainda não recebeu / lançou nada.
+  const valorLivreParaGastarPlanejado =
+    income > 0 ? income - savingsGoal : heroBase - fixedCosts - savingsGoal;
   const orcamentoRestante = valorLivreParaGastarPlanejado - debitSpent;
 
   const budgetPct =
