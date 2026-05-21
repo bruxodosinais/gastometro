@@ -136,7 +136,47 @@ async function runCheckAndGenerateObligations(): Promise<void> {
     return;
   }
 
-  const obligations = recurring.map((rec) => {
+  // Parcelamentos esgotados: não gera obrigação e marca recorrente como inativo.
+  const installmentCandidates = recurring.filter(
+    (r) => typeof r.totalInstallments === 'number' && r.totalInstallments >= 1
+  );
+  const installmentCounts = new Map<string, number>();
+  if (installmentCandidates.length > 0) {
+    const { data: countRows } = await supabase
+      .from('expenses')
+      .select('recurring_expense_id')
+      .eq('user_id', user.id)
+      .in('recurring_expense_id', installmentCandidates.map((r) => r.id));
+    for (const row of countRows ?? []) {
+      const id = (row as { recurring_expense_id: string }).recurring_expense_id;
+      installmentCounts.set(id, (installmentCounts.get(id) ?? 0) + 1);
+    }
+  }
+  const exhaustedIds: string[] = [];
+  const eligibleRecurring = recurring.filter((r) => {
+    if (typeof r.totalInstallments !== 'number') return true;
+    const count = installmentCounts.get(r.id) ?? 0;
+    if (count >= r.totalInstallments) {
+      exhaustedIds.push(r.id);
+      return false;
+    }
+    return true;
+  });
+  if (exhaustedIds.length > 0) {
+    await withCacheInvalidation('recurring_expenses', async () => {
+      await supabase
+        .from('recurring_expenses')
+        .update({ active: false })
+        .eq('user_id', user.id)
+        .in('id', exhaustedIds);
+    });
+  }
+  if (!eligibleRecurring.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
+  const obligations = eligibleRecurring.map((rec) => {
     // Obrigação herda APENAS due_day do recorrente. due_day e day_of_month têm
     // significados distintos — não fazer fallback cruzado. Quando ambos são
     // null, a obrigação fica sem prazo (due_day null) e nenhum badge de

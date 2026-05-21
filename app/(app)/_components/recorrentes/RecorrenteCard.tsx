@@ -90,6 +90,18 @@ export default function RecorrenteCard({
   const hasValidDueDay = effectiveDueDay !== undefined;
   const isMenuOpen = openMenuId === rec.id;
 
+  // Parcelamento (total_installments definido): conta lançamentos já feitos.
+  // Usa o array de expenses já carregado — sem query extra.
+  const hasInstallments =
+    typeof rec.totalInstallments === 'number' && rec.totalInstallments >= 1;
+  const launchedCount = hasInstallments
+    ? expenses.filter((e) => e.recurringExpenseId === rec.id).length
+    : 0;
+  const installmentsTotal = hasInstallments ? (rec.totalInstallments as number) : 0;
+  const installmentsProgress = hasInstallments
+    ? Math.min(launchedCount / installmentsTotal, 1)
+    : 0;
+
   let leftBorderColor = 'transparent';
   let cardBg = 'var(--surface)';
   let badgeText = '';
@@ -392,6 +404,22 @@ export default function RecorrenteCard({
                 {cardName}
               </span>
             )}
+            {hasInstallments && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  background: 'var(--accent-bg)',
+                  color: 'var(--accent)',
+                  flexShrink: 0,
+                }}
+                aria-label={`${launchedCount} de ${installmentsTotal} parcelas`}
+              >
+                {launchedCount}/{installmentsTotal} parcelas
+              </span>
+            )}
             {badgeText && (
               <span
                 style={{
@@ -554,6 +582,34 @@ export default function RecorrenteCard({
           })()}
         </div>
       </div>
+
+      {hasInstallments && (
+        <div
+          style={{
+            marginTop: 10,
+            height: 3,
+            width: '100%',
+            background: 'var(--border-2)',
+            borderRadius: 999,
+            overflow: 'hidden',
+          }}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={installmentsTotal}
+          aria-valuenow={launchedCount}
+          aria-label={`Progresso de parcelas: ${launchedCount} de ${installmentsTotal}`}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${installmentsProgress * 100}%`,
+              background: 'var(--accent)',
+              borderRadius: 999,
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

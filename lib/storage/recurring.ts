@@ -12,6 +12,9 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
   const rawDue = row.due_day;
   const dueDay =
     typeof rawDue === 'number' && rawDue >= 1 && rawDue <= 31 ? rawDue : undefined;
+  const rawTotal = row.total_installments;
+  const totalInstallments =
+    typeof rawTotal === 'number' && rawTotal >= 1 ? rawTotal : undefined;
   return {
     id: row.id as string,
     description: row.description as string,
@@ -24,6 +27,7 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
     isVariable: (row.is_variable as boolean | null) ?? false,
     isCredit: (row.is_credit as boolean | null) ?? undefined,
     creditCardId: (row.credit_card_id as string | null) ?? undefined,
+    totalInstallments,
     createdAt: row.created_at as string,
   };
 }
@@ -69,6 +73,7 @@ export async function addRecurringExpense(
         is_variable: data.isVariable ?? false,
         is_credit: data.isCredit ?? false,
         credit_card_id: data.creditCardId ?? null,
+        total_installments: data.totalInstallments ?? null,
       })
       .select()
       .single();
@@ -120,6 +125,7 @@ export type UpdateRecurringPayload = {
   active?: boolean;
   isCredit?: boolean;
   creditCardId?: string | null;
+  totalInstallments?: number | null;
 };
 
 export async function updateRecurringExpense(
@@ -142,6 +148,7 @@ export async function updateRecurringExpense(
     if (data.dueDay !== undefined) patch.due_day = data.dueDay;
     if (data.isVariable !== undefined) patch.is_variable = data.isVariable;
     if (data.active !== undefined) patch.active = data.active;
+    if (data.totalInstallments !== undefined) patch.total_installments = data.totalInstallments;
 
     const { data: row, error } = await supabase
       .from('recurring_expenses')
@@ -201,11 +208,42 @@ export async function checkAndLaunchRecurring(): Promise<void> {
 
   if (!recurring?.length) return;
 
+  // Recorrentes com prazo definido (parcelamentos): contar quantas vezes já
+  // foram lançadas para saber se chegamos no limite. Uma query em lote evita
+  // N+1 quando há vários parcelamentos ativos.
+  const installmentCandidateIds = recurring
+    .filter((r) => typeof r.total_installments === 'number' && r.total_installments >= 1)
+    .map((r) => r.id);
+  const installmentCounts = new Map<string, number>();
+  if (installmentCandidateIds.length > 0) {
+    const { data: countRows } = await supabase
+      .from('expenses')
+      .select('recurring_expense_id')
+      .eq('user_id', user.id)
+      .in('recurring_expense_id', installmentCandidateIds);
+    for (const row of countRows ?? []) {
+      const id = (row as { recurring_expense_id: string }).recurring_expense_id;
+      installmentCounts.set(id, (installmentCounts.get(id) ?? 0) + 1);
+    }
+  }
+
   // Envelopa o loop inteiro: se UMA inserção ocorreu, o cache de expenses
   // precisa ser invalidado para refletir o lançamento no próximo getExpenses().
   // (Antes este auto-launch não invalidava nada — bug latente.)
   await withCacheInvalidation('expenses', async () => {
     for (const rec of recurring) {
+      // Parcelamento esgotado: desativa o recorrente (não lança mais).
+      if (typeof rec.total_installments === 'number' && rec.total_installments >= 1) {
+        const count = installmentCounts.get(rec.id) ?? 0;
+        if (count >= rec.total_installments) {
+          await supabase
+            .from('recurring_expenses')
+            .update({ active: false })
+            .eq('id', rec.id)
+            .eq('user_id', user.id);
+          continue;
+        }
+      }
       // Sem day_of_month, não há gatilho de lançamento automático — pula.
       if (
         typeof rec.day_of_month !== 'number' ||
@@ -287,8 +325,48 @@ async function runCheckAndGenerateIncomeEntries(): Promise<void> {
 
   const supabase = createClient();
 
+  // Parcelamentos esgotados: desativa o recorrente e remove da lista de lançamento.
+  const installmentCandidates = due.filter(
+    (r) => typeof r.totalInstallments === 'number' && r.totalInstallments >= 1
+  );
+  const installmentCounts = new Map<string, number>();
+  if (installmentCandidates.length > 0) {
+    const { data: countRows } = await supabase
+      .from('expenses')
+      .select('recurring_expense_id')
+      .eq('user_id', user.id)
+      .in('recurring_expense_id', installmentCandidates.map((r) => r.id));
+    for (const row of countRows ?? []) {
+      const id = (row as { recurring_expense_id: string }).recurring_expense_id;
+      installmentCounts.set(id, (installmentCounts.get(id) ?? 0) + 1);
+    }
+  }
+  const exhaustedIds: string[] = [];
+  const remainingDue = due.filter((r) => {
+    if (typeof r.totalInstallments !== 'number') return true;
+    const count = installmentCounts.get(r.id) ?? 0;
+    if (count >= r.totalInstallments) {
+      exhaustedIds.push(r.id);
+      return false;
+    }
+    return true;
+  });
+  if (exhaustedIds.length > 0) {
+    await withCacheInvalidation('recurring_expenses', async () => {
+      await supabase
+        .from('recurring_expenses')
+        .update({ active: false })
+        .eq('user_id', user.id)
+        .in('id', exhaustedIds);
+    });
+  }
+  if (!remainingDue.length) {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');
+    return;
+  }
+
   // Lista entries já existentes neste mês para os recorrentes alvo, em UMA query.
-  const dueIds = due.map((r) => r.id);
+  const dueIds = remainingDue.map((r) => r.id);
   const { data: existing, error: existingErr } = await supabase
     .from('expenses')
     .select('recurring_expense_id')
@@ -302,7 +380,7 @@ async function runCheckAndGenerateIncomeEntries(): Promise<void> {
   const alreadyLogged = new Set(
     (existing ?? []).map((row) => (row as { recurring_expense_id: string }).recurring_expense_id)
   );
-  const toCreate = due.filter((r) => !alreadyLogged.has(r.id));
+  const toCreate = remainingDue.filter((r) => !alreadyLogged.has(r.id));
 
   if (!toCreate.length) {
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey, '1');

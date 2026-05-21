@@ -85,6 +85,8 @@ export default function RecorrentesPage() {
   const [dayOfMonth, setDayOfMonth] = useState('');
   const [dueDay, setDueDay] = useState('');
   const [isVariable, setIsVariable] = useState(false);
+  const [hasDuration, setHasDuration] = useState(false);
+  const [totalInstallments, setTotalInstallments] = useState('');
   const [isCredit, setIsCredit] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState('');
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
@@ -116,6 +118,8 @@ export default function RecorrentesPage() {
   const [editDayOfMonth, setEditDayOfMonth] = useState('');
   const [editDueDay, setEditDueDay] = useState('');
   const [editIsVariable, setEditIsVariable] = useState(false);
+  const [editHasDuration, setEditHasDuration] = useState(false);
+  const [editTotalInstallments, setEditTotalInstallments] = useState('');
   const [editCategory, setEditCategory] = useState<Category>('Alimentação');
   const [editSaving, setEditSaving] = useState(false);
 
@@ -206,6 +210,16 @@ export default function RecorrentesPage() {
       if (!Number.isFinite(parsedDue) || parsedDue < 1 || parsedDue > 31) return;
       due = parsedDue;
     }
+    // Parcelamento: só envia totalInstallments quando o toggle está ligado.
+    let total: number | undefined;
+    if (hasDuration) {
+      const parsedTotal = parseInt(totalInstallments, 10);
+      if (!Number.isFinite(parsedTotal) || parsedTotal < 1) {
+        setFormError('Informe um número de parcelas válido (mínimo 1).');
+        return;
+      }
+      total = parsedTotal;
+    }
 
     setSaving(true);
     setFormError(null);
@@ -221,6 +235,7 @@ export default function RecorrentesPage() {
         dueDay: due,
         active: true,
         isVariable,
+        totalInstallments: total,
         ...(entryType === 'expense' && isCredit && selectedCardId
           ? { isCredit: true, creditCardId: selectedCardId }
           : { isCredit: false, creditCardId: undefined }),
@@ -240,6 +255,8 @@ export default function RecorrentesPage() {
       setDayOfMonth('');
       setDueDay('');
       setIsVariable(false);
+      setHasDuration(false);
+      setTotalInstallments('');
       setIsCredit(false);
       setDuplicateWarning(null);
     } catch (err) {
@@ -264,6 +281,10 @@ export default function RecorrentesPage() {
         : ''
     );
     setEditIsVariable(rec.isVariable);
+    setEditHasDuration(typeof rec.totalInstallments === 'number');
+    setEditTotalInstallments(
+      typeof rec.totalInstallments === 'number' ? String(rec.totalInstallments) : ''
+    );
     setEditCategory(rec.category);
   }
 
@@ -288,6 +309,17 @@ export default function RecorrentesPage() {
     const trimmed = editDesc.trim();
     const normalizedDesc = trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase() : '';
 
+    // Parcelamento: hasDuration ligado e válido → grava; desligado → grava null (limpa).
+    let totalValue: number | null = null;
+    if (editHasDuration) {
+      const parsedTotal = parseInt(editTotalInstallments, 10);
+      if (!Number.isFinite(parsedTotal) || parsedTotal < 1) {
+        setFormError('Informe um número de parcelas válido (mínimo 1).');
+        return;
+      }
+      totalValue = parsedTotal;
+    }
+
     setEditSaving(true);
     try {
       const updated = await updateRecurringExpense(editingRec.id, {
@@ -297,6 +329,7 @@ export default function RecorrentesPage() {
         dayOfMonth: dayOfMonthValue,
         dueDay: dueDayValue,
         isVariable: editIsVariable,
+        totalInstallments: totalValue,
       });
       setRecurrings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setEditingRec(null);
@@ -677,6 +710,8 @@ export default function RecorrentesPage() {
             dayOfMonth={dayOfMonth}
             dueDay={dueDay}
             isVariable={isVariable}
+            hasDuration={hasDuration}
+            totalInstallments={totalInstallments}
             isCredit={isCredit}
             selectedCardId={selectedCardId}
             creditCards={creditCards}
@@ -693,6 +728,8 @@ export default function RecorrentesPage() {
             onDayOfMonthChange={setDayOfMonth}
             onDueDayChange={setDueDay}
             onToggleVariable={() => setIsVariable((v) => !v)}
+            onToggleDuration={() => setHasDuration((v) => !v)}
+            onTotalInstallmentsChange={setTotalInstallments}
             onToggleCredit={() => setIsCredit((v) => !v)}
             onSelectedCardChange={setSelectedCardId}
             onOpenCategoryPicker={() => setShowCategoryPicker(true)}
@@ -816,6 +853,10 @@ export default function RecorrentesPage() {
         onEditDueDayChange={setEditDueDay}
         editIsVariable={editIsVariable}
         onEditIsVariableToggle={() => setEditIsVariable((v) => !v)}
+        editHasDuration={editHasDuration}
+        onEditHasDurationToggle={() => setEditHasDuration((v) => !v)}
+        editTotalInstallments={editTotalInstallments}
+        onEditTotalInstallmentsChange={setEditTotalInstallments}
         editSaving={editSaving}
         onCancelEdit={() => setEditingRec(null)}
         onSaveEdit={handleEditSave}

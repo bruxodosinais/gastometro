@@ -111,6 +111,9 @@ export interface RecurringExpense {
   isVariable: boolean;
   isCredit?: boolean;
   creditCardId?: string;
+  // Quando definido, é uma recorrente de prazo finito (parcelamento/financiamento).
+  // null/undefined = sem prazo (infinita).
+  totalInstallments?: number;
   createdAt: string;
 }
 

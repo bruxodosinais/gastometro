@@ -27,6 +27,10 @@ type Props = {
   onEditDueDayChange: (v: string) => void;
   editIsVariable: boolean;
   onEditIsVariableToggle: () => void;
+  editHasDuration: boolean;
+  onEditHasDurationToggle: () => void;
+  editTotalInstallments: string;
+  onEditTotalInstallmentsChange: (v: string) => void;
   editSaving: boolean;
   onCancelEdit: () => void;
   onSaveEdit: () => void;
@@ -49,6 +53,10 @@ export default function RecorrentesModals({
   onEditDueDayChange,
   editIsVariable,
   onEditIsVariableToggle,
+  editHasDuration,
+  onEditHasDurationToggle,
+  editTotalInstallments,
+  onEditTotalInstallmentsChange,
   editSaving,
   onCancelEdit,
   onSaveEdit,
@@ -211,6 +219,42 @@ export default function RecorrentesModals({
                     ariaLabel="Valor variável"
                   />
                 </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                      Tem duração definida?
+                    </p>
+                    <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: 0, marginTop: 1 }}>
+                      {editHasDuration ? 'Para de aparecer ao terminar as parcelas' : 'Recorrente sem prazo (padrão)'}
+                    </p>
+                  </div>
+                  <Switch
+                    on={editHasDuration}
+                    onToggle={onEditHasDurationToggle}
+                    ariaLabel="Tem duração definida?"
+                  />
+                </div>
+                {editHasDuration && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={fieldLabelStyle}>Número de parcelas</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      step={1}
+                      value={editTotalInstallments}
+                      onChange={(e) => onEditTotalInstallmentsChange(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="Ex: 12"
+                      style={{ ...fieldStyle }}
+                    />
+                    <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
+                      Ex: 12x para um financiamento de 1 ano
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

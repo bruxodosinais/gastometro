@@ -32,6 +32,8 @@ type Props = {
   dayOfMonth: string;
   dueDay: string;
   isVariable: boolean;
+  hasDuration: boolean;
+  totalInstallments: string;
   isCredit: boolean;
   selectedCardId: string;
   creditCards: CreditCardType[];
@@ -50,6 +52,8 @@ type Props = {
   onDayOfMonthChange: (v: string) => void;
   onDueDayChange: (v: string) => void;
   onToggleVariable: () => void;
+  onToggleDuration: () => void;
+  onTotalInstallmentsChange: (v: string) => void;
   onToggleCredit: () => void;
   onSelectedCardChange: (id: string) => void;
   onOpenCategoryPicker: () => void;
@@ -70,6 +74,8 @@ export default function RecorrentesHeader({
   dayOfMonth,
   dueDay,
   isVariable,
+  hasDuration,
+  totalInstallments,
   isCredit,
   selectedCardId,
   creditCards,
@@ -86,6 +92,8 @@ export default function RecorrentesHeader({
   onDayOfMonthChange,
   onDueDayChange,
   onToggleVariable,
+  onToggleDuration,
+  onTotalInstallmentsChange,
   onToggleCredit,
   onSelectedCardChange,
   onOpenCategoryPicker,
@@ -295,6 +303,39 @@ export default function RecorrentesHeader({
                 </p>
               </div>
               <Switch on={isVariable} onToggle={onToggleVariable} ariaLabel="Valor variável" />
+            </div>
+
+            {/* 3b. TOGGLE DURAÇÃO DEFINIDA */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                    Tem duração definida?
+                  </p>
+                  <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', margin: 0, marginTop: 1 }}>
+                    {hasDuration ? 'Para de aparecer ao terminar as parcelas' : 'Recorrente sem prazo (padrão)'}
+                  </p>
+                </div>
+                <Switch on={hasDuration} onToggle={onToggleDuration} ariaLabel="Tem duração definida?" />
+              </div>
+              {hasDuration && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={fieldLabelStyle}>Número de parcelas</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    step={1}
+                    value={totalInstallments}
+                    onChange={(e) => onTotalInstallmentsChange(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="Ex: 12"
+                    style={{ ...fieldStyle }}
+                  />
+                  <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-3)', marginTop: 4 }}>
+                    Ex: 12x para um financiamento de 1 ano
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 4. TOGGLE CARTÃO DE CRÉDITO */}
