@@ -629,6 +629,15 @@ export default function HomePage() {
     const raw = periodDateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     return raw.charAt(0).toUpperCase() + raw.slice(1);
   })();
+  const periodSlashLabel = (() => {
+    const raw = periodDateObj.toLocaleDateString('pt-BR', { month: 'long' });
+    return `${raw.charAt(0).toUpperCase()}${raw.slice(1)}/${periodYear}`;
+  })();
+  const saldoMode: 'current' | 'past' | 'future' = isCurrentMonth
+    ? 'current'
+    : isFutureMonth
+    ? 'future'
+    : 'past';
 
   // ── Hint ──────────────────────────────────────────────────────────────────
   const hintText = (() => {
@@ -1001,6 +1010,8 @@ export default function HomePage() {
         spent={spent}
         faturasTotal={faturasTotal}
         faturaHref={faturaHref}
+        mode={saldoMode}
+        periodLabel={periodSlashLabel}
         mounted={mounted}
       />
 

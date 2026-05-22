@@ -11,6 +11,8 @@ type Props = {
   spent: number;
   faturasTotal: number;
   faturaHref: string;
+  mode: 'current' | 'past' | 'future';
+  periodLabel: string;
   mounted: boolean;
 };
 
@@ -20,10 +22,18 @@ export default function SaldoCard({
   spent,
   faturasTotal,
   faturaHref,
+  mode,
+  periodLabel,
   mounted,
 }: Props) {
   const monthResult = income - spent;
   const positive = monthResult >= 0;
+  const subtitleColor =
+    mode === 'current'
+      ? positive
+        ? '#A6F5D5'
+        : '#FFB3B3'
+      : 'rgba(255,255,255,0.7)';
 
   return (
     <div
@@ -95,12 +105,16 @@ export default function SaldoCard({
         style={{
           fontSize: 11,
           fontWeight: 600,
-          color: positive ? '#A6F5D5' : '#FFB3B3',
+          color: subtitleColor,
           marginBottom: 14,
           position: 'relative',
         }}
       >
-        resultado do mês: {positive ? '' : '−'}{formatCurrency(Math.abs(monthResult))}
+        {mode === 'current'
+          ? `resultado do mês: ${positive ? '' : '−'}${formatCurrency(Math.abs(monthResult))}`
+          : mode === 'past'
+          ? `saldo em ${periodLabel}`
+          : `projeção para ${periodLabel}`}
       </p>
 
       {faturasTotal > 0 && (
