@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
-  MessageSquare,
+  MessageSquare, Rocket,
 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
@@ -17,6 +17,7 @@ import {
   checkAndGenerateObligations,
 } from '@/lib/storage';
 import { useSubscription } from '@/hooks/useSubscription';
+import { MISSAO_FEATURE_KEY, markFeatureSeen, shouldShowNewBadge } from '@/lib/featureFlags';
 
 type Section = {
   title: string;
@@ -25,6 +26,7 @@ type Section = {
     label: string;
     Icon: React.ComponentType<{ size?: number; color?: string }>;
     badgeKey?: 'recorrentes';
+    newKey?: string;
   }>;
 };
 
@@ -41,10 +43,11 @@ const SECTIONS: Section[] = [
   {
     title: 'Finanças',
     items: [
-      { href: '/categorias',  label: 'Categorias',  Icon: LayoutGrid  },
-      { href: '/metas',       label: 'Metas',       Icon: Target      },
-      { href: '/cartoes',     label: 'Cartões',     Icon: CreditCard  },
-      { href: '/patrimonio',  label: 'Patrimônio',  Icon: TrendingUp  },
+      { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,    newKey: MISSAO_FEATURE_KEY },
+      { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
+      { href: '/metas',       label: 'Metas',                Icon: Target      },
+      { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
+      { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },
     ],
   },
   {
@@ -59,7 +62,19 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [userName, setUserName] = useState('');
   const [recurringPending, setRecurringPending] = useState(0);
+  const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
   const { isPro, loading: subLoading } = useSubscription();
+
+  // Avalia o selo NOVO no cliente (localStorage indisponível no SSR).
+  useEffect(() => {
+    const eligible = new Set<string>();
+    for (const section of SECTIONS) {
+      for (const it of section.items) {
+        if (it.newKey && shouldShowNewBadge(it.newKey)) eligible.add(it.newKey);
+      }
+    }
+    setNewKeys(eligible);
+  }, [pathname]);
 
   useEffect(() => {
     let mounted = true;
@@ -114,15 +129,17 @@ export default function Sidebar() {
   const initial = userName ? userName.charAt(0).toUpperCase() : '?';
 
   function NavItem({
-    href, label, Icon, active, badge,
+    href, label, Icon, active, badge, isNew, onNavigate,
   }: {
     href: string; label: string;
     Icon: React.ComponentType<{ size?: number; color?: string }>;
-    active: boolean; badge?: number;
+    active: boolean; badge?: number; isNew?: boolean;
+    onNavigate?: () => void;
   }) {
     return (
       <Link
         href={href}
+        onClick={onNavigate}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -156,6 +173,23 @@ export default function Sidebar() {
         <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {label}
         </span>
+        {isNew && (
+          <span
+            style={{
+              padding: '2px 6px',
+              borderRadius: 999,
+              background: 'var(--green)',
+              color: '#fff',
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              flexShrink: 0,
+            }}
+          >
+            Novo
+          </span>
+        )}
         {badge != null && badge > 0 && (
           <span
             style={{
@@ -330,6 +364,7 @@ export default function Sidebar() {
               {section.items.map((item) => {
                 const active = pathname === item.href;
                 const badge = item.badgeKey === 'recorrentes' ? recurringPending : undefined;
+                const isNew = !!item.newKey && newKeys.has(item.newKey);
                 return (
                   <NavItem
                     key={item.href}
@@ -338,6 +373,8 @@ export default function Sidebar() {
                     Icon={item.Icon}
                     active={active}
                     badge={badge}
+                    isNew={isNew}
+                    onNavigate={item.newKey ? () => markFeatureSeen(item.newKey!) : undefined}
                   />
                 );
               })}

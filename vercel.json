@@ -15,6 +15,10 @@
     {
       "path": "/api/push/cron/budget-exceeded",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/missao-lembrete",
+      "schedule": "0 10 5 * *"
     }
   ]
 }

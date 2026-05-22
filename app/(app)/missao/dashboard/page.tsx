@@ -1,0 +1,664 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Check, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { formatCurrency, getMonthKey } from '@/lib/calculations';
+import { getCachedUser } from '@/lib/dataCache';
+import {
+  acceptChallenge as apiAcceptChallenge,
+  calcStreak,
+  dismissChallenge as apiDismissChallenge,
+  getBadges,
+  getChallenges,
+  getCompletedMissionsCount,
+  getContributions,
+  getMission,
+  unlockBadge,
+  type MissionChallenge,
+  type MissionContribution,
+  type SavingsMission,
+} from '@/lib/storage/missions';
+import { useSubscription } from '@/hooks/useSubscription';
+import ContributionSheet from '../../_components/missao/ContributionSheet';
+import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
+import { levelByActivity, QUARTER_BADGE_KEY } from '../../_components/missao/badges';
+
+// Milestones (% → badge_key). Ordem decrescente: ao detectar cruzamento,
+// processamos o maior primeiro para mostrar a celebração mais alta.
+const MILESTONES: { pct: MilestoneKind; key: string }[] = [
+  { pct: 100, key: 'meta_batida' },
+  { pct: 50, key: 'meio_caminho' },
+  { pct: 25, key: QUARTER_BADGE_KEY },
+];
+
+function monthLabelLong(monthKey: string): string {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  const month = d.toLocaleDateString('pt-BR', { month: 'long' });
+  return month.charAt(0).toUpperCase() + month.slice(1);
+}
+
+function monthLabelShort(monthKey: string): string {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${String(y).slice(2)}`;
+}
+
+function projectedMonthLabel(monthsAhead: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsAhead);
+  const month = d.toLocaleDateString('pt-BR', { month: 'long' });
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)} de ${d.getFullYear()}`;
+}
+
+// Agrupa contribuições por mês YYYY-MM, retorna lista ordenada desc por mês.
+function groupByMonth(contribs: MissionContribution[]) {
+  const map = new Map<string, MissionContribution[]>();
+  for (const c of contribs) {
+    const list = map.get(c.month);
+    if (list) list.push(c);
+    else map.set(c.month, [c]);
+  }
+  return Array.from(map.entries())
+    .map(([month, items]) => ({
+      month,
+      items,
+      total: items.reduce((s, i) => s + Number(i.amount), 0),
+      count: items.length,
+    }))
+    .sort((a, b) => (a.month > b.month ? -1 : 1));
+}
+
+export default function MissaoDashboardPage() {
+  const router = useRouter();
+  const { isPro } = useSubscription();
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [mission, setMission] = useState<SavingsMission | null>(null);
+  const [contributions, setContributions] = useState<MissionContribution[]>([]);
+  const [badges, setBadges] = useState<string[]>([]);   // só os badge_keys
+  const [challenge, setChallenge] = useState<MissionChallenge | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [milestone, setMilestone] = useState<{ kind: MilestoneKind; badgeKey?: string } | null>(null);
+
+  // Anima a barra de progresso (0→pct) ao montar com transition CSS.
+  const [barReady, setBarReady] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => setBarReady(true), 50);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  const loadAll = useCallback(async () => {
+    const user = await getCachedUser();
+    if (!user) { setLoading(false); return; }
+    setUserId(user.id);
+
+    const m = await getMission(user.id);
+    if (!m) {
+      setMission(null);
+      setLoading(false);
+      return;
+    }
+    setMission(m);
+
+    const [contribs, bdgs, chls] = await Promise.all([
+      getContributions(m.id),
+      getBadges(user.id, m.id),
+      getChallenges(m.id, getMonthKey(new Date())),
+    ]);
+    setContributions(contribs);
+    setBadges(bdgs.map((b) => b.badgeKey));
+    setChallenge(chls[0] ?? null);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Sem missão ativa → manda pro funil de criação.
+  useEffect(() => {
+    if (!loading && !mission) router.replace('/missao');
+  }, [loading, mission, router]);
+
+  // ─── Derivados ──────────────────────────────────────────────────────────
+  const totalSaved = useMemo(
+    () => contributions.reduce((s, c) => s + Number(c.amount), 0),
+    [contributions],
+  );
+  const target = mission?.targetAmount ?? 0;
+  const monthlyTarget = mission?.monthlyTarget ?? 0;
+  const progressPercent = target > 0 ? Math.min(100, (totalSaved / target) * 100) : 0;
+  const streak = useMemo(() => calcStreak(contributions), [contributions]);
+  // Nível segue contagem de meses distintos com aporte (não streak): a UX
+  // do badge premia consistência ao longo do tempo, não só meses seguidos.
+  const monthsActive = useMemo(
+    () => new Set(contributions.map((c) => c.month)).size,
+    [contributions],
+  );
+  const level = levelByActivity(contributions.length, monthsActive);
+
+  const currentMonthKey = getMonthKey(new Date());
+  const contribsThisMonth = useMemo(
+    () => contributions.filter((c) => c.month === currentMonthKey),
+    [contributions, currentMonthKey],
+  );
+  const totalThisMonth = contribsThisMonth.reduce((s, c) => s + Number(c.amount), 0);
+
+  const grouped = useMemo(() => groupByMonth(contributions), [contributions]);
+  const recentGroups = grouped.slice(0, 3);
+
+  const monthsToFinish = useMemo(() => {
+    if (totalSaved >= target) return 0;
+    if (monthlyTarget <= 0) return null;
+    return Math.ceil((target - totalSaved) / monthlyTarget);
+  }, [target, totalSaved, monthlyTarget]);
+
+  // ─── Side-effects: badges silenciosos + milestones ─────────────────────
+  // Roda após cada loadAll. Idempotente via UNIQUE constraint no banco.
+  useEffect(() => {
+    if (!mission || !userId) return;
+    const haveSet = new Set(badges);
+    const eligibleSilent: string[] = [];
+    if (contributions.length >= 1 && !haveSet.has('primeiro_passo')) eligibleSilent.push('primeiro_passo');
+    if (streak >= 3 && !haveSet.has('consistente')) eligibleSilent.push('consistente');
+    if (streak >= 6 && !haveSet.has('expert')) eligibleSilent.push('expert');
+    if (eligibleSilent.length > 0) {
+      Promise.all(eligibleSilent.map((k) => unlockBadge(userId, mission.id, k))).catch(() => {});
+    }
+  }, [badges, contributions.length, mission, streak, userId]);
+
+  // Mostra MilestoneModal ao detectar cruzamento de marco ainda não registrado
+  // no DB. Como o DB tem UNIQUE, isso só dispara uma vez por missão.
+  // Após meta_batida, encadeia mestre_clt se já houver ≥2 missões fechadas.
+  const triggerMilestoneIfAny = useCallback(async () => {
+    if (!mission || !userId) return;
+    const haveSet = new Set(badges);
+    for (const ms of MILESTONES) {
+      if (progressPercent >= ms.pct && !haveSet.has(ms.key)) {
+        await unlockBadge(userId, mission.id, ms.key);
+        setBadges((b) => [...b, ms.key]);
+        setMilestone({
+          kind: ms.pct,
+          badgeKey: ms.key === QUARTER_BADGE_KEY ? undefined : ms.key,
+        });
+
+        if (ms.key === 'meta_batida' && !haveSet.has('mestre_clt')) {
+          // Conta só missões com status='completed' — a missão atual segue
+          // 'active' a 100% até ser fechada explicitamente, então este badge
+          // depende de o usuário fechar a missão (rota não implementada nesta
+          // etapa). Mantemos o gate exatamente como especificado.
+          const completed = await getCompletedMissionsCount(userId);
+          if (completed >= 2) {
+            await unlockBadge(userId, mission.id, 'mestre_clt');
+            setBadges((b) => [...b, 'mestre_clt']);
+          }
+        }
+        return; // só um marco por vez
+      }
+    }
+  }, [badges, mission, progressPercent, userId]);
+
+  const handleSaved = useCallback(async () => {
+    await loadAll();
+    await triggerMilestoneIfAny();
+  }, [loadAll, triggerMilestoneIfAny]);
+
+  const handleAcceptChallenge = async () => {
+    if (!challenge) return;
+    await apiAcceptChallenge(challenge.id);
+    setChallenge({ ...challenge, accepted: true });
+  };
+
+  const handleDismissChallenge = async () => {
+    if (!challenge) return;
+    await apiDismissChallenge(challenge.id);
+    setChallenge(null);
+  };
+
+  if (loading) {
+    return (
+      <main
+        className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6 flex min-h-screen w-full items-center justify-center"
+      >
+        <Loader2 className="animate-spin" color="var(--accent)" />
+      </main>
+    );
+  }
+
+  if (!mission) return null;
+
+  return (
+    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="flex items-center gap-3 pb-3">
+        <Link
+          href="/"
+          aria-label="Voltar"
+          className="flex h-10 w-10 items-center justify-center rounded-full"
+          style={{ background: 'var(--surface)', boxShadow: 'var(--hbtn-shadow)' }}
+        >
+          <ArrowLeft size={20} color="var(--text)" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[10px] font-extrabold uppercase tracking-[0.12em]"
+            style={{ color: 'var(--text-3)' }}
+          >
+            Sua missão
+          </p>
+          <h1
+            className="truncate text-[16px] font-extrabold leading-tight"
+            style={{ color: 'var(--text)' }}
+          >
+            {mission.name}
+          </h1>
+        </div>
+        <Link
+          href="/missao/badges"
+          className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold"
+          style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
+        >
+          <span>{level.label}</span>
+          {level.emoji && <span>{level.emoji}</span>}
+        </Link>
+      </header>
+
+      {/* ── Card progresso ─────────────────────────────────────────────── */}
+      <section className="pt-2">
+        <div
+          className="rounded-2xl p-5"
+          style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+        >
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p
+                className="text-[11px] font-extrabold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--text-3)' }}
+              >
+                Progresso
+              </p>
+              <p className="mt-1 text-[20px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
+                {formatCurrency(totalSaved)}{' '}
+                <span className="text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>
+                  / {formatCurrency(target)}
+                </span>
+              </p>
+            </div>
+            <span className="text-[22px] font-extrabold" style={{ color: 'var(--accent)' }}>
+              {progressPercent.toFixed(0)}%
+            </span>
+          </div>
+
+          <div
+            className="relative mt-4 h-3 w-full overflow-hidden rounded-full"
+            style={{ background: 'var(--border-2)' }}
+          >
+            <div
+              className="absolute left-0 top-0 h-full rounded-full"
+              style={{
+                width: `${barReady ? progressPercent : 0}%`,
+                background: 'linear-gradient(90deg, #5B5BD6, #7C7CE8)',
+                transition: 'width 1s cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+            />
+          </div>
+
+          <div className="mt-2 flex justify-between text-[10px] font-bold" style={{ color: 'var(--text-3)' }}>
+            <span>0%</span>
+            <span>25%</span>
+            <span>50%</span>
+            <span>75%</span>
+            <span>🏁</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Card streak ────────────────────────────────────────────────── */}
+      <section className="pt-3">
+        {streak >= 2 ? (
+          <div
+            className="flex items-center gap-3 rounded-2xl p-4"
+            style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+          >
+            <span className="text-[28px] leading-none">🔥</span>
+            <div className="min-w-0">
+              <p className="text-[15px] font-extrabold" style={{ color: 'var(--text)' }}>
+                {streak} meses consecutivos
+              </p>
+              <p className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+                Não quebra agora!
+              </p>
+            </div>
+          </div>
+        ) : streak === 0 ? (
+          <div
+            className="flex items-center gap-3 rounded-2xl p-4"
+            style={{ background: 'var(--accent-bg)', borderRadius: 'var(--r)' }}
+          >
+            <span className="text-[24px] leading-none">✨</span>
+            <p className="text-[14px] font-extrabold" style={{ color: 'var(--accent)' }}>
+              Registre seu primeiro depósito!
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      {/* ── Card desafio IA ────────────────────────────────────────────── */}
+      {challenge && (
+        <section className="pt-3">
+          <div
+            className="rounded-2xl p-5"
+            style={{ background: '#EEEDFC', borderRadius: 'var(--r)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} color="var(--accent)" />
+              <p
+                className="text-[10px] font-extrabold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--accent)' }}
+              >
+                Desafio de {monthLabelLong(challenge.month)} · IA
+              </p>
+            </div>
+            <p
+              className="mt-2 text-[14px] font-bold leading-snug"
+              style={{ color: 'var(--text)' }}
+            >
+              {challenge.challengeText}
+            </p>
+            {challenge.potentialSavings && challenge.potentialSavings > 0 && (
+              <p className="mt-1 text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
+                Economia estimada: {formatCurrency(Number(challenge.potentialSavings))}
+              </p>
+            )}
+            {!challenge.accepted ? (
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  onClick={handleAcceptChallenge}
+                  className="flex h-11 flex-1 items-center justify-center rounded-xl text-[13px] font-extrabold text-white"
+                  style={{ background: 'var(--accent)', borderRadius: 'var(--r-sm)' }}
+                >
+                  Aceitar desafio
+                </button>
+                <button
+                  onClick={handleDismissChallenge}
+                  className="text-[13px] font-bold"
+                  style={{ color: 'var(--text-2)' }}
+                >
+                  Agora não
+                </button>
+              </div>
+            ) : (
+              <p
+                className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-extrabold"
+                style={{ background: 'rgba(91,91,214,0.15)', color: 'var(--accent)' }}
+              >
+                <Check size={12} /> Desafio aceito
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Card projeção ──────────────────────────────────────────────── */}
+      <section className="pt-3">
+        <div
+          className="rounded-2xl p-4"
+          style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+        >
+          {monthsToFinish === 0 ? (
+            <p className="text-[14px] font-bold" style={{ color: 'var(--green-text)' }}>
+              🏆 Você já bateu a meta — parabéns!
+            </p>
+          ) : monthsToFinish == null ? (
+            <p className="text-[13px] font-bold" style={{ color: 'var(--text-2)' }}>
+              📅 Configure um valor mensal para projetarmos sua data.
+            </p>
+          ) : (
+            <>
+              <p className="text-[14px] font-bold leading-snug" style={{ color: 'var(--text)' }}>
+                📅 No ritmo atual, você atinge a meta em{' '}
+                <span style={{ color: 'var(--accent)' }}>
+                  {projectedMonthLabel(monthsToFinish)}
+                </span>.
+              </p>
+              {challenge?.accepted && (
+                <p className="mt-1 text-[13px] font-bold" style={{ color: 'var(--green-text)' }}>
+                  ⚡ Com o desafio, chega mais cedo.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* ── Lista de contribuições ─────────────────────────────────────── */}
+      <section className="pt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p
+            className="text-[11px] font-extrabold uppercase tracking-[0.12em]"
+            style={{ color: 'var(--text-3)' }}
+          >
+            Histórico
+          </p>
+          {grouped.length > 0 && (
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="text-[12px] font-extrabold"
+              style={{ color: 'var(--accent)' }}
+            >
+              Ver tudo →
+            </button>
+          )}
+        </div>
+
+        {recentGroups.length === 0 ? (
+          <div
+            className="rounded-2xl p-5 text-center text-[13px] font-bold"
+            style={{ background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 'var(--r)' }}
+          >
+            Nenhum depósito ainda.
+          </div>
+        ) : (
+          <div
+            className="overflow-hidden rounded-2xl"
+            style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+          >
+            {recentGroups.map((g, idx) => {
+              const diff = g.total - monthlyTarget;
+              const hit = g.total >= monthlyTarget && monthlyTarget > 0;
+              return (
+                <div
+                  key={g.month}
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                      {monthLabelShort(g.month)}
+                    </p>
+                    <p className="text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>
+                      {formatCurrency(g.total)}
+                      {g.count > 1 && ` · ${g.count} depósitos`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-[12px] font-extrabold"
+                      style={{ color: diff >= 0 ? 'var(--green-text)' : 'var(--red)' }}
+                    >
+                      {diff >= 0 ? '+' : '−'}{formatCurrency(Math.abs(diff))}
+                    </span>
+                    {hit && (
+                      <span
+                        className="flex h-6 w-6 items-center justify-center rounded-full"
+                        style={{ background: 'var(--green-bg)', color: 'var(--green-text)' }}
+                      >
+                        <Check size={14} strokeWidth={3} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Bottom action ──────────────────────────────────────────────── */}
+      {/* Inline ao final do conteúdo (não fixed): o app não usa FAB em
+          nenhuma outra página, então seguir o fluxo evita inventar padrão
+          novo e remove o problema de alinhamento com o sidebar do desktop. */}
+      <section className="pt-6">
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="mx-auto flex h-[54px] w-full max-w-sm items-center justify-center gap-2 rounded-full text-[15px] font-extrabold text-white transition active:scale-[0.98]"
+          style={{
+            background: 'var(--accent)',
+            boxShadow: '0 10px 30px var(--plus-shadow)',
+          }}
+        >
+          <Plus size={18} strokeWidth={3} /> Registrar depósito
+        </button>
+      </section>
+
+      {/* ── Sub-overlays ──────────────────────────────────────────────── */}
+      {userId && (
+        <ContributionSheet
+          open={sheetOpen}
+          missionId={mission.id}
+          userId={userId}
+          targetAmount={target}
+          totalSaved={totalSaved}
+          monthlyTarget={monthlyTarget}
+          alreadySavedThisMonth={totalThisMonth}
+          shouldGenerateChallenge={isPro && !challenge}
+          onClose={() => setSheetOpen(false)}
+          onSaved={handleSaved}
+        />
+      )}
+
+      <HistoryModal
+        open={historyOpen}
+        groups={grouped}
+        monthlyTarget={monthlyTarget}
+        onClose={() => setHistoryOpen(false)}
+      />
+
+      {milestone && (
+        <MilestoneModal
+          open
+          kind={milestone.kind}
+          badgeKey={milestone.badgeKey}
+          onClose={() => setMilestone(null)}
+        />
+      )}
+    </main>
+  );
+}
+
+// ─── Modal de histórico completo ─────────────────────────────────────────
+
+function HistoryModal({
+  open,
+  groups,
+  monthlyTarget,
+  onClose,
+}: {
+  open: boolean;
+  groups: ReturnType<typeof groupByMonth>;
+  monthlyTarget: number;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[82vh] w-full flex-col"
+        style={{ maxWidth: 390 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex flex-col overflow-hidden rounded-t-3xl"
+          style={{ background: 'var(--surface)', borderRadius: '24px 24px 0 0' }}
+        >
+          <div className="flex items-center justify-between px-5 pt-4 pb-3">
+            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
+              Histórico completo
+            </h3>
+            <button
+              onClick={onClose}
+              aria-label="Fechar"
+              className="flex h-8 w-8 items-center justify-center rounded-full"
+              style={{ background: 'var(--bg)' }}
+            >
+              <X size={16} color="var(--text-2)" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto px-5 pb-6">
+            {groups.length === 0 ? (
+              <p className="py-8 text-center text-[13px] font-bold" style={{ color: 'var(--text-2)' }}>
+                Nenhum depósito registrado ainda.
+              </p>
+            ) : (
+              groups.map((g) => {
+                const diff = g.total - monthlyTarget;
+                return (
+                  <div key={g.month} className="mb-4 last:mb-0">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                        {monthLabelShort(g.month)}
+                      </p>
+                      <span
+                        className="text-[12px] font-extrabold"
+                        style={{ color: diff >= 0 ? 'var(--green-text)' : 'var(--red)' }}
+                      >
+                        Total {formatCurrency(g.total)}
+                      </span>
+                    </div>
+                    <div
+                      className="overflow-hidden rounded-2xl"
+                      style={{ background: 'var(--bg)', borderRadius: 'var(--r-sm)' }}
+                    >
+                      {g.items.map((c, idx) => (
+                        <div
+                          key={c.id}
+                          className="flex items-center justify-between px-4 py-2"
+                          style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
+                        >
+                          <span className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+                            {new Date(c.registeredAt).toLocaleDateString('pt-BR')}
+                          </span>
+                          <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                            {formatCurrency(Number(c.amount))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

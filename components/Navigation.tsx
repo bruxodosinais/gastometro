@@ -1,33 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, LayoutGrid,
   Target, Bot, TrendingUp, UserCircle, X, CreditCard, Sparkles,
-  MessageSquare,
+  MessageSquare, Rocket,
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { openFeedback } from '@/components/FeedbackButton';
+import { MISSAO_FEATURE_KEY, markFeatureSeen, shouldShowNewBadge } from '@/lib/featureFlags';
 
 const ACTIVE = 'var(--accent)';
 const INACTIVE = '#9CA3AF';
 
-// Itens expostos no sheet "Mais"
-const sheetItems = [
-  { href: '/categorias',  label: 'Categorias',  Icon: LayoutGrid  },
-  { href: '/metas',       label: 'Metas',        Icon: Target      },
-  { href: '/cartoes',     label: 'Cartões',      Icon: CreditCard  },
-  { href: '/patrimonio',  label: 'Patrimônio',   Icon: TrendingUp  },
-  { href: '/assistente',  label: 'Assistente',   Icon: Bot         },
-  { href: '/perfil',      label: 'Perfil',       Icon: UserCircle  },
+// Itens expostos no sheet "Mais". `newKey` marca itens elegíveis ao selo NOVO
+// (badge verde + auto-dismiss via featureFlags).
+type SheetItem = {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<{ size?: number; color?: string }>;
+  newKey?: string;
+};
+
+const sheetItems: SheetItem[] = [
+  { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,     newKey: MISSAO_FEATURE_KEY },
+  { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
+  { href: '/metas',       label: 'Metas',                Icon: Target      },
+  { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
+  { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },
+  { href: '/assistente',  label: 'Assistente',           Icon: Bot         },
+  { href: '/perfil',      label: 'Perfil',               Icon: UserCircle  },
 ];
 
 export default function Navigation() {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { isFree, loading: subLoading } = useSubscription();
+
+  // Quais itens devem mostrar o selo NOVO. Estado pra evitar mismatch SSR
+  // (localStorage só existe no cliente).
+  const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const eligible = new Set<string>();
+    for (const it of sheetItems) {
+      if (it.newKey && shouldShowNewBadge(it.newKey)) eligible.add(it.newKey);
+    }
+    setNewKeys(eligible);
+  }, [sheetOpen]); // reavalia ao abrir o sheet (caso outro tab tenha clicado)
 
   const maisActive = sheetItems.some((i) => i.href === pathname);
 
@@ -160,14 +181,19 @@ export default function Navigation() {
 
             {/* Grid 2 colunas */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {sheetItems.map(({ href, label, Icon }) => {
+              {sheetItems.map(({ href, label, Icon, newKey }) => {
                 const active = pathname === href;
+                const showNew = !!newKey && newKeys.has(newKey);
                 return (
                   <Link
                     key={href}
                     href={href}
-                    onClick={() => setSheetOpen(false)}
+                    onClick={() => {
+                      if (newKey) markFeatureSeen(newKey);
+                      setSheetOpen(false);
+                    }}
                     style={{
+                      position: 'relative',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -180,6 +206,25 @@ export default function Navigation() {
                       transition: 'border-color 150ms',
                     }}
                   >
+                    {showNew && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          background: 'var(--green)',
+                          color: '#fff',
+                          fontSize: 9,
+                          fontWeight: 800,
+                          letterSpacing: '0.06em',
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Novo
+                      </span>
+                    )}
                     <div
                       style={{
                         width: 40, height: 40,

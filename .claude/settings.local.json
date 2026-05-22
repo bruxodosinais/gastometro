@@ -68,7 +68,9 @@
       "Bash(PUPPETEER_SKIP_DOWNLOAD=1 npm install puppeteer-core --save-dev)",
       "Bash(npm audit *)",
       "Bash(echo \"ESLINT_EXIT=$?\")",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(awk '{$1=$1};1')",
+      "Bash(echo \"TSC_EXIT=$?\")"
     ]
   }
 }

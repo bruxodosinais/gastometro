@@ -108,6 +108,10 @@ const TABLE_INVALIDATIONS = {
   goal_contributions:  ['goalContributions', 'goals'],
   assets:              ['assets'],
   liabilities:         ['liabilities'],
+  savings_missions:     ['savings_missions'],
+  mission_contributions:['mission_contributions', 'savings_missions'],
+  mission_badges:       ['mission_badges'],
+  mission_challenges:   ['mission_challenges'],
 } as const;
 
 export type CacheTable = keyof typeof TABLE_INVALIDATIONS;
