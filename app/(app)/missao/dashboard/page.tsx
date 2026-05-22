@@ -1,20 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, MoreVertical, Plus, Sparkles, X } from 'lucide-react';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getCachedUser } from '@/lib/dataCache';
 import {
   acceptChallenge as apiAcceptChallenge,
   calcStreak,
+  completeMission,
   dismissChallenge as apiDismissChallenge,
   getBadges,
   getChallenges,
   getCompletedMissionsCount,
   getContributions,
   getMission,
+  pauseMission,
   unlockBadge,
   type MissionChallenge,
   type MissionContribution,
@@ -86,6 +88,31 @@ export default function MissaoDashboardPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [milestone, setMilestone] = useState<{ kind: MilestoneKind; badgeKey?: string } | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [swapConfirmOpen, setSwapConfirmOpen] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o dropdown ao clicar fora ou apertar ESC. Sem isso, o menu fica
+  // grudado quando o usuário toca em qualquer área da página.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   // Anima a barra de progresso (0→pct) ao montar com transition CSS.
   const [barReady, setBarReady] = useState(false);
@@ -176,11 +203,16 @@ export default function MissaoDashboardPage() {
   // Mostra MilestoneModal ao detectar cruzamento de marco ainda não registrado
   // no DB. Como o DB tem UNIQUE, isso só dispara uma vez por missão.
   // Após meta_batida, encadeia mestre_clt se já houver ≥2 missões fechadas.
-  const triggerMilestoneIfAny = useCallback(async () => {
+  // Recebe newTotalSaved explícito: a verificação roda logo após addContribution,
+  // antes do setState do loadAll() refletir no closure desta callback.
+  const triggerMilestoneIfAny = useCallback(async (newTotalSaved: number) => {
     if (!mission || !userId) return;
+    const newPercent = mission.targetAmount > 0
+      ? Math.min(100, (newTotalSaved / mission.targetAmount) * 100)
+      : 0;
     const haveSet = new Set(badges);
     for (const ms of MILESTONES) {
-      if (progressPercent >= ms.pct && !haveSet.has(ms.key)) {
+      if (newPercent >= ms.pct && !haveSet.has(ms.key)) {
         await unlockBadge(userId, mission.id, ms.key);
         setBadges((b) => [...b, ms.key]);
         setMilestone({
@@ -202,12 +234,13 @@ export default function MissaoDashboardPage() {
         return; // só um marco por vez
       }
     }
-  }, [badges, mission, progressPercent, userId]);
+  }, [badges, mission, userId]);
 
-  const handleSaved = useCallback(async () => {
+  const handleSaved = useCallback(async (amount: number) => {
+    const newTotalSaved = totalSaved + amount;
     await loadAll();
-    await triggerMilestoneIfAny();
-  }, [loadAll, triggerMilestoneIfAny]);
+    await triggerMilestoneIfAny(newTotalSaved);
+  }, [loadAll, totalSaved, triggerMilestoneIfAny]);
 
   const handleAcceptChallenge = async () => {
     if (!challenge) return;
@@ -220,6 +253,35 @@ export default function MissaoDashboardPage() {
     await apiDismissChallenge(challenge.id);
     setChallenge(null);
   };
+
+  // Fecha a missão atual (status='completed') antes de navegar pro funil de
+  // criação. Evita que o usuário fique com duas missões ativas e libera o
+  // gate do badge `mestre_clt` (≥2 missões completed).
+  const handleStartNewMission = useCallback(async () => {
+    if (!mission || completing) return;
+    setCompleting(true);
+    try {
+      await completeMission(mission.id);
+      router.push('/missao/nova');
+    } catch (e) {
+      console.error(e);
+      setCompleting(false);
+    }
+  }, [completing, mission, router]);
+
+  // "Trocar missão": pausa a atual em vez de completar — progresso fica salvo,
+  // mas libera o slot active pro funil de criação.
+  const handleSwapMission = useCallback(async () => {
+    if (!mission || swapping) return;
+    setSwapping(true);
+    try {
+      await pauseMission(mission.id);
+      router.push('/missao/nova');
+    } catch (e) {
+      console.error(e);
+      setSwapping(false);
+    }
+  }, [mission, router, swapping]);
 
   if (loading) {
     return (
@@ -267,6 +329,44 @@ export default function MissaoDashboardPage() {
           <span>{level.label}</span>
           {level.emoji && <span>{level.emoji}</span>}
         </Link>
+        {/* Menu ⋯: ficou à direita do badge de nível pra não competir com
+            o botão voltar à esquerda. relative+absolute pra ancorar o popover
+            no canto direito sem depender de portal. */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Mais opções"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--surface)', boxShadow: 'var(--hbtn-shadow)' }}
+          >
+            <MoreVertical size={18} color="var(--text)" />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-12 z-30 w-48 overflow-hidden rounded-2xl"
+              style={{
+                background: 'var(--surface)',
+                boxShadow: 'var(--card-shadow), 0 8px 24px rgba(0,0,0,0.12)',
+                borderRadius: 'var(--r-sm)',
+              }}
+            >
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSwapConfirmOpen(true);
+                }}
+                className="flex w-full items-center px-4 py-3 text-left text-[13px] font-bold transition active:scale-[0.98]"
+                style={{ color: 'var(--text)' }}
+              >
+                Trocar missão
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ── Card progresso ─────────────────────────────────────────────── */}
@@ -513,18 +613,48 @@ export default function MissaoDashboardPage() {
       {/* ── Bottom action ──────────────────────────────────────────────── */}
       {/* Inline ao final do conteúdo (não fixed): o app não usa FAB em
           nenhuma outra página, então seguir o fluxo evita inventar padrão
-          novo e remove o problema de alinhamento com o sidebar do desktop. */}
+          novo e remove o problema de alinhamento com o sidebar do desktop.
+          Pós-100%: oferecemos fechar e criar uma nova missão como ação
+          primária, mantendo o depósito disponível para quem quiser passar
+          do target. */}
       <section className="pt-6">
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="mx-auto flex h-[54px] w-full max-w-sm items-center justify-center gap-2 rounded-full text-[15px] font-extrabold text-white transition active:scale-[0.98]"
-          style={{
-            background: 'var(--accent)',
-            boxShadow: '0 10px 30px var(--plus-shadow)',
-          }}
-        >
-          <Plus size={18} strokeWidth={3} /> Registrar depósito
-        </button>
+        {progressPercent >= 100 ? (
+          <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
+            <button
+              onClick={handleStartNewMission}
+              disabled={completing}
+              className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full text-[15px] font-extrabold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: 'var(--accent)',
+                boxShadow: '0 10px 30px var(--plus-shadow)',
+              }}
+            >
+              {completing ? <Loader2 className="animate-spin" size={18} /> : 'Criar nova missão'}
+            </button>
+            <button
+              onClick={() => setSheetOpen(true)}
+              className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full text-[15px] font-extrabold transition active:scale-[0.98]"
+              style={{
+                background: 'transparent',
+                color: 'var(--accent)',
+                border: '2px solid var(--accent)',
+              }}
+            >
+              Continuar guardando
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setSheetOpen(true)}
+            className="mx-auto flex h-[54px] w-full max-w-sm items-center justify-center gap-2 rounded-full text-[15px] font-extrabold text-white transition active:scale-[0.98]"
+            style={{
+              background: 'var(--accent)',
+              boxShadow: '0 10px 30px var(--plus-shadow)',
+            }}
+          >
+            <Plus size={18} strokeWidth={3} /> Registrar depósito
+          </button>
+        )}
       </section>
 
       {/* ── Sub-overlays ──────────────────────────────────────────────── */}
@@ -556,9 +686,96 @@ export default function MissaoDashboardPage() {
           kind={milestone.kind}
           badgeKey={milestone.badgeKey}
           onClose={() => setMilestone(null)}
+          onCreateNewMission={milestone.kind === 100 ? () => {
+            setMilestone(null);
+            handleStartNewMission();
+          } : undefined}
         />
       )}
+
+      <SwapMissionConfirm
+        open={swapConfirmOpen}
+        loading={swapping}
+        onCancel={() => setSwapConfirmOpen(false)}
+        onConfirm={handleSwapMission}
+      />
     </main>
+  );
+}
+
+// ─── Modal de confirmação de troca de missão ────────────────────────────
+// Padrão consistente com o ContributionSheet: overlay z-50, card centralizado,
+// max-w-sm. Não fecha ao clicar fora porque a ação primária é destrutiva
+// (pausar implica progresso “fora do dashboard” até retomar) e o usuário
+// pode tocar o overlay sem querer no mobile.
+
+function SwapMissionConfirm({
+  open,
+  loading,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-black/50" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed top-1/2 left-1/2 z-[60] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 mx-4"
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 20,
+          padding: 24,
+        }}
+      >
+        <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
+          Tem certeza?
+        </h3>
+        <p className="mt-2 text-[14px] font-medium leading-snug" style={{ color: 'var(--text-2)' }}>
+          Seu progresso será salvo, mas a missão ficará pausada.
+        </p>
+
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="flex h-[48px] flex-1 items-center justify-center rounded-2xl text-[14px] font-extrabold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              background: 'var(--bg)',
+              color: 'var(--text)',
+              borderRadius: 'var(--r-sm)',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex h-[48px] flex-1 items-center justify-center rounded-2xl text-[14px] font-extrabold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              background: 'var(--accent)',
+              borderRadius: 'var(--r-sm)',
+              boxShadow: '0 6px 20px var(--accent-shadow)',
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Sim, trocar'}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

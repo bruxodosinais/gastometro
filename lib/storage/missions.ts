@@ -144,6 +144,39 @@ export async function createMission(userId: string, data: NewMissionInput): Prom
   });
 }
 
+// Pausa a missão (status='paused'). Mantém o progresso (contribuições/badges
+// continuam no banco), mas libera o slot — getMission filtra por 'active', então
+// pausar permite o usuário criar uma nova missão sem perder o histórico.
+export async function pauseMission(missionId: string): Promise<void> {
+  return withCacheInvalidation('savings_missions', async () => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('savings_missions')
+      .update({ status: 'paused' })
+      .eq('id', missionId);
+    if (error) {
+      console.error('pauseMission:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      throw new Error(error.message || 'Erro ao pausar missão');
+    }
+  });
+}
+
+// Fecha a missão (status='completed'). Invalida o cache de savings_missions —
+// inclui a contagem usada pelo badge `mestre_clt` em getCompletedMissionsCount.
+export async function completeMission(missionId: string): Promise<void> {
+  return withCacheInvalidation('savings_missions', async () => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('savings_missions')
+      .update({ status: 'completed' })
+      .eq('id', missionId);
+    if (error) {
+      console.error('completeMission:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      throw new Error(error.message || 'Erro ao concluir missão');
+    }
+  });
+}
+
 export async function getContributions(missionId: string): Promise<MissionContribution[]> {
   return cachedFetch(`mission_contributions:${missionId}`, TTL.LIST, async () => {
     const supabase = createClient();

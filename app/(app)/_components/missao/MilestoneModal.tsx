@@ -15,6 +15,10 @@ type Props = {
   // mas pode ter um interno (`primeiro_quarto`). 50% e 100% têm badge fixo.
   badgeKey?: string;
   onClose: () => void;
+  // Em kind=100, dispara o fluxo de fechar a missão atual e ir pro funil
+  // de criação. Quando informado, o CTA primário vira "Ver minhas conquistas"
+  // e este aparece como ação secundária abaixo.
+  onCreateNewMission?: () => void;
 };
 
 const MESSAGES: Record<MilestoneKind, { title: string; sub: string }> = {
@@ -23,7 +27,7 @@ const MESSAGES: Record<MilestoneKind, { title: string; sub: string }> = {
   100: { title: 'Meta atingida! 🏆', sub: 'Missão cumprida. Bora a próxima?' },
 };
 
-export default function MilestoneModal({ open, kind, badgeKey, onClose }: Props) {
+export default function MilestoneModal({ open, kind, badgeKey, onClose, onCreateNewMission }: Props) {
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = 'hidden';
@@ -97,17 +101,47 @@ export default function MilestoneModal({ open, kind, badgeKey, onClose }: Props)
           </div>
         )}
 
-        <button
-          onClick={onClose}
-          className="mt-6 flex h-[52px] w-full items-center justify-center rounded-2xl text-[15px] font-extrabold text-white transition active:scale-[0.98]"
-          style={{
-            background: 'var(--accent)',
-            borderRadius: 'var(--r)',
-            boxShadow: '0 6px 20px var(--accent-shadow)',
-          }}
-        >
-          Continuar minha missão
-        </button>
+        {kind === 100 ? (
+          <Link
+            href="/missao/badges"
+            onClick={onClose}
+            className="mt-6 flex h-[52px] w-full items-center justify-center rounded-2xl text-[15px] font-extrabold text-white transition active:scale-[0.98]"
+            style={{
+              background: 'var(--accent)',
+              borderRadius: 'var(--r)',
+              boxShadow: '0 6px 20px var(--accent-shadow)',
+            }}
+          >
+            Ver minhas conquistas
+          </Link>
+        ) : (
+          <button
+            onClick={onClose}
+            className="mt-6 flex h-[52px] w-full items-center justify-center rounded-2xl text-[15px] font-extrabold text-white transition active:scale-[0.98]"
+            style={{
+              background: 'var(--accent)',
+              borderRadius: 'var(--r)',
+              boxShadow: '0 6px 20px var(--accent-shadow)',
+            }}
+          >
+            Continuar minha missão
+          </button>
+        )}
+
+        {kind === 100 && onCreateNewMission && (
+          <button
+            onClick={onCreateNewMission}
+            className="mt-3 flex h-[52px] w-full items-center justify-center rounded-2xl text-[15px] font-extrabold transition active:scale-[0.98]"
+            style={{
+              background: 'transparent',
+              color: 'var(--accent)',
+              border: '2px solid var(--accent)',
+              borderRadius: 'var(--r)',
+            }}
+          >
+            Criar nova missão
+          </button>
+        )}
 
         <Link
           href="/missao/compartilhar"
