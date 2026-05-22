@@ -51,6 +51,7 @@ import SaldoCard from './_components/home/SaldoCard';
 import EntradaSaidaCards from './_components/home/EntradaSaidaCards';
 import FaturaAlertCard from './_components/home/FaturaAlertCard';
 import OrcamentoCard from './_components/home/OrcamentoCard';
+import CompromissosCard from './_components/home/CompromissosCard';
 import ContasDoMes from './_components/home/ContasDoMes';
 import InsightsCard from './_components/home/InsightsCard';
 import HomeModals from './_components/home/HomeModals';
@@ -543,6 +544,30 @@ export default function HomePage() {
   const recurringIncome = recurringExpenses
     .filter((r) => r.active && r.type === 'income')
     .reduce((sum, r) => sum + r.amount, 0);
+
+  // Compromissos do mês: fixas (recorrentes sem prazo), dívidas (recorrentes
+  // COM total_installments) e variáveis (expenses sem recurringExpenseId).
+  // Usa recurringExpenses ativas (não obligations) pra funcionar em qualquer
+  // mês — obligations sempre vem do mês corrente.
+  const fixedTotal = recurringExpenses
+    .filter(
+      (r) => r.active && r.type === 'expense' && r.totalInstallments == null,
+    )
+    .reduce((s, r) => s + r.amount, 0);
+  const debtTotal = recurringExpenses
+    .filter(
+      (r) => r.active && r.type === 'expense' && r.totalInstallments != null,
+    )
+    .reduce((s, r) => s + r.amount, 0);
+  const variableTotal = periodExpenses
+    .filter(
+      (e) =>
+        !e.recurringExpenseId &&
+        e.category !== 'Saldo inicial' &&
+        e.category !== 'Cartão de Crédito',
+    )
+    .reduce((s, e) => s + e.amount, 0);
+  const showCompromissos = recurringExpenses.length > 0;
 
   const activeIncomeRecs = recurringExpenses.filter((r) => r.active && r.type === 'income');
   const receivedIncomeRecIds = new Set(
@@ -1056,6 +1081,17 @@ export default function HomePage() {
           setBudgetModalOpen(true);
         }}
       />
+
+      {/* ── 7B. COMPROMISSOS DO MÊS ──────────────────────────────────────────── */}
+      {showCompromissos && (
+        <CompromissosCard
+          fixedTotal={fixedTotal}
+          debtTotal={debtTotal}
+          variableTotal={variableTotal}
+          income={heroBase}
+          mounted={mounted}
+        />
+      )}
 
       </div>{/* /home-left-col */}
       <div className="home-right-col">

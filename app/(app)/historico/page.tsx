@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BarChart2, CheckCircle, Copy, Download, Lightbulb, Pencil, RefreshCw, Search, Trash2, TrendingUp, X } from 'lucide-react';
-import { deleteExpense, getCreditCards, getExpenses } from '@/lib/storage';
+import { deleteExpense, getCreditCards, getExpenses, getRecurringExpenses } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ExportModal from '@/components/ExportModal';
@@ -26,10 +26,12 @@ import {
   EXPENSE_CATEGORIES,
   Expense,
   INCOME_CATEGORIES,
+  RecurringExpense,
 } from '@/lib/types';
 
 type QuickFilter = 'today' | '7d' | '30d' | 'thisMonth' | 'prevMonth' | null;
 type SortOrder = 'recent' | 'oldest' | 'highest' | 'lowest';
+type KindFilter = 'all' | 'fixed' | 'debt' | 'variable';
 
 interface TopGasto { displayName: string; total: number; count: number }
 
@@ -97,7 +99,9 @@ export default function HistoricoPage() {
   const [maxAmount, setMaxAmount] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [cardFilter, setCardFilter] = useState<string | 'all'>('all');
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [chipsAtEnd, setChipsAtEnd] = useState(false);
   const chipScrollRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -154,11 +158,12 @@ export default function HistoricoPage() {
   async function loadData() {
     setLoadError(null);
     try {
-      const [data, cards] = await retryAsync(() =>
-        Promise.all([getExpenses(), getCreditCards()])
+      const [data, cards, recs] = await retryAsync(() =>
+        Promise.all([getExpenses(), getCreditCards(), getRecurringExpenses()])
       );
       setExpenses(data);
       setCreditCards(cards);
+      setRecurringExpenses(recs);
       setReady(true);
     } catch (err) {
       setLoadError(getErrorMessage(err));
@@ -233,11 +238,31 @@ export default function HistoricoPage() {
     [expenses, rangeFrom, rangeTo]
   );
 
+  // Recorrentes com total_installments definido = "dívidas" (parcelamentos /
+  // financiamentos). As demais ativas/sem prazo são "fixas".
+  const debtRecIds = useMemo(
+    () =>
+      new Set(
+        recurringExpenses
+          .filter((r) => r.totalInstallments != null)
+          .map((r) => r.id),
+      ),
+    [recurringExpenses],
+  );
+
   const filteredEntries = useMemo(() =>
     baseEntries
       .filter((e) => typeFilter === 'all' || e.type === typeFilter)
       .filter((e) => categoryFilter === 'all' || e.category === categoryFilter)
       .filter((e) => cardFilter === 'all' || e.creditCardId === cardFilter)
+      .filter((e) => {
+        if (kindFilter === 'all') return true;
+        const hasRec = !!e.recurringExpenseId;
+        if (kindFilter === 'variable') return !hasRec;
+        if (!hasRec) return false;
+        const isDebt = debtRecIds.has(e.recurringExpenseId!);
+        return kindFilter === 'debt' ? isDebt : !isDebt;
+      })
       .filter((e) => !needle || e.description.toLowerCase().includes(needle))
       .filter((e) => minAmt === null || e.amount >= minAmt)
       .filter((e) => maxAmt === null || e.amount <= maxAmt)
@@ -247,7 +272,7 @@ export default function HistoricoPage() {
         if (sortOrder === 'lowest') return a.amount - b.amount;
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       }),
-    [baseEntries, typeFilter, categoryFilter, cardFilter, needle, minAmt, maxAmt, sortOrder]
+    [baseEntries, typeFilter, categoryFilter, cardFilter, kindFilter, debtRecIds, needle, minAmt, maxAmt, sortOrder]
   );
 
   const { topGastosByValue, topGastosByCount } = useMemo(() => {
@@ -327,6 +352,8 @@ export default function HistoricoPage() {
     setTypeFilter(type);
     if (type === 'expense' && INCOME_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
     if (type === 'income' && EXPENSE_CATEGORIES.includes(categoryFilter as never)) setCategoryFilter('all');
+    // Classificação (fixa/dívida/variável) só faz sentido para despesas.
+    if (type === 'income') setKindFilter('all');
   }
 
   const insightGroup = topGastosByCount[0] ?? null;
@@ -513,7 +540,7 @@ export default function HistoricoPage() {
         )}
       </div>
 
-      {/* Filtros avançados: tipo + cartão + ordenação */}
+      {/* Filtros avançados: tipo + classificação + cartão + ordenação */}
       <div className="flex gap-2 mb-4 flex-wrap items-center">
         <div
           className="flex"
@@ -535,6 +562,24 @@ export default function HistoricoPage() {
             </button>
           ))}
         </div>
+        {typeFilter !== 'income' && (
+          <select
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value as KindFilter)}
+            className="focus:outline-none transition-colors shrink-0"
+            style={{
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r-sm)', padding: '6px 10px',
+              fontSize: 12, fontWeight: 700, color: 'var(--text-2)', cursor: 'pointer',
+            }}
+            aria-label="Filtrar por classificação"
+          >
+            <option value="all">Todas classificações</option>
+            <option value="fixed">Fixas</option>
+            <option value="debt">Dívidas</option>
+            <option value="variable">Variáveis</option>
+          </select>
+        )}
         {creditCards.length > 0 && (
           <select
             value={cardFilter}

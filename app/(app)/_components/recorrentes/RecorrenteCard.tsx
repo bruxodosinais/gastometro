@@ -404,6 +404,38 @@ export default function RecorrenteCard({
                 {cardName}
               </span>
             )}
+            {/* Classificação: Fixa (despesa sem prazo) vs Dívida (com prazo).
+                Receitas não recebem badge — só despesas. */}
+            {rec.type === 'expense' && !hasInstallments && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  background: 'var(--border-2)',
+                  color: 'var(--text-3)',
+                  flexShrink: 0,
+                }}
+              >
+                Fixa
+              </span>
+            )}
+            {hasInstallments && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  background: 'rgba(255,184,0,0.15)',
+                  color: 'var(--yellow-text)',
+                  flexShrink: 0,
+                }}
+              >
+                Dívida
+              </span>
+            )}
             {hasInstallments && (
               <span
                 style={{
