@@ -78,7 +78,18 @@ export async function POST(request: Request) {
     }
     const anthropic = new Anthropic({ apiKey });
 
-    const prompt = `Você é um coach financeiro brasileiro. Meta de poupança: R$ ${targetAmount}. Já guardado: R$ ${totalSaved}. Meta mensal: R$ ${monthlyTarget}/mês. Gastos recentes: ${JSON.stringify(recentExpenses)}. Gere UM desafio prático e específico. Responda APENAS JSON sem markdown: { challenge_text: string, potential_savings: number }`;
+    const prompt = `Você é um coach financeiro brasileiro direto e motivador.
+
+O usuário tem uma meta de R$ ${targetAmount} e já guardou R$ ${totalSaved}. Meta mensal: R$ ${monthlyTarget}.
+
+Gastos do mês por categoria: ${JSON.stringify(recentExpenses)}
+
+Gere UM desafio simples e específico baseado na maior categoria de gasto. Máximo 2 frases. Seja direto.
+
+Exemplo de formato: 'Você gastou R$ 380 em delivery. Reduzir para R$ 180 libera R$ 200 extras pra sua meta.'
+
+Responda APENAS JSON sem markdown:
+{"challenge_text": "string de no máximo 2 frases", "potential_savings": number}`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
