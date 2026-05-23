@@ -3,16 +3,15 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Lock, Check } from 'lucide-react';
+import { ArrowLeft, Loader2, Check } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { getCachedUser } from '@/lib/dataCache';
 import {
   calcStreak,
-  getBadges,
+  getAllUserBadges,
   getCompletedMissions,
   getContributions,
   getMission,
-  type MissionBadge,
   type MissionContribution,
   type SavingsMission,
 } from '@/lib/storage/missions';
@@ -87,12 +86,16 @@ function BadgesContent() {
   const load = useCallback(async () => {
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
-    // Missão ativa e histórico em paralelo. getContributions é cacheada por
-    // missionId — o ganho ao paralelizar com getMission é pequeno mas grátis.
-    const [m, completed] = await Promise.all([
+    // Missão ativa + histórico + badges acumulados em paralelo.
+    // getAllUserBadges é a fonte de verdade pro contador/grids — inclui
+    // badges desbloqueados em missões antigas (pausadas/concluídas), que
+    // o usuário não perde ao iniciar uma nova missão.
+    const [m, completed, allBadgeKeys] = await Promise.all([
       getMission(user.id),
       getCompletedMissions(user.id),
+      getAllUserBadges(user.id),
     ]);
+    const unlockedKeys = new Set(allBadgeKeys);
 
     // Histórico: cada missão precisa do total guardado e da data da última
     // contribuição (= "Meta atingida em" pras concluídas). N+1 é aceitável
@@ -111,23 +114,18 @@ function BadgesContent() {
     setHistory(historyEntries);
 
     if (!m) {
-      setState({ mission: null, streak: 0, totalSaved: 0, contribCount: 0, unlockedKeys: new Set(), unlockedAt: {} });
+      setState({ mission: null, streak: 0, totalSaved: 0, contribCount: 0, unlockedKeys, unlockedAt: {} });
       setLoading(false);
       return;
     }
-    const [contribs, badges] = await Promise.all([
-      getContributions(m.id),
-      getBadges(user.id, m.id),
-    ]);
-    const unlockedKeys = new Set(badges.map((b: MissionBadge) => b.badgeKey));
-    const unlockedAt = Object.fromEntries(badges.map((b: MissionBadge) => [b.badgeKey, b.unlockedAt]));
+    const contribs = await getContributions(m.id);
     setState({
       mission: m,
       streak: calcStreak(contribs),
       totalSaved: contribs.reduce((s: number, c: MissionContribution) => s + Number(c.amount), 0),
       contribCount: contribs.length,
       unlockedKeys,
-      unlockedAt,
+      unlockedAt: {},
     });
     setLoading(false);
   }, []);
@@ -271,21 +269,23 @@ function BadgesContent() {
           </p>
           <div className="grid grid-cols-3 gap-3">
             {locked.map((b) => (
-              <div
+              <button
                 key={b.key}
-                className="flex flex-col items-center rounded-2xl p-3"
+                onClick={() => setActive(b)}
+                className="flex flex-col items-center rounded-2xl p-3 transition active:scale-95"
                 style={{
                   background: 'var(--surface)',
                   boxShadow: 'var(--card-shadow)',
                   borderRadius: 'var(--r)',
-                  opacity: 0.6,
                 }}
               >
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: 'var(--bg)' }}
+                  style={{ background: '#f3f4f6' }}
                 >
-                  <Lock size={20} color="var(--text-3)" />
+                  <span className="text-[26px] leading-none" style={{ opacity: 0.4 }}>
+                    {b.emoji}
+                  </span>
                 </div>
                 <p
                   className="mt-2 text-center text-[11px] font-extrabold leading-tight"
@@ -293,7 +293,7 @@ function BadgesContent() {
                 >
                   {b.name}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </section>

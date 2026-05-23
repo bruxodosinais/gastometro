@@ -298,6 +298,22 @@ export async function getBadges(userId: string, missionId: string): Promise<Miss
   });
 }
 
+// Todos os badges desbloqueados pelo usuário em QUALQUER missão (ativa,
+// pausada ou concluída). Usado por /missao/badges, onde a página de
+// conquistas acumula o histórico do usuário — o `getBadges` por missionId
+// só serve pro dashboard, que reflete o progresso da missão ativa.
+export async function getAllUserBadges(userId: string): Promise<string[]> {
+  return cachedFetch(`mission_badges:user:${userId}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('mission_badges')
+      .select('badge_key')
+      .eq('user_id', userId);
+    if (error || !data) return [];
+    return Array.from(new Set(data.map((r) => r.badge_key as string)));
+  });
+}
+
 export async function unlockBadge(
   userId: string,
   missionId: string,
