@@ -117,6 +117,24 @@ export async function getMission(userId: string): Promise<SavingsMission | null>
   });
 }
 
+// Lista de missões fechadas (concluídas) ou pausadas — usada pela aba
+// Histórico em /missao/badges. Cacheada com prefixo `savings_missions:` para
+// invalidar junto com getMission/getCompletedMissionsCount quando uma missão
+// muda de status (completeMission / pauseMission).
+export async function getCompletedMissions(userId: string): Promise<SavingsMission[]> {
+  return cachedFetch(`savings_missions:history:${userId}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('savings_missions')
+      .select('*')
+      .eq('user_id', userId)
+      .in('status', ['completed', 'paused'])
+      .order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(toMission);
+  });
+}
+
 export async function createMission(userId: string, data: NewMissionInput): Promise<SavingsMission> {
   return withCacheInvalidation('savings_missions', async () => {
     const supabase = createClient();

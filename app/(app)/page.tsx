@@ -51,6 +51,7 @@ import SaldoCard from './_components/home/SaldoCard';
 import EntradaSaidaCards from './_components/home/EntradaSaidaCards';
 import FaturaAlertCard from './_components/home/FaturaAlertCard';
 import OrcamentoCard from './_components/home/OrcamentoCard';
+import MissaoCard from './_components/home/MissaoCard';
 import CompromissosCard from './_components/home/CompromissosCard';
 import ContasDoMes from './_components/home/ContasDoMes';
 import InsightsCard from './_components/home/InsightsCard';
@@ -1081,6 +1082,11 @@ export default function HomePage() {
           setBudgetModalOpen(true);
         }}
       />
+
+      {/* ── 7A. MISSÃO DE POUPANÇA ──────────────────────────────────────────── */}
+      {/* Self-fetch via getMission/getContributions (ambos cacheados).
+          Renderiza convite ou progresso conforme estado da missão. */}
+      <MissaoCard mounted={mounted} />
 
       {/* ── 7B. COMPROMISSOS DO MÊS ──────────────────────────────────────────── */}
       {showCompromissos && (

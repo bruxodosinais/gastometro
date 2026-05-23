@@ -2,18 +2,39 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Lock, Check, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, Loader2, Lock, Check } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { getCachedUser } from '@/lib/dataCache';
 import {
   calcStreak,
   getBadges,
+  getCompletedMissions,
   getContributions,
   getMission,
   type MissionBadge,
+  type MissionContribution,
   type SavingsMission,
 } from '@/lib/storage/missions';
 import { BADGES, type BadgeDef } from '../../_components/missao/badges';
+import BadgeDetailSheet from '../../_components/missao/BadgeDetailSheet';
+
+type Tab = 'badges' | 'history';
+
+// Entrada da aba Histórico: a missão + dados derivados das contribuições
+// (total guardado + data da última contribuição, que serve como "meta
+// atingida em" para missões concluídas).
+type HistoryEntry = {
+  mission: SavingsMission;
+  totalSaved: number;
+  lastContributionAt: string | null;
+};
+
+function monthYearLabel(iso: string): string {
+  const d = new Date(iso);
+  const raw = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
 
 // Estado do usuário relativo a cada badge — usado pra calcular o "próximo".
 type UserState = {
@@ -51,14 +72,44 @@ function distanceFor(def: BadgeDef, s: UserState): string {
 }
 
 export default function BadgesPage() {
+  // Aba inicial vem de `?tab=historico` (deep link do modal de Histórico no
+  // dashboard). Qualquer outro valor cai no default `badges`. Lazy init —
+  // só roda uma vez no mount, depois o estado segue o usuário.
+  const searchParams = useSearchParams();
   const [state, setState] = useState<UserState | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<BadgeDef | null>(null);
+  const [tab, setTab] = useState<Tab>(() =>
+    searchParams.get('tab') === 'historico' ? 'history' : 'badges',
+  );
 
   const load = useCallback(async () => {
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
-    const m = await getMission(user.id);
+    // Missão ativa e histórico em paralelo. getContributions é cacheada por
+    // missionId — o ganho ao paralelizar com getMission é pequeno mas grátis.
+    const [m, completed] = await Promise.all([
+      getMission(user.id),
+      getCompletedMissions(user.id),
+    ]);
+
+    // Histórico: cada missão precisa do total guardado e da data da última
+    // contribuição (= "Meta atingida em" pras concluídas). N+1 é aceitável
+    // aqui — getContributions é cacheada e a lista de missões fechadas tende
+    // a ser curta (1 dígito).
+    const historyEntries: HistoryEntry[] = await Promise.all(
+      completed.map(async (mis): Promise<HistoryEntry> => {
+        const contribs = await getContributions(mis.id);
+        const totalSaved = contribs.reduce((s, c) => s + Number(c.amount), 0);
+        // getContributions vem ordenado desc por registered_at; o primeiro
+        // item é a última contribuição.
+        const lastContributionAt = contribs[0]?.registeredAt ?? null;
+        return { mission: mis, totalSaved, lastContributionAt };
+      }),
+    );
+    setHistory(historyEntries);
+
     if (!m) {
       setState({ mission: null, streak: 0, totalSaved: 0, contribCount: 0, unlockedKeys: new Set(), unlockedAt: {} });
       setLoading(false);
@@ -69,11 +120,11 @@ export default function BadgesPage() {
       getBadges(user.id, m.id),
     ]);
     const unlockedKeys = new Set(badges.map((b: MissionBadge) => b.badgeKey));
-    const unlockedAt = Object.fromEntries(badges.map((b) => [b.badgeKey, b.unlockedAt]));
+    const unlockedAt = Object.fromEntries(badges.map((b: MissionBadge) => [b.badgeKey, b.unlockedAt]));
     setState({
       mission: m,
       streak: calcStreak(contribs),
-      totalSaved: contribs.reduce((s, c) => s + Number(c.amount), 0),
+      totalSaved: contribs.reduce((s: number, c: MissionContribution) => s + Number(c.amount), 0),
       contribCount: contribs.length,
       unlockedKeys,
       unlockedAt,
@@ -124,6 +175,27 @@ export default function BadgesPage() {
           Suas conquistas
         </h1>
       </header>
+
+      {/* ── Tabs ───────────────────────────────────────────────────────── */}
+      <div className="px-5 pt-2 pb-1">
+        <div
+          role="tablist"
+          className="inline-flex gap-2 rounded-full p-1"
+          style={{ background: 'var(--bg)' }}
+        >
+          <TabPill active={tab === 'badges'} onClick={() => setTab('badges')}>
+            Badges
+          </TabPill>
+          <TabPill active={tab === 'history'} onClick={() => setTab('history')}>
+            Histórico
+          </TabPill>
+        </div>
+      </div>
+
+      {tab === 'history' ? (
+        <HistoryTab entries={history} />
+      ) : (
+        <>
 
       {/* ── Banner com donut ───────────────────────────────────────────── */}
       <section className="px-5 pt-2">
@@ -253,12 +325,124 @@ export default function BadgesPage() {
         </section>
       )}
 
+        </>
+      )}
+
       <BadgeDetailSheet
         badge={active}
         unlockedAt={active && state ? state.unlockedAt[active.key] : undefined}
         onClose={() => setActive(null)}
       />
     </main>
+  );
+}
+
+// ─── Pílula de aba ──────────────────────────────────────────────────────
+
+function TabPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className="rounded-full px-4 py-1.5 text-[12px] font-extrabold transition active:scale-95"
+      style={{
+        background: active ? 'var(--accent)' : 'transparent',
+        color: active ? '#fff' : 'var(--text-2)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Aba Histórico ──────────────────────────────────────────────────────
+
+function HistoryTab({ entries }: { entries: HistoryEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <section className="px-5 pt-6">
+        <div
+          className="flex flex-col items-center rounded-2xl px-6 py-10 text-center"
+          style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+        >
+          <span className="text-[44px] leading-none">🎯</span>
+          <p className="mt-3 text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>
+            Nenhuma missão concluída ainda. Continue guardando!
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3 px-5 pt-4">
+      {entries.map((e) => (
+        <HistoryCard key={e.mission.id} entry={e} />
+      ))}
+    </section>
+  );
+}
+
+function HistoryCard({ entry }: { entry: HistoryEntry }) {
+  const { mission, totalSaved, lastContributionAt } = entry;
+  const target = Number(mission.targetAmount);
+  const pct = target > 0 ? Math.min(100, (totalSaved / target) * 100) : 0;
+  const isCompleted = mission.status === 'completed';
+  const barColor = isCompleted ? 'var(--green)' : 'var(--yellow)';
+
+  return (
+    <div
+      className="rounded-2xl p-5"
+      style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p
+          className="min-w-0 flex-1 truncate text-[15px] font-extrabold"
+          style={{ color: 'var(--text)' }}
+        >
+          {mission.name}
+        </p>
+        <span
+          className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold"
+          style={{
+            background: isCompleted ? 'var(--green-bg)' : 'var(--yellow-bg)',
+            color: isCompleted ? 'var(--green-text)' : 'var(--yellow-text)',
+          }}
+        >
+          {isCompleted ? 'Concluída ✓' : 'Pausada'}
+        </span>
+      </div>
+
+      <p className="mt-2 text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+        {formatCurrency(totalSaved)} guardados de {formatCurrency(target)} · {Math.round(pct)}%
+      </p>
+
+      <div
+        className="mt-2 h-1.5 w-full overflow-hidden rounded-full"
+        style={{ background: 'var(--border-2)' }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: barColor }}
+        />
+      </div>
+
+      <div className="mt-3 flex flex-col gap-0.5 text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>
+        <span>Iniciada em {monthYearLabel(mission.createdAt)}</span>
+        {isCompleted && lastContributionAt && (
+          <span>Meta atingida em {monthYearLabel(lastContributionAt)}</span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -289,83 +473,3 @@ function Donut({ total, done }: { total: number; done: number }) {
   );
 }
 
-// ─── Sheet de detalhe ───────────────────────────────────────────────────
-
-function BadgeDetailSheet({
-  badge,
-  unlockedAt,
-  onClose,
-}: {
-  badge: BadgeDef | null;
-  unlockedAt?: string;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    if (!badge) return;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, [badge]);
-
-  if (!badge) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="w-full"
-        style={{ maxWidth: 390 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="px-5 pt-4 pb-7"
-          style={{ background: 'var(--surface)', borderRadius: '24px 24px 0 0' }}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className="text-[10px] font-extrabold uppercase tracking-[0.12em]"
-              style={{ color: 'var(--accent)' }}
-            >
-              Badge
-            </span>
-            <button
-              onClick={onClose}
-              aria-label="Fechar"
-              className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: 'var(--bg)' }}
-            >
-              <X size={16} color="var(--text-2)" />
-            </button>
-          </div>
-
-          <div className="mt-3 flex flex-col items-center">
-            <div
-              className="flex h-20 w-20 items-center justify-center rounded-full text-[44px]"
-              style={{ background: 'var(--accent-bg)' }}
-            >
-              {badge.emoji}
-            </div>
-            <h3 className="mt-3 text-[20px] font-extrabold" style={{ color: 'var(--text)' }}>
-              {badge.name}
-            </h3>
-            <p
-              className="mt-2 max-w-[280px] text-center text-[14px] font-medium leading-snug"
-              style={{ color: 'var(--text-2)' }}
-            >
-              {badge.description}
-            </p>
-            {unlockedAt && (
-              <p
-                className="mt-3 rounded-full px-3 py-1 text-[11px] font-extrabold"
-                style={{ background: 'var(--green-bg)', color: 'var(--green-text)' }}
-              >
-                Desbloqueado em {new Date(unlockedAt).toLocaleDateString('pt-BR')}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

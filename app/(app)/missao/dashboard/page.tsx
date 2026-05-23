@@ -13,6 +13,7 @@ import {
   dismissChallenge as apiDismissChallenge,
   getBadges,
   getChallenges,
+  getCompletedMissions,
   getCompletedMissionsCount,
   getContributions,
   getMission,
@@ -25,7 +26,8 @@ import {
 import { useSubscription } from '@/hooks/useSubscription';
 import ContributionSheet from '../../_components/missao/ContributionSheet';
 import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
-import { levelByActivity, QUARTER_BADGE_KEY } from '../../_components/missao/badges';
+import BadgeDetailSheet from '../../_components/missao/BadgeDetailSheet';
+import { BADGES, levelByActivity, QUARTER_BADGE_KEY, type BadgeDef } from '../../_components/missao/badges';
 
 // Milestones (% → badge_key). Ordem decrescente: ao detectar cruzamento,
 // processamos o maior primeiro para mostrar a celebração mais alta.
@@ -56,6 +58,13 @@ function projectedMonthLabel(monthsAhead: number): string {
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} de ${d.getFullYear()}`;
 }
 
+// Missão histórica + total guardado. Calculado uma vez no loadAll a partir
+// das contribuições da missão, evitando refazer a soma em cada render.
+type PastMissionEntry = {
+  mission: SavingsMission;
+  totalSaved: number;
+};
+
 // Agrupa contribuições por mês YYYY-MM, retorna lista ordenada desc por mês.
 function groupByMonth(contribs: MissionContribution[]) {
   const map = new Map<string, MissionContribution[]>();
@@ -82,12 +91,21 @@ export default function MissaoDashboardPage() {
   const [mission, setMission] = useState<SavingsMission | null>(null);
   const [contributions, setContributions] = useState<MissionContribution[]>([]);
   const [badges, setBadges] = useState<string[]>([]);   // só os badge_keys
+  const [badgeUnlockedAt, setBadgeUnlockedAt] = useState<Record<string, string>>({});
   const [challenge, setChallenge] = useState<MissionChallenge | null>(null);
+  // Missões anteriores (status completed/paused), com o total guardado por
+  // missão derivado das contribuições. Vazio quando não há histórico.
+  const [pastMissions, setPastMissions] = useState<PastMissionEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Modais de acesso rápido (atalhos abaixo do header). Distintos do
+  // `historyOpen` acima, que abre o modal de depósitos.
+  const [conquistasModalOpen, setConquistasModalOpen] = useState(false);
+  const [historicoMissoesOpen, setHistoricoMissoesOpen] = useState(false);
   const [milestone, setMilestone] = useState<{ kind: MilestoneKind; badgeKey?: string } | null>(null);
+  const [activeBadge, setActiveBadge] = useState<BadgeDef | null>(null);
   const [completing, setCompleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [swapConfirmOpen, setSwapConfirmOpen] = useState(false);
@@ -127,7 +145,25 @@ export default function MissaoDashboardPage() {
     if (!user) { setLoading(false); return; }
     setUserId(user.id);
 
-    const m = await getMission(user.id);
+    // Missão ativa e histórico de missões em paralelo — getMission e
+    // getCompletedMissions são cacheadas, sem custo extra na maioria dos casos.
+    const [m, completed] = await Promise.all([
+      getMission(user.id),
+      getCompletedMissions(user.id),
+    ]);
+
+    // Calcula totalSaved de cada missão histórica via getContributions
+    // (cacheada por missionId). N+1 aceitável: lista de missões fechadas
+    // é tipicamente curta.
+    const past: PastMissionEntry[] = await Promise.all(
+      completed.map(async (pm): Promise<PastMissionEntry> => {
+        const cs = await getContributions(pm.id);
+        const totalSaved = cs.reduce((s, c) => s + Number(c.amount), 0);
+        return { mission: pm, totalSaved };
+      }),
+    );
+    setPastMissions(past);
+
     if (!m) {
       setMission(null);
       setLoading(false);
@@ -142,6 +178,7 @@ export default function MissaoDashboardPage() {
     ]);
     setContributions(contribs);
     setBadges(bdgs.map((b) => b.badgeKey));
+    setBadgeUnlockedAt(Object.fromEntries(bdgs.map((b) => [b.badgeKey, b.unlockedAt])));
     setChallenge(chls[0] ?? null);
     setLoading(false);
   }, []);
@@ -544,7 +581,7 @@ export default function MissaoDashboardPage() {
             className="text-[11px] font-extrabold uppercase tracking-[0.12em]"
             style={{ color: 'var(--text-3)' }}
           >
-            Histórico
+            Depósitos
           </p>
           {grouped.length > 0 && (
             <button
@@ -609,6 +646,22 @@ export default function MissaoDashboardPage() {
           </div>
         )}
       </section>
+
+      {/* ── Atalhos: Conquistas + Histórico ────────────────────────────── */}
+      {/* Logo após os Depósitos e antes do CTA principal — atalhos pros
+          modais focados de badges e missões anteriores. */}
+      <div className="flex gap-3 pt-4">
+        <QuickAccessButton
+          emoji="🏅"
+          label="Conquistas"
+          onClick={() => setConquistasModalOpen(true)}
+        />
+        <QuickAccessButton
+          emoji="📋"
+          label="Histórico"
+          onClick={() => setHistoricoMissoesOpen(true)}
+        />
+      </div>
 
       {/* ── Bottom action ──────────────────────────────────────────────── */}
       {/* Inline ao final do conteúdo (não fixed): o app não usa FAB em
@@ -693,6 +746,25 @@ export default function MissaoDashboardPage() {
         />
       )}
 
+      <ConquistasModal
+        open={conquistasModalOpen}
+        unlockedKeys={badges}
+        onClose={() => setConquistasModalOpen(false)}
+        onSelectBadge={(b) => setActiveBadge(b)}
+      />
+
+      <HistoricoMissoesModal
+        open={historicoMissoesOpen}
+        entries={pastMissions}
+        onClose={() => setHistoricoMissoesOpen(false)}
+      />
+
+      <BadgeDetailSheet
+        badge={activeBadge}
+        unlockedAt={activeBadge ? badgeUnlockedAt[activeBadge.key] : undefined}
+        onClose={() => setActiveBadge(null)}
+      />
+
       <SwapMissionConfirm
         open={swapConfirmOpen}
         loading={swapping}
@@ -700,6 +772,59 @@ export default function MissaoDashboardPage() {
         onConfirm={handleSwapMission}
       />
     </main>
+  );
+}
+
+// ─── Card compacto de missão anterior ────────────────────────────────────
+// Não-clicável (apenas leitura): nome + pill de status + valor + barra fina
+// na cor do status (verde concluída / amarelo pausada).
+
+function PastMissionCard({ entry }: { entry: PastMissionEntry }) {
+  const { mission, totalSaved } = entry;
+  const target = Number(mission.targetAmount);
+  const pct = target > 0 ? Math.min(100, (totalSaved / target) * 100) : 0;
+  const isCompleted = mission.status === 'completed';
+  const barColor = isCompleted ? 'var(--green)' : 'var(--yellow)';
+
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: 'var(--surface)',
+        boxShadow: 'var(--card-shadow)',
+        borderRadius: 'var(--r)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p
+          className="min-w-0 flex-1 truncate text-[14px] font-extrabold"
+          style={{ color: 'var(--text)' }}
+        >
+          {mission.name}
+        </p>
+        <span
+          className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold"
+          style={{
+            background: isCompleted ? 'var(--green-bg)' : 'var(--yellow-bg)',
+            color: isCompleted ? 'var(--green-text)' : 'var(--yellow-text)',
+          }}
+        >
+          {isCompleted ? 'Concluída ✓' : 'Pausada'}
+        </span>
+      </div>
+      <p className="mt-1.5 text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+        {formatCurrency(totalSaved)} de {formatCurrency(target)} · {Math.round(pct)}%
+      </p>
+      <div
+        className="mt-2 h-1.5 w-full overflow-hidden rounded-full"
+        style={{ background: 'var(--border-2)' }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: barColor }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -801,81 +926,314 @@ function HistoryModal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50"
-      onClick={onClose}
-    >
+    <>
+      {/* Mesmo padrão do ContributionSheet: overlay z-50 + card centralizado
+          na viewport (top/left + translate). max-w-sm + mx-4 mantém respiro
+          em telas estreitas. Sem isso, o modal estava abrindo deslocado por
+          herdar o flex-end + max-width customizado. */}
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
       <div
-        className="flex max-h-[82vh] w-full flex-col"
-        style={{ maxWidth: 390 }}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm mx-4 z-50"
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 20,
+          padding: 24,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+        }}
       >
-        <div
-          className="flex flex-col overflow-hidden rounded-t-3xl"
-          style={{ background: 'var(--surface)', borderRadius: '24px 24px 0 0' }}
-        >
-          <div className="flex items-center justify-between px-5 pt-4 pb-3">
-            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
-              Histórico completo
-            </h3>
-            <button
-              onClick={onClose}
-              aria-label="Fechar"
-              className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: 'var(--bg)' }}
-            >
-              <X size={16} color="var(--text-2)" />
-            </button>
-          </div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
+            Histórico completo
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg)' }}
+          >
+            <X size={16} color="var(--text-2)" />
+          </button>
+        </div>
 
-          <div className="overflow-y-auto px-5 pb-6">
-            {groups.length === 0 ? (
-              <p className="py-8 text-center text-[13px] font-bold" style={{ color: 'var(--text-2)' }}>
-                Nenhum depósito registrado ainda.
-              </p>
-            ) : (
-              groups.map((g) => {
-                const diff = g.total - monthlyTarget;
-                return (
-                  <div key={g.month} className="mb-4 last:mb-0">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
-                        {monthLabelShort(g.month)}
-                      </p>
-                      <span
-                        className="text-[12px] font-extrabold"
-                        style={{ color: diff >= 0 ? 'var(--green-text)' : 'var(--red)' }}
-                      >
-                        Total {formatCurrency(g.total)}
-                      </span>
-                    </div>
-                    <div
-                      className="overflow-hidden rounded-2xl"
-                      style={{ background: 'var(--bg)', borderRadius: 'var(--r-sm)' }}
+        <div className="mt-4">
+          {groups.length === 0 ? (
+            <p className="py-8 text-center text-[13px] font-bold" style={{ color: 'var(--text-2)' }}>
+              Nenhum depósito registrado ainda.
+            </p>
+          ) : (
+            groups.map((g) => {
+              const diff = g.total - monthlyTarget;
+              return (
+                <div key={g.month} className="mb-4 last:mb-0">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                      {monthLabelShort(g.month)}
+                    </p>
+                    <span
+                      className="text-[12px] font-extrabold"
+                      style={{ color: diff >= 0 ? 'var(--green-text)' : 'var(--red)' }}
                     >
-                      {g.items.map((c, idx) => (
-                        <div
-                          key={c.id}
-                          className="flex items-center justify-between px-4 py-2"
-                          style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
-                        >
-                          <span className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
-                            {new Date(c.registeredAt).toLocaleDateString('pt-BR')}
-                          </span>
-                          <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
-                            {formatCurrency(Number(c.amount))}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                      Total {formatCurrency(g.total)}
+                    </span>
                   </div>
-                );
-              })
-            )}
-          </div>
+                  <div
+                    className="overflow-hidden rounded-2xl"
+                    style={{ background: 'var(--bg)', borderRadius: 'var(--r-sm)' }}
+                  >
+                    {g.items.map((c, idx) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between px-4 py-2"
+                        style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
+                      >
+                        <span className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+                          {new Date(c.registeredAt).toLocaleDateString('pt-BR')}
+                        </span>
+                        <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                          {formatCurrency(Number(c.amount))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+// ─── Atalho de acesso rápido (Conquistas / Histórico) ────────────────────
+
+function QuickAccessButton({
+  emoji,
+  label,
+  onClick,
+}: {
+  emoji: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-1 flex-col items-center justify-center gap-1 rounded-xl border bg-white p-3 transition hover:border-[#5B5BD6] active:scale-[0.98]"
+      style={{ borderColor: '#e5e7eb' }}
+    >
+      <span className="text-2xl leading-none">{emoji}</span>
+      <span className="text-xs font-semibold" style={{ color: 'var(--text-2)' }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// ─── Item compartilhado da grid de badges ───────────────────────────────
+// Mesmo visual nas duas grids (horizontal scroll na seção + 3 cols no modal
+// de Conquistas). Centraliza o styling dos estados travado/desbloqueado.
+
+function BadgeGridItem({
+  badge,
+  unlocked,
+  onClick,
+}: {
+  badge: BadgeDef;
+  unlocked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative flex w-[88px] flex-shrink-0 flex-col items-center rounded-2xl p-3 transition active:scale-95"
+      style={{
+        background: 'var(--surface)',
+        boxShadow: 'var(--card-shadow)',
+        borderRadius: 'var(--r)',
+      }}
+    >
+      <div
+        className="flex h-[52px] w-[52px] items-center justify-center rounded-full"
+        style={{ background: unlocked ? '#EEEDFC' : '#f3f4f6' }}
+      >
+        <span className="text-xl leading-none" style={{ opacity: unlocked ? 1 : 0.4 }}>
+          {badge.emoji}
+        </span>
+      </div>
+      <p
+        className="mt-2 line-clamp-2 text-center text-[10px] font-extrabold leading-tight"
+        style={{ color: unlocked ? 'var(--text)' : 'var(--text-2)' }}
+      >
+        {badge.name}
+      </p>
+      {unlocked && (
+        <span
+          className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full"
+          style={{ background: 'var(--green)', color: 'white' }}
+        >
+          <Check size={10} strokeWidth={3} />
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Modal de Conquistas (grid 3 colunas) ────────────────────────────────
+// Mesmo padrão centralizado do HistoryModal: overlay z-50 + card max-w-sm.
+// Reusa BadgeGridItem — toque num desbloqueado fecha este modal e abre o
+// BadgeDetailSheet (encadeado via onSelectBadge no parent).
+
+function ConquistasModal({
+  open,
+  unlockedKeys,
+  onClose,
+  onSelectBadge,
+}: {
+  open: boolean;
+  unlockedKeys: string[];
+  onClose: () => void;
+  onSelectBadge: (b: BadgeDef) => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed top-1/2 left-1/2 z-50 mx-4 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
+        style={{ maxHeight: '80vh' }}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
+            Suas conquistas
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg)' }}
+          >
+            <X size={16} color="var(--text-2)" />
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 justify-items-center gap-3">
+          {BADGES.map((b) => (
+            <BadgeGridItem
+              key={b.key}
+              badge={b}
+              unlocked={unlockedKeys.includes(b.key)}
+              onClick={() => {
+                if (!unlockedKeys.includes(b.key)) return;
+                onClose();
+                onSelectBadge(b);
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Link pra página completa de conquistas. onClose() restaura o
+            body overflow antes da navegação (a página é unmount após). */}
+        <Link
+          href="/missao/badges"
+          onClick={onClose}
+          className="mt-5 flex h-11 w-full items-center justify-center rounded-xl border-2 text-[13px] font-extrabold transition active:scale-[0.98]"
+          style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          Ver conquistas completas →
+        </Link>
+      </div>
+    </>
+  );
+}
+
+// ─── Modal de Histórico de Missões ───────────────────────────────────────
+// Lista as mesmas missões da seção inline. Empty state quando ainda não
+// há missões fechadas/pausadas — esperado: o atalho fica visível mesmo
+// vazio (UX consistente).
+
+function HistoricoMissoesModal({
+  open,
+  entries,
+  onClose,
+}: {
+  open: boolean;
+  entries: PastMissionEntry[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed top-1/2 left-1/2 z-50 mx-4 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
+        style={{ maxHeight: '80vh' }}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--text)' }}>
+            Missões anteriores
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: 'var(--bg)' }}
+          >
+            <X size={16} color="var(--text-2)" />
+          </button>
+        </div>
+
+        {entries.length === 0 ? (
+          <p
+            className="mt-6 py-8 text-center text-[13px] font-bold"
+            style={{ color: 'var(--text-2)' }}
+          >
+            Nenhuma missão concluída ainda. Continue guardando!
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2">
+            {entries.map((pm) => (
+              <PastMissionCard key={pm.mission.id} entry={pm} />
+            ))}
+          </div>
+        )}
+
+        {/* Atalho pra aba Histórico da página de conquistas — query param
+            `tab=historico` é lido lá via useSearchParams pra setar o estado
+            inicial da aba. */}
+        <Link
+          href="/missao/badges?tab=historico"
+          onClick={onClose}
+          className="mt-5 flex h-11 w-full items-center justify-center rounded-xl border-2 text-[13px] font-extrabold transition active:scale-[0.98]"
+          style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          Ver histórico completo →
+        </Link>
+      </div>
+    </>
   );
 }
 
