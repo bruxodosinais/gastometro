@@ -453,6 +453,16 @@ function HistoryCard({ entry }: { entry: HistoryEntry }) {
           <span>Meta atingida em {monthYearLabel(lastContributionAt)}</span>
         )}
       </div>
+
+      {isCompleted && (
+        <Link
+          href={`/missao/compartilhar?missionId=${mission.id}&name=${encodeURIComponent(mission.name)}&saved=${totalSaved}&months=${mission.months}&target=${target}`}
+          className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3 py-1.5 text-[12px] font-extrabold transition active:scale-95"
+          style={{ borderColor: 'var(--accent)', color: 'var(--accent)', borderRadius: 'var(--r-sm)' }}
+        >
+          Compartilhar conquista 🎉
+        </Link>
+      )}
     </div>
   );
 }

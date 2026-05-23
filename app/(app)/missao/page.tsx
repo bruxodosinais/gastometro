@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { getMission } from '@/lib/storage/missions';
+import { getCompletedMissions, getMission } from '@/lib/storage/missions';
 import { getCachedUser } from '@/lib/dataCache';
 import PulseTarget from '../_components/missao/PulseTarget';
 
@@ -18,6 +18,10 @@ const SUGGESTIONS: { emoji: string; name: string }[] = [
 export default function MissaoPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
+  // Só revela os atalhos de Conquistas/Histórico se o usuário já tem
+  // alguma missão fechada (completed/paused) — usuários totalmente novos
+  // não têm nada pra ver lá ainda.
+  const [hasHistory, setHasHistory] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,10 +31,17 @@ export default function MissaoPage() {
         if (!cancelled) setChecking(false);
         return;
       }
-      const mission = await getMission(user.id);
+      const [mission, history] = await Promise.all([
+        getMission(user.id),
+        getCompletedMissions(user.id),
+      ]);
       if (cancelled) return;
-      if (mission) router.replace('/missao/dashboard');
-      else setChecking(false);
+      if (mission) {
+        router.replace('/missao/dashboard');
+        return;
+      }
+      setHasHistory(history.length > 0);
+      setChecking(false);
     })();
     return () => { cancelled = true; };
   }, [router]);
@@ -64,6 +75,31 @@ export default function MissaoPage() {
           Missão de Poupança
         </h1>
       </header>
+
+      {hasHistory && (
+        <div className="flex gap-3 pt-4">
+          <Link
+            href="/missao/badges"
+            className="flex flex-1 flex-col items-center justify-center gap-1 rounded-xl border bg-white p-3 transition hover:border-[#5B5BD6] active:scale-[0.98]"
+            style={{ borderColor: '#e5e7eb' }}
+          >
+            <span className="text-2xl leading-none">🏅</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-2)' }}>
+              Conquistas
+            </span>
+          </Link>
+          <Link
+            href="/missao/badges?tab=historico"
+            className="flex flex-1 flex-col items-center justify-center gap-1 rounded-xl border bg-white p-3 transition hover:border-[#5B5BD6] active:scale-[0.98]"
+            style={{ borderColor: '#e5e7eb' }}
+          >
+            <span className="text-2xl leading-none">📋</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-2)' }}>
+              Histórico
+            </span>
+          </Link>
+        </div>
+      )}
 
       <section className="flex flex-col items-center pt-6">
         <PulseTarget />

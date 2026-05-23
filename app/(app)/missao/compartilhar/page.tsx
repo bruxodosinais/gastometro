@@ -1,10 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Download, Loader2, Share2 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
-import { getMission, type SavingsMission } from '@/lib/storage/missions';
+import { getMission } from '@/lib/storage/missions';
+
+// Dados mínimos pro canvas: nome + meses dirigem o visual; saved/target ficam
+// disponíveis pra evoluir o card sem mudar a forma do estado. Vem de query
+// params (caso "compartilhar missão concluída do histórico") ou da missão
+// ativa como fallback.
+type ShareData = { name: string; months: number; saved: number; target: number };
 
 type ThemeKey = 'indigo' | 'verde' | 'roxo';
 
@@ -45,26 +52,48 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   return lines;
 }
 
-export default function CompartilharPage() {
+function CompartilharContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [mission, setMission] = useState<SavingsMission | null>(null);
+  const searchParams = useSearchParams();
+  const [data, setData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<ThemeKey>('indigo');
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      // Query params vencem: deep-link de missão concluída no histórico passa
+      // tudo de que o canvas precisa, então pulamos o fetch da missão ativa.
+      const qpName = searchParams.get('name');
+      const qpMonths = searchParams.get('months');
+      if (qpName && qpMonths) {
+        setData({
+          name: qpName,
+          months: Number(qpMonths),
+          saved: Number(searchParams.get('saved') ?? 0),
+          target: Number(searchParams.get('target') ?? 0),
+        });
+        setLoading(false);
+        return;
+      }
       const user = await getCachedUser();
       if (!user) { setLoading(false); return; }
       const m = await getMission(user.id);
-      setMission(m);
+      if (m) {
+        setData({
+          name: m.name,
+          months: m.months,
+          saved: 0,
+          target: Number(m.targetAmount),
+        });
+      }
       setLoading(false);
     })();
-  }, []);
+  }, [searchParams]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !mission) return;
+    if (!canvas || !data) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -93,7 +122,7 @@ export default function CompartilharPage() {
     // "Juntei [nome]" — wrap em até 2 linhas.
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '900 72px Nunito, system-ui, sans-serif';
-    const titleLines = wrapText(ctx, `Juntei ${mission.name}`, W - 160, 2);
+    const titleLines = wrapText(ctx, `Juntei ${data.name}`, W - 160, 2);
     let titleY = 600;
     for (const line of titleLines) {
       ctx.fillText(line, W / 2, titleY);
@@ -104,7 +133,7 @@ export default function CompartilharPage() {
     ctx.font = '600 36px Nunito, system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.82)';
     ctx.fillText(
-      `Em ${mission.months} meses sendo CLT e organizado`,
+      `Em ${data.months} meses sendo CLT e organizado`,
       W / 2,
       titleY + 28,
     );
@@ -129,7 +158,7 @@ export default function CompartilharPage() {
     ctx.font = '800 32px Nunito, system-ui, sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText('Comece você também →', W / 2, 1010);
-  }, [mission, theme]);
+  }, [data, theme]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -144,7 +173,7 @@ export default function CompartilharPage() {
     const url = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `missao-${(mission?.name ?? 'toorganizado').toLowerCase().replace(/\s+/g, '-')}.png`;
+    a.download = `missao-${(data?.name ?? 'toorganizado').toLowerCase().replace(/\s+/g, '-')}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -152,7 +181,7 @@ export default function CompartilharPage() {
 
   const handleShare = async () => {
     const canvas = canvasRef.current;
-    const shareText = mission ? `Juntei ${mission.name} em ${mission.months} meses com o TôOrganizado.` : 'Conquista TôOrganizado';
+    const shareText = data ? `Juntei ${data.name} em ${data.months} meses com o TôOrganizado.` : 'Conquista TôOrganizado';
 
     // Tenta navigator.share com arquivo PNG (mobile moderno). Fallback: link.
     if (canvas && typeof navigator.share === 'function') {
@@ -194,7 +223,7 @@ export default function CompartilharPage() {
     );
   }
 
-  if (!mission) {
+  if (!data) {
     return (
       <main
         className="mx-auto flex min-h-screen w-full flex-col items-center justify-center gap-4 px-5"
@@ -319,6 +348,25 @@ export default function CompartilharPage() {
         </div>
       )}
     </main>
+  );
+}
+
+// useSearchParams força Suspense no build do Next 15 — mesmo padrão de
+// missao/badges e missao/nova.
+export default function CompartilharPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          className="mx-auto flex min-h-screen w-full items-center justify-center"
+          style={{ maxWidth: 390, background: 'var(--bg)' }}
+        >
+          <Loader2 className="animate-spin" color="var(--accent)" />
+        </main>
+      }
+    >
+      <CompartilharContent />
+    </Suspense>
   );
 }
 

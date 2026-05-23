@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUp, ArrowDown, Minus, Pencil, Check, X, Trash2, ChevronDown } from 'lucide-react';
+import { ArrowUp, Pencil, Check, X, Trash2, ChevronDown } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -381,12 +381,24 @@ export default function CategoriasPage() {
               const budgetPct = budget != null && budget > 0 ? (summary.total / budget) * 100 : null;
               const isEditing = editingCategory === summary.category;
 
-              const hasTrend = summary.average > 0;
-              const trendUp = hasTrend && summary.percentChange > 5;
-              const trendDown = hasTrend && summary.percentChange < -5;
+              // trendUp serve só pra escolher as micro-ações do expandido
+              // ("Ver gastos" + "Reduzir meta" vs "Ver histórico"). Tendência
+              // histórica não vai mais na linha collapsed — lá mostramos % do
+              // limite. A linha "Atual vs Média" do expandido segue exibindo a
+              // média; nada do bloco trend aparece na linha principal.
+              const trendUp = summary.average > 0 && summary.percentChange > 5;
 
-              const isAboveAvg = hasTrend && summary.total > summary.average;
-              const currentColor = isAboveAvg ? 'var(--red)' : 'var(--green)';
+              // Cor do valor é orientada ao orçamento, não à média histórica:
+              // sem limite definido (ou limite zero), exibe neutro — a média é
+              // referência, mas não "aprova"/"reprova" o gasto. Só vai vermelho
+              // quando spent > budget > 0; verde só quando há budget e ele
+              // segura o gasto.
+              const currentColor =
+                budget == null || budget <= 0
+                  ? 'var(--text)'
+                  : summary.total > budget
+                  ? 'var(--red)'
+                  : 'var(--green)';
               const isExpanded = expandedCategory === summary.category;
 
               return (
@@ -454,17 +466,17 @@ export default function CategoriasPage() {
                       <span style={{ fontSize: 14, fontWeight: 800, color: currentColor }}>
                         {formatCurrency(summary.total)}
                       </span>
-                      {hasTrend && (
+                      {budgetPct != null && (
                         <span
                           className="flex items-center gap-0.5"
                           style={{
                             fontSize: 12,
                             fontWeight: 700,
-                            color: trendUp ? 'var(--red)' : trendDown ? 'var(--green)' : 'var(--text-3)',
+                            color: budgetPct > 100 ? 'var(--red)' : 'var(--green)',
                           }}
                         >
-                          {trendUp ? <ArrowUp size={12} /> : trendDown ? <ArrowDown size={12} /> : <Minus size={12} />}
-                          {Math.round(Math.abs(summary.percentChange))}%
+                          <ArrowUp size={12} />
+                          {Math.round(budgetPct)}%
                         </span>
                       )}
                       <ChevronDown
