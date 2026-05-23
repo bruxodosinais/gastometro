@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
-  MessageSquare, Rocket,
+  MessageSquare, Rocket, Headphones,
 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
+import { openSupport } from '@/components/SupportButton';
 import {
   getMonthlyObligations,
   getRecurringExpenses,
@@ -429,6 +430,43 @@ export default function Sidebar() {
             <MessageSquare size={16} color="var(--text-2)" />
           </span>
           <span style={{ flex: 1 }}>Enviar feedback</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => openSupport()}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 10px',
+            borderRadius: 10,
+            background: 'transparent',
+            color: 'var(--text-2)',
+            fontSize: 13,
+            fontWeight: 700,
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            transition: 'background 120ms',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Headphones size={16} color="var(--text-2)" />
+          </span>
+          <span style={{ flex: 1 }}>Suporte</span>
         </button>
         <NavItem
           href="/perfil"

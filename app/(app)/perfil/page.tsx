@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, Camera, Check, ChevronRight, Eye, EyeOff, Loader2, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Check, ChevronRight, Eye, EyeOff, Headphones, Loader2, MessageCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
@@ -11,6 +11,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import LoadingButton from '@/components/ui/LoadingButton';
+import { openSupport } from '@/components/SupportButton';
 
 // Vinculação de WhatsApp (W2). Enquanto a feature está em desenvolvimento,
 // um banner "Em breve" é renderizado por cima dos estados A/B/C.
@@ -1161,6 +1162,35 @@ export default function PerfilPage() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Suporte */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Suporte
+          </p>
+          <button
+            type="button"
+            onClick={() => openSupport()}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--r-sm)',
+              padding: '12px 14px',
+              fontSize: 13, fontWeight: 700, color: 'var(--text)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Headphones size={16} color="var(--accent)" />
+              Falar com suporte
+            </span>
+            <ChevronRight size={16} color="var(--text-3)" />
+          </button>
         </div>
 
         {/* LGPD */}
