@@ -490,10 +490,9 @@ function Step2(props: {
           <button
             type="button"
             onClick={props.enterCustomMode}
-            className="text-[13px] font-bold underline-offset-2 hover:underline"
-            style={{ color: 'var(--text-3)' }}
+            className="text-sm text-gray-400 underline"
           >
-            Outro prazo
+            Definir outro prazo
           </button>
         )}
       </div>

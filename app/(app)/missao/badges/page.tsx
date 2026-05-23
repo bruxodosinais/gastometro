@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Lock, Check } from 'lucide-react';
@@ -71,7 +71,7 @@ function distanceFor(def: BadgeDef, s: UserState): string {
   }
 }
 
-export default function BadgesPage() {
+function BadgesContent() {
   // Aba inicial vem de `?tab=historico` (deep link do modal de Histórico no
   // dashboard). Qualquer outro valor cai no default `badges`. Lazy init —
   // só roda uma vez no mount, depois o estado segue o usuário.
@@ -334,6 +334,17 @@ export default function BadgesPage() {
         onClose={() => setActive(null)}
       />
     </main>
+  );
+}
+
+// useSearchParams força o pai a estar dentro de Suspense durante o build do
+// Next 15 — caso contrário a página inteira falha com "should be wrapped in
+// a suspense boundary". Mesmo padrão de missao/nova/page.tsx.
+export default function BadgesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-400">Carregando...</div>}>
+      <BadgesContent />
+    </Suspense>
   );
 }
 

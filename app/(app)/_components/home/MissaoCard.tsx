@@ -27,23 +27,34 @@ export default function MissaoCard({ mounted }: Props) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const user = await getCachedUser();
-      if (!user) {
-        if (!cancelled) setLoaded(true);
-        return;
-      }
-      const m = await getMission(user.id);
-      if (cancelled) return;
-      if (!m) {
-        setMission(null);
+      try {
+        const user = await getCachedUser();
+        if (!user) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+        const m = await getMission(user.id);
+        if (cancelled) return;
+        if (!m) {
+          setMission(null);
+          setLoaded(true);
+          return;
+        }
+        setMission(m);
+        const contribs = await getContributions(m.id);
+        if (cancelled) return;
+        setContributions(contribs);
         setLoaded(true);
-        return;
+      } catch (err) {
+        // Sem catch, qualquer throw em getMission/getContributions deixava
+        // loaded=false pra sempre e o card sumia da home (`if (!loaded) return null`).
+        // Fallback: trata como "sem missão" e mostra o convite.
+        console.error('[home/MissaoCard] falha ao carregar missão:', err);
+        if (!cancelled) {
+          setMission(null);
+          setLoaded(true);
+        }
       }
-      setMission(m);
-      const contribs = await getContributions(m.id);
-      if (cancelled) return;
-      setContributions(contribs);
-      setLoaded(true);
     })();
     return () => { cancelled = true; };
   }, []);
