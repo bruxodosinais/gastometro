@@ -1,0 +1,19 @@
+-- LGPD — política de IP
+--
+-- Esta "migration" não altera schema. Documenta uma decisão de tratamento de dados:
+-- o GastôMetro NÃO armazena endereços IP de usuários em nenhuma tabela de aplicação.
+--
+-- Escopo:
+--   - Nenhuma tabela do schema `public` possui coluna de IP (ip, ip_address,
+--     remote_addr, x_forwarded_for, client_ip etc.).
+--   - Logs de aplicação não persistem IP em tabelas próprias.
+--   - Logs do Supabase Auth / Realtime / Edge (gerenciados pela plataforma) ficam
+--     fora deste escopo e são tratados conforme a política do provedor.
+--
+-- Motivação:
+--   - Minimização de dados (art. 6º, III da LGPD): só coletamos o estritamente
+--     necessário para a finalidade do serviço.
+--
+-- Como manter:
+--   - Ao criar novas tabelas, não adicionar colunas para armazenar IP do usuário
+--     sem revisão explícita desta política.
