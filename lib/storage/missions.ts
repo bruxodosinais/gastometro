@@ -6,7 +6,7 @@ export interface SavingsMission {
   userId: string;
   name: string;
   targetAmount: number;
-  months: 3 | 6 | 12 | 18 | 24;
+  months: number;
   monthlyTarget: number;
   startDate: string;       // YYYY-MM-DD
   targetDate: string;      // YYYY-MM-DD

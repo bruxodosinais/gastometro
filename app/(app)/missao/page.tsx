@@ -38,8 +38,8 @@ export default function MissaoPage() {
   if (checking) {
     return (
       <main
-        className="mx-auto flex min-h-screen w-full items-center justify-center"
-        style={{ maxWidth: 390, background: 'var(--bg)' }}
+        className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 flex min-h-screen w-full items-center justify-center"
+        style={{ background: 'var(--bg)' }}
       >
         <Loader2 className="animate-spin" color="var(--accent)" />
       </main>
@@ -48,10 +48,10 @@ export default function MissaoPage() {
 
   return (
     <main
-      className="mx-auto w-full"
-      style={{ maxWidth: 390, background: 'var(--bg)', minHeight: '100vh' }}
+      className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 w-full"
+      style={{ background: 'var(--bg)', minHeight: '100vh' }}
     >
-      <header className="flex items-center gap-3 px-5 pt-5 pb-2">
+      <header className="flex items-center gap-3 pt-5 pb-2">
         <Link
           href="/"
           aria-label="Voltar"
@@ -65,7 +65,7 @@ export default function MissaoPage() {
         </h1>
       </header>
 
-      <section className="flex flex-col items-center px-5 pt-6">
+      <section className="flex flex-col items-center pt-6">
         <PulseTarget />
 
         <h2
@@ -83,7 +83,7 @@ export default function MissaoPage() {
         </p>
       </section>
 
-      <section className="px-5 pt-8">
+      <section className="pt-8">
         <p
           className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.12em]"
           style={{ color: 'var(--text-3)' }}
@@ -116,7 +116,7 @@ export default function MissaoPage() {
         </div>
       </section>
 
-      <section className="px-5 pt-8 pb-10">
+      <section className="pt-8 pb-10">
         <Link
           href="/missao/nova"
           className="flex h-[54px] w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-extrabold text-white transition active:scale-[0.98]"

@@ -9,11 +9,14 @@ import { getMonthlyPlan } from '@/lib/storage';
 import { createMission, getMission } from '@/lib/storage/missions';
 import { getCachedUser } from '@/lib/dataCache';
 import { useSubscription } from '@/hooks/useSubscription';
+import { ToastContainer, useToast } from '@/components/Toast';
 import ConfettiAnimation from '../../_components/missao/ConfettiAnimation';
 
 type MonthsOption = 3 | 6 | 12 | 18 | 24;
 const MONTHS_OPTIONS: MonthsOption[] = [3, 6, 12, 18, 24];
 const AMOUNT_PILLS = [5_000, 10_000, 20_000, 50_000];
+const CUSTOM_MONTHS_MIN = 1;
+const CUSTOM_MONTHS_MAX = 60;
 
 // easeOutCubic — começa rápido, suaviza no fim. Usado para subir do 0 ao
 // alvo quando uma pill de valor é tocada e para tweenar o monthly target
@@ -75,13 +78,15 @@ function NovaMissaoWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isPro, loading: subLoading } = useSubscription();
+  const { toasts, addToast, removeToast } = useToast();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState(() => searchParams.get('nome') ?? '');
   const [targetAmount, setTargetAmount] = useState(0);
   const [pillSeed, setPillSeed] = useState(0); // dispara tween ao tocar pill
   const [valueFocused, setValueFocused] = useState(false);
-  const [months, setMonths] = useState<MonthsOption | null>(null);
+  const [months, setMonths] = useState<number | null>(null);
+  const [customMonthsMode, setCustomMonthsMode] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [aiChallengesEnabled, setAiChallengesEnabled] = useState(true);
 
@@ -139,9 +144,11 @@ function NovaMissaoWizard() {
   const handleCreate = useCallback(async () => {
     if (creating || existingMission || !months) return;
     const user = await getCachedUser();
-    if (!user) return;
+    if (!user) {
+      addToast('Você precisa estar logado para criar uma missão.', 'error');
+      return;
+    }
 
-    setConfettiOn(true);
     setCreating(true);
 
     const start = new Date();
@@ -160,21 +167,27 @@ function NovaMissaoWizard() {
         aiChallengesEnabled: isPro && aiChallengesEnabled,
       });
     } catch (e) {
-      console.error(e);
+      console.error('[missao/nova] createMission falhou:', e);
+      addToast(
+        e instanceof Error ? e.message : 'Erro ao criar missão. Tente novamente.',
+        'error',
+      );
       setCreating(false);
-      setConfettiOn(false);
       return;
     }
 
-    // Espera a animação completar antes de navegar — UX de celebração.
-    setTimeout(() => router.replace('/missao/dashboard'), 1500);
-  }, [creating, existingMission, months, name, targetAmount, remindersEnabled, aiChallengesEnabled, isPro, router]);
+    // Confetti é cosmético; o redirect não pode depender dele. Em prod, se o
+    // setTimeout fosse engolido (tab em background, throttling), a tela ficava
+    // travada no "Começar minha missão" mesmo após o INSERT bem-sucedido.
+    setConfettiOn(true);
+    router.replace('/missao/dashboard');
+  }, [creating, existingMission, months, name, targetAmount, remindersEnabled, aiChallengesEnabled, isPro, router, addToast]);
 
   if (bootChecking) {
     return (
       <main
-        className="mx-auto flex min-h-screen w-full items-center justify-center"
-        style={{ maxWidth: 390, background: 'var(--bg)' }}
+        className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 flex min-h-screen w-full items-center justify-center"
+        style={{ background: 'var(--bg)' }}
       >
         <Loader2 className="animate-spin" color="var(--accent)" />
       </main>
@@ -183,12 +196,13 @@ function NovaMissaoWizard() {
 
   return (
     <main
-      className="mx-auto w-full"
-      style={{ maxWidth: 390, background: 'var(--bg)', minHeight: '100vh' }}
+      className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 w-full"
+      style={{ background: 'var(--bg)', minHeight: '100vh' }}
     >
       {confettiOn && <ConfettiAnimation />}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      <header className="flex items-center gap-3 px-5 pt-5 pb-3">
+      <header className="flex items-center gap-3 pt-5 pb-3">
         <button
           onClick={() => (step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : router.push('/missao'))}
           aria-label="Voltar"
@@ -239,7 +253,10 @@ function NovaMissaoWizard() {
         <Step2
           targetAmount={targetAmount}
           months={months}
-          setMonths={setMonths}
+          setMonths={(m) => { setMonths(m); setCustomMonthsMode(false); }}
+          customMode={customMonthsMode}
+          enterCustomMode={() => { setCustomMonthsMode(true); setMonths(null); }}
+          setCustomMonths={(m) => setMonths(m)}
           monthlyDisplay={tweenedMonthly}
           expectedIncome={expectedIncome}
           canContinue={canContinueStep2}
@@ -283,7 +300,7 @@ function Step1(props: {
 }) {
   const valueInputRef = useRef<HTMLInputElement>(null);
   return (
-    <section className="px-5 pt-2 pb-10">
+    <section className="pt-2 pb-10">
       <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
         Vamos começar.
       </h2>
@@ -400,8 +417,11 @@ function Step1(props: {
 
 function Step2(props: {
   targetAmount: number;
-  months: MonthsOption | null;
+  months: number | null;
   setMonths: (m: MonthsOption) => void;
+  customMode: boolean;
+  enterCustomMode: () => void;
+  setCustomMonths: (m: number | null) => void;
   monthlyDisplay: number;
   expectedIncome: number | null;
   canContinue: boolean;
@@ -427,7 +447,7 @@ function Step2(props: {
   }, [colorCfg]);
 
   return (
-    <section className="px-5 pt-2 pb-10">
+    <section className="pt-2 pb-10">
       <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
         Em quanto tempo?
       </h2>
@@ -437,7 +457,7 @@ function Step2(props: {
 
       <div className="mt-5 flex flex-wrap gap-2">
         {MONTHS_OPTIONS.map((m) => {
-          const active = props.months === m;
+          const active = !props.customMode && props.months === m;
           return (
             <button
               key={m}
@@ -458,6 +478,24 @@ function Step2(props: {
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-3">
+        {props.customMode ? (
+          <CustomMonthsInput
+            value={props.months}
+            onChange={props.setCustomMonths}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={props.enterCustomMode}
+            className="text-[13px] font-bold underline-offset-2 hover:underline"
+            style={{ color: 'var(--text-3)' }}
+          >
+            Outro prazo
+          </button>
+        )}
       </div>
 
       <div
@@ -523,12 +561,70 @@ function Step2(props: {
   );
 }
 
+function CustomMonthsInput(props: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [raw, setRaw] = useState<string>(props.value != null ? String(props.value) : '');
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const commit = (text: string) => {
+    setRaw(text);
+    if (text === '') {
+      props.onChange(null);
+      return;
+    }
+    const n = Number(text);
+    if (!Number.isFinite(n)) {
+      props.onChange(null);
+      return;
+    }
+    // Clamp em [1, 60]: digitar 0 ou 99 não deve passar o valor inválido pra
+    // baixo (o tween e o INSERT precisam de número válido).
+    const clamped = Math.min(CUSTOM_MONTHS_MAX, Math.max(CUSTOM_MONTHS_MIN, Math.round(n)));
+    props.onChange(clamped);
+  };
+
+  return (
+    <div
+      className="flex items-center gap-2 rounded-2xl px-3 py-2"
+      style={{
+        background: 'var(--surface)',
+        border: '1.5px solid var(--accent)',
+        borderRadius: 'var(--r-sm)',
+        width: 'fit-content',
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="number"
+        inputMode="numeric"
+        min={CUSTOM_MONTHS_MIN}
+        max={CUSTOM_MONTHS_MAX}
+        value={raw}
+        onChange={(e) => commit(e.target.value)}
+        placeholder="12"
+        aria-label="Prazo personalizado em meses"
+        className="w-14 bg-transparent text-center text-[16px] font-extrabold outline-none"
+        style={{ color: 'var(--text)' }}
+      />
+      <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-2)' }}>
+        meses
+      </span>
+    </div>
+  );
+}
+
 // ─── STEP 3 ──────────────────────────────────────────────────────────────
 
 function Step3(props: {
   name: string;
   targetAmount: number;
-  months: MonthsOption;
+  months: number;
   monthlyTarget: number;
   remindersEnabled: boolean;
   setRemindersEnabled: (v: boolean) => void;
@@ -546,7 +642,7 @@ function Step3(props: {
   }, [props.months]);
 
   return (
-    <section className="px-5 pt-2 pb-10">
+    <section className="pt-2 pb-10">
       <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
         Pronto pra começar?
       </h2>
@@ -717,8 +813,8 @@ export default function NovaMissaoPage() {
     <Suspense
       fallback={
         <main
-          className="mx-auto flex min-h-screen w-full items-center justify-center"
-          style={{ maxWidth: 390, background: 'var(--bg)' }}
+          className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 flex min-h-screen w-full items-center justify-center"
+          style={{ background: 'var(--bg)' }}
         >
           <Loader2 className="animate-spin" color="var(--accent)" />
         </main>
