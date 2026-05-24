@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, X, Sparkles, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useSubscription } from '@/hooks/useSubscription';
+import { buildKiwifyUrl, readStoredCupom } from '@/lib/utils';
 
 type Cycle = 'monthly' | 'annual';
 
@@ -40,6 +41,11 @@ export default function UpgradePage() {
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [cupomAtivo, setCupomAtivo] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCupomAtivo(readStoredCupom());
+  }, []);
 
   async function redeemCoupon() {
     setCouponLoading(true);
@@ -65,8 +71,17 @@ export default function UpgradePage() {
     }
   }
 
-  const monthlyUrl = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_MONTHLY ?? '#';
-  const annualUrl = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_ANNUAL ?? '#';
+  const monthlyBase = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_MONTHLY ?? '#';
+  const annualBase = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_ANNUAL ?? '#';
+
+  const monthlyUrl = useMemo(
+    () => buildKiwifyUrl(monthlyBase, cupomAtivo, 'upgrade'),
+    [monthlyBase, cupomAtivo],
+  );
+  const annualUrl = useMemo(
+    () => buildKiwifyUrl(annualBase, cupomAtivo, 'upgrade'),
+    [annualBase, cupomAtivo],
+  );
 
   const checkoutUrl = cycle === 'monthly' ? monthlyUrl : annualUrl;
   const priceLabel = cycle === 'monthly' ? 'R$ 19,90/mês' : 'R$ 147,00/ano';

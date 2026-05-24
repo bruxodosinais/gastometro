@@ -3,6 +3,7 @@ import { Nunito } from 'next/font/google';
 import './globals.css';
 import OfflineBanner from '@/components/OfflineBanner';
 import CookieBanner from '@/components/CookieBanner';
+import CouponCapture from '@/components/CouponCapture';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={`h-full ${nunito.className}`}>
       <body className="min-h-full" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
         <OfflineBanner />
+        <CouponCapture />
         {children}
         <CookieBanner />
       </body>
