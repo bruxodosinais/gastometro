@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { CATEGORY_CONFIG } from './categoryConfig';
+import { calcStreak, type MissionContribution } from './storage/missions';
 import type { Category } from './types';
 
 export type CategoryBreakdown = {
@@ -15,6 +16,15 @@ export type PendingBill = {
   dueDay: number;
 };
 
+export type WeeklyMissionData = {
+  nome: string;
+  totalSaved: number;
+  targetAmount: number;
+  progressPercent: number;
+  streak: number;
+  monthsLeft: number;
+};
+
 export type WeeklyReport = {
   weekStart: string;
   weekEnd: string;
@@ -26,6 +36,7 @@ export type WeeklyReport = {
   availableBalance: number;
   expectedIncome: number;
   monthSpent: number;
+  missao: WeeklyMissionData | null;
 };
 
 export type MonthlyReport = {
@@ -164,6 +175,63 @@ export async function computeWeeklyReport(
   const expectedIncome = plan?.expected_income ? Number(plan.expected_income) : 0;
   const availableBalance = expectedIncome - monthSpent;
 
+  // Bloco de Missão de Poupança (S4-1). Equivalente a getMission +
+  // getTotalSaved + calcStreak de lib/storage/missions.ts, mas inline com o
+  // admin client — as funções do storage usam o browser client (anon+RLS) e
+  // não funcionam fora do contexto autenticado.
+  let missao: WeeklyMissionData | null = null;
+  const { data: missionRow } = await supabase
+    .from('savings_missions')
+    .select('id, name, target_amount, target_date')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (missionRow) {
+    const missionId = missionRow.id as string;
+    const targetAmount = Number(missionRow.target_amount);
+    const targetDate = missionRow.target_date as string;
+
+    const { data: contribRows } = await supabase
+      .from('mission_contributions')
+      .select('id, mission_id, user_id, month, amount, registered_at')
+      .eq('mission_id', missionId);
+
+    const contributions: MissionContribution[] = (contribRows ?? []).map((r) => ({
+      id: r.id as string,
+      missionId: r.mission_id as string,
+      userId: r.user_id as string,
+      month: r.month as string,
+      amount: Number(r.amount),
+      registeredAt: r.registered_at as string,
+    }));
+
+    const totalSaved = contributions.reduce((s, c) => s + c.amount, 0);
+    const progressPercent =
+      targetAmount > 0
+        ? Math.min(Math.round((totalSaved / targetAmount) * 100), 100)
+        : 0;
+    const streak = calcStreak(contributions);
+
+    const target = new Date(targetDate);
+    const monthsLeft = Math.max(
+      0,
+      (target.getFullYear() - refDate.getFullYear()) * 12 +
+        (target.getMonth() - refDate.getMonth()),
+    );
+
+    missao = {
+      nome: missionRow.name as string,
+      totalSaved,
+      targetAmount,
+      progressPercent,
+      streak,
+      monthsLeft,
+    };
+  }
+
   return {
     weekStart: startStr,
     weekEnd: endStr,
@@ -175,6 +243,7 @@ export async function computeWeeklyReport(
     availableBalance,
     expectedIncome,
     monthSpent,
+    missao,
   };
 }
 
@@ -305,6 +374,49 @@ function categoryBlock(top: CategoryBreakdown[]): string {
     .join('');
 }
 
+function missionBlock(missao: WeeklyMissionData): string {
+  const fmt = (v: number) =>
+    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const streakText =
+    missao.streak > 0
+      ? `🔥 ${missao.streak} ${missao.streak === 1 ? 'mês consecutivo' : 'meses consecutivos'}`
+      : 'Nenhum aporte este mês ainda';
+
+  const monthsText =
+    missao.monthsLeft > 0
+      ? `Faltam ${missao.monthsLeft} ${missao.monthsLeft === 1 ? 'mês' : 'meses'}`
+      : 'Meta no prazo!';
+
+  return `
+    <div style="background:#ffffff;border-radius:12px;padding:20px 24px;margin:18px 0;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#6b7280;
+                text-transform:uppercase;letter-spacing:0.6px;">Missão de Poupança</p>
+      <p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#111827;">${escapeHtml(missao.nome)}</p>
+
+      <div style="background:#f3f4f6;border-radius:100px;height:8px;margin-bottom:8px;overflow:hidden;">
+        <div style="width:${missao.progressPercent}%;height:100%;
+                    background:linear-gradient(90deg,#5B5BD6,#00C37A);border-radius:100px;"></div>
+      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+        <tr>
+          <td style="font-size:12px;color:#6b7280;">${fmt(missao.totalSaved)} acumulados</td>
+          <td style="font-size:12px;font-weight:700;color:#111827;text-align:center;">${missao.progressPercent}%</td>
+          <td style="font-size:12px;color:#6b7280;text-align:right;">Meta: ${fmt(missao.targetAmount)}</td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-size:12px;color:#5B5BD6;font-weight:600;">${streakText}</td>
+          <td style="font-size:12px;color:#6b7280;text-align:right;">${monthsText}</td>
+        </tr>
+      </table>
+    </div>
+  `;
+}
+
 function pendingBlock(bills: PendingBill[]): string {
   if (bills.length === 0) return '';
   const items = bills
@@ -371,6 +483,8 @@ export function renderWeeklyEmailHtml(report: WeeklyReport): string {
     </div>
 
     ${pendingBlock(report.pendingBills)}
+
+    ${report.missao ? missionBlock(report.missao) : ''}
 
     <div style="text-align:center; margin-top:20px;">
       <a href="https://www.toorganizado.com.br" style="display:inline-block; padding:12px 24px; background:#5B5BD6; color:#fff; text-decoration:none; border-radius:10px; font-weight:700; font-size:14px;">Abrir o app</a>

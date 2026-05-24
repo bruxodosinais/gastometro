@@ -26,7 +26,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const ids = (profiles ?? []).map((p) => p.id as string);
+  const optedInIds = (profiles ?? []).map((p) => p.id as string);
+  if (optedInIds.length === 0) return NextResponse.json({ sent: 0, failed: 0, total: 0 });
+
+  // Gate Pro: relatório semanal é benefício do plano pago. Mantém apenas usuários
+  // com assinatura ativa em `subscriptions`.
+  const { data: subs, error: subsErr } = await admin
+    .from('subscriptions')
+    .select('user_id')
+    .in('user_id', optedInIds)
+    .eq('plan', 'pro')
+    .eq('status', 'active');
+  if (subsErr) {
+    console.error('[reports/weekly] erro listando subscriptions:', subsErr);
+    return NextResponse.json({ error: subsErr.message }, { status: 500 });
+  }
+  const proIds = new Set((subs ?? []).map((s) => s.user_id as string));
+  const ids = optedInIds.filter((id) => proIds.has(id));
   if (ids.length === 0) return NextResponse.json({ sent: 0, failed: 0, total: 0 });
 
   // Carrega e-mails via Auth admin API.
