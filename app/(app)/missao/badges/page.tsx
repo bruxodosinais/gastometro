@@ -31,7 +31,13 @@ type HistoryEntry = {
 
 function monthYearLabel(iso: string): string {
   const d = new Date(iso);
-  const raw = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
+  // timeZone fixo em BRT: garante que timestamps UTC do banco (registered_at,
+  // created_at) não atravessem fronteira de mês quando o browser está em
+  // outro fuso. Sem isso, um aporte feito às 22h BRT em 31/05 vira "Jun"
+  // para um browser em UTC.
+  const raw = d
+    .toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'America/Sao_Paulo' })
+    .replace('.', '');
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 

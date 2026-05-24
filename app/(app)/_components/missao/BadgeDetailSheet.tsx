@@ -75,7 +75,7 @@ export default function BadgeDetailSheet({ badge, unlockedAt, onClose }: Props) 
                 className="mt-3 rounded-full px-3 py-1 text-[11px] font-extrabold"
                 style={{ background: 'var(--green-bg)', color: 'var(--green-text)' }}
               >
-                Desbloqueado em {new Date(unlockedAt).toLocaleDateString('pt-BR')}
+                Desbloqueado em {new Date(unlockedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
               </p>
             )}
           </div>

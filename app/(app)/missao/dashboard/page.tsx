@@ -44,11 +44,14 @@ function monthLabelLong(monthKey: string): string {
   return month.charAt(0).toUpperCase() + month.slice(1);
 }
 
-function monthLabelShort(monthKey: string): string {
+// Header de grupo de mês: "Maio de 2026". Parseia YYYY-MM com
+// new Date(y, m-1, 1) (hora local) — evita o pitfall do new Date('2026-05'),
+// que seria UTC midnight e poderia voltar pro mês anterior em America/Sao_Paulo.
+function monthHeaderLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-').map(Number);
   const d = new Date(y, m - 1, 1);
-  const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${String(y).slice(2)}`;
+  const monthLong = d.toLocaleDateString('pt-BR', { month: 'long' });
+  return `${monthLong.charAt(0).toUpperCase()}${monthLong.slice(1)} de ${y}`;
 }
 
 function projectedMonthLabel(monthsAhead: number): string {
@@ -607,7 +610,6 @@ export default function MissaoDashboardPage() {
             style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
           >
             {recentGroups.map((g, idx) => {
-              const diff = g.total - monthlyTarget;
               const hit = g.total >= monthlyTarget && monthlyTarget > 0;
               return (
                 <div
@@ -617,19 +619,15 @@ export default function MissaoDashboardPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
-                      {monthLabelShort(g.month)}
+                      {monthHeaderLabel(g.month)}
                     </p>
                     <p className="text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>
-                      {formatCurrency(g.total)}
-                      {g.count > 1 && ` · ${g.count} depósitos`}
+                      {g.count} {g.count === 1 ? 'depósito' : 'depósitos'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="text-[12px] font-extrabold"
-                      style={{ color: diff >= 0 ? 'var(--green-text)' : 'var(--red)' }}
-                    >
-                      {diff >= 0 ? '+' : '−'}{formatCurrency(Math.abs(diff))}
+                    <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
+                      {formatCurrency(g.total)}
                     </span>
                     {hit && (
                       <span
@@ -970,7 +968,7 @@ function HistoryModal({
                 <div key={g.month} className="mb-4 last:mb-0">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
-                      {monthLabelShort(g.month)}
+                      {monthHeaderLabel(g.month)}
                     </p>
                     <span
                       className="text-[12px] font-extrabold"
@@ -990,7 +988,7 @@ function HistoryModal({
                         style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
                       >
                         <span className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
-                          {new Date(c.registeredAt).toLocaleDateString('pt-BR')}
+                          {new Date(c.registeredAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                         </span>
                         <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
                           {formatCurrency(Number(c.amount))}
