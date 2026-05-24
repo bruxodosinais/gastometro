@@ -9,6 +9,8 @@ type Cycle = 'monthly' | 'annual';
 
 const PRO_FEATURES = [
   'Lançamentos ilimitados',
+  'Missão de Poupança com IA e badges',
+  'Relatório semanal por e-mail',
   'Recorrentes ilimitados',
   'GastôBot ilimitado',
   'Metas financeiras',
@@ -18,8 +20,8 @@ const PRO_FEATURES = [
 ];
 
 const FREE_LIMITATIONS = [
-  'Apenas 20 lançamentos/mês',
-  'Apenas 5 recorrentes',
+  '20 lançamentos/mês',
+  '5 recorrentes',
   '1 consulta no GastôBot/mês',
   'Sem metas financeiras',
   'Sem controle de patrimônio',
@@ -326,6 +328,19 @@ export default function UpgradePage() {
           <Sparkles size={16} />
           {ctaLabel}
         </a>
+
+        <p
+          style={{
+            marginTop: 10,
+            marginBottom: 0,
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#5B5BD6',
+            textAlign: 'center',
+          }}
+        >
+          ✦ Primeiros usuários com preço de fundador
+        </p>
       </div>
 
       <div

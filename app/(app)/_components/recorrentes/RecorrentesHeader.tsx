@@ -20,9 +20,8 @@ type Props = {
   isFormOpen: boolean;
   onToggleForm: () => void;
 
-  // Plan limit banner
-  showLimitBanner: boolean;
-  limitMessage: string;
+  // Pro block (entry-block when limit reached)
+  atRecurringsLimit: boolean;
 
   // Form values
   entryType: EntryType;
@@ -65,8 +64,7 @@ type Props = {
 export default function RecorrentesHeader({
   isFormOpen,
   onToggleForm,
-  showLimitBanner,
-  limitMessage,
+  atRecurringsLimit,
   entryType,
   amount,
   description,
@@ -156,14 +154,13 @@ export default function RecorrentesHeader({
       >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
 
-          {showLimitBanner && (
+          {atRecurringsLimit ? (
             <UpgradeBanner
-              variant="inline"
+              variant="fullpage"
               feature="recorrentes"
-              message={limitMessage}
+              message="Você atingiu o limite de 5 recorrentes do plano gratuito. Com o Pro, cadastre quantos quiser."
             />
-          )}
-
+          ) : (
           <form
             onSubmit={onSubmit}
             style={{
@@ -538,6 +535,7 @@ export default function RecorrentesHeader({
               {saving ? <Loader2 size={17} className="animate-spin" /> : 'Cadastrar recorrente'}
             </button>
           </form>
+          )}
         </div>
       </div>
     </>

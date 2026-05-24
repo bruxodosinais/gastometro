@@ -184,17 +184,6 @@ export default function RecorrentesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (subscription.isFree) {
-      const limit = PLAN_LIMITS.free.recurringExpenses;
-      const activeCount = recurrings.filter((r) => r.active !== false).length;
-      if (activeCount >= limit) {
-        setFormError(
-          `Você já tem ${limit} recorrentes cadastrados. Limite do plano gratuito.`,
-        );
-        return;
-      }
-    }
-
     if (!description.trim()) {
       setDescricaoError('Descrição é obrigatória');
       return;
@@ -598,7 +587,6 @@ export default function RecorrentesPage() {
 
   const activeRecurrings = recurrings.filter((r) => r.active !== false).length;
   const atRecurringsLimit = subscription.isFree && activeRecurrings >= PLAN_LIMITS.free.recurringExpenses;
-  const recurringsLimitMessage = `Você já tem ${PLAN_LIMITS.free.recurringExpenses} recorrentes cadastrados. Limite do plano gratuito.`;
 
   // ── Loading / error states ────────────────────────────────────────────────
 
@@ -701,8 +689,7 @@ export default function RecorrentesPage() {
           <RecorrentesHeader
             isFormOpen={isFormOpen}
             onToggleForm={() => setIsFormOpen((v) => !v)}
-            showLimitBanner={atRecurringsLimit}
-            limitMessage={recurringsLimitMessage}
+            atRecurringsLimit={atRecurringsLimit}
             entryType={entryType}
             amount={amount}
             description={description}

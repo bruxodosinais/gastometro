@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CalendarDays, ChevronDown, Copy, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { AlertCircle, CalendarDays, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
 import {
   addExpense,
   addExpenseInstallments,
@@ -453,18 +454,6 @@ export default function LancamentosPage() {
     }
     if (!hasAmount || !category) return;
 
-    if (subscription.isFree && entryType === 'expense') {
-      const limit = PLAN_LIMITS.free.expensesPerMonth;
-      const monthKey = getMonthKey(new Date());
-      const monthExpenseCount = expenses.filter(
-        (e) => e.type === 'expense' && e.date.slice(0, 7) === monthKey,
-      ).length;
-      if (monthExpenseCount >= limit) {
-        setError(`Você atingiu o limite de ${limit} lançamentos no plano gratuito.`);
-        return;
-      }
-    }
-
     setDescricaoError(false);
     const savedAmount = numAmount;
     const savedType = entryType;
@@ -565,6 +554,14 @@ export default function LancamentosPage() {
   const [filterTab, setFilterTab] = useState<'all' | 'expense' | 'income'>('all');
   const [isListExpanded, setIsListExpanded] = useState(false);
 
+  const monthExpenseCount = expenses.filter(
+    (e) => e.type === 'expense' && e.date.slice(0, 7) === currentMonth,
+  ).length;
+  const expenseLimit = PLAN_LIMITS.free.expensesPerMonth;
+  const atExpensesLimit = subscription.isFree && monthExpenseCount >= expenseLimit;
+  const approachingExpensesLimit =
+    subscription.isFree && monthExpenseCount >= 15 && monthExpenseCount < expenseLimit;
+
   const currentExpensesAll = [...expenses]
     .filter((e) => e.date.slice(0, 7) === currentMonth)
     .filter((e) => filterTab === 'all' || e.type === filterTab)
@@ -603,22 +600,58 @@ export default function LancamentosPage() {
 
           {/* ── FORM COLUMN ─────────────────────────────────────────────────── */}
           <div>
-            {subscription.isFree && (() => {
-              const monthKey = getMonthKey(new Date());
-              const count = expenses.filter(
-                (e) => e.type === 'expense' && e.date.slice(0, 7) === monthKey,
-              ).length;
-              if (count >= PLAN_LIMITS.free.expensesPerMonth) {
-                return (
-                  <UpgradeBanner
-                    variant="inline"
-                    feature="lancamentos"
-                    message={`Você atingiu o limite de ${PLAN_LIMITS.free.expensesPerMonth} lançamentos no plano gratuito.`}
-                  />
-                );
-              }
-              return null;
-            })()}
+            {atExpensesLimit ? (
+              <UpgradeBanner
+                variant="fullpage"
+                feature="lancamentos"
+                message={`Você atingiu o limite de ${expenseLimit} lançamentos deste mês. Com o Pro, lance sem limites.`}
+              />
+            ) : (
+            <>
+            {approachingExpensesLimit && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  background: 'var(--accent-bg)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '12px 14px',
+                  marginBottom: 12,
+                }}
+              >
+                <Lock size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <p
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    margin: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--text-2)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Você usou {monthExpenseCount} dos seus {expenseLimit} lançamentos deste mês. Pro é ilimitado.
+                </p>
+                <Link
+                  href="/upgrade"
+                  style={{
+                    flexShrink: 0,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Ver planos
+                </Link>
+              </div>
+            )}
             <div
               style={{
                 background: 'var(--surface)',
@@ -1069,6 +1102,8 @@ export default function LancamentosPage() {
                 {ctaLabel}
               </LoadingButton>
             </div>
+            </>
+            )}
           </div>
 
           {/* ── LIST COLUMN (desktop) ────────────────────────────────────────── */}
