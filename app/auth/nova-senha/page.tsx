@@ -39,7 +39,7 @@ export default function NovaSenhaPage() {
 
     setSucesso(true);
     setTimeout(() => {
-      router.push('/');
+      router.push('/app');
       router.refresh();
     }, 2000);
   }
@@ -53,7 +53,7 @@ export default function NovaSenhaPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Senha atualizada!</h2>
           <p className="text-gray-500 text-sm">Redirecionando para o início...</p>
-          <Link href="/" className="inline-block mt-6 text-mint-500 text-sm font-medium">
+          <Link href="/app" className="inline-block mt-6 text-mint-500 text-sm font-medium">
             Ir para o início →
           </Link>
         </div>

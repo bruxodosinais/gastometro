@@ -165,7 +165,7 @@ function CadastroContent() {
     }
 
     if (data.session) {
-      router.push('/');
+      router.push('/app');
       router.refresh();
       return;
     }

@@ -27,7 +27,8 @@ export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith('/auth');
   const isOnboarding = pathname === '/onboarding';
-  const isPublicPage = pathname === '/termos' || pathname === '/privacidade';
+  const isPublicPage =
+    pathname === '/' || pathname === '/termos' || pathname === '/privacidade';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isPublicWebhook = pathname.startsWith('/api/webhooks/');
   // Endpoints chamados pelo cron do Vercel: autenticados via Bearer CRON_SECRET na própria rota.
@@ -81,7 +82,7 @@ export default async function middleware(request: NextRequest) {
       !pathname.startsWith('/auth/confirmado') &&
       !pathname.startsWith('/auth/callback')
     ) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/app', request.url));
     }
   }
 
@@ -89,7 +90,7 @@ export default async function middleware(request: NextRequest) {
     const onboardingCompleted = user.user_metadata?.onboarding_completed === true;
 
     if (isOnboarding && onboardingCompleted) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/app', request.url));
     }
 
     if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted && !isAdminRoute) {
@@ -102,7 +103,7 @@ export default async function middleware(request: NextRequest) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!serviceRoleKey || !supabaseUrl) {
         console.log('[ADMIN DEBUG] REDIRECT: SUPABASE_SERVICE_ROLE_KEY ou SUPABASE_URL ausente');
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(new URL('/app', request.url));
       }
       try {
         const fetchUrl = `${supabaseUrl}/rest/v1/admins?user_id=eq.${user.id}&select=id&limit=1`;
@@ -118,12 +119,12 @@ export default async function middleware(request: NextRequest) {
         console.log('[ADMIN DEBUG] Linhas retornadas:', JSON.stringify(rows));
         if (!Array.isArray(rows) || rows.length === 0) {
           console.log('[ADMIN DEBUG] REDIRECT: usuário não encontrado na tabela admins');
-          return NextResponse.redirect(new URL('/', request.url));
+          return NextResponse.redirect(new URL('/app', request.url));
         }
         console.log('[ADMIN DEBUG] Acesso liberado — usuário é admin');
       } catch (err) {
         console.log('[ADMIN DEBUG] REDIRECT: exceção ao consultar tabela admins:', err);
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(new URL('/app', request.url));
       }
     }
   }

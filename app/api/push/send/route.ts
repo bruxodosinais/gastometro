@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Body;
   const title = (body.title ?? '').trim();
   const message = (body.message ?? '').trim();
-  const url = (body.url ?? '/').trim() || '/';
+  const url = (body.url ?? '/app').trim() || '/app';
   const target: Target = body.target ?? (body.userId ? 'user' : 'all');
   const userId = body.userId?.trim();
 

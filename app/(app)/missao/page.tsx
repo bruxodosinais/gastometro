@@ -64,7 +64,7 @@ export default function MissaoPage() {
     >
       <header className="flex items-center gap-3 pt-5 pb-2">
         <Link
-          href="/"
+          href="/app"
           aria-label="Voltar"
           className="flex h-10 w-10 items-center justify-center rounded-full"
           style={{ background: 'var(--surface)', boxShadow: 'var(--hbtn-shadow)' }}

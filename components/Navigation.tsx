@@ -68,9 +68,9 @@ export default function Navigation() {
 
           {/* Home */}
           {(() => {
-            const active = pathname === '/';
+            const active = pathname === '/app';
             return (
-              <Link href="/" className="flex flex-col items-center gap-0.5 flex-1 py-2">
+              <Link href="/app" className="flex flex-col items-center gap-0.5 flex-1 py-2">
                 <Home size={24} strokeWidth={active ? 2.5 : 1.8} color={active ? ACTIVE : INACTIVE} />
                 <span className="text-xs font-medium" style={{ color: active ? ACTIVE : INACTIVE }}>Home</span>
               </Link>

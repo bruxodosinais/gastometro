@@ -191,7 +191,7 @@ export default function OnboardingPage() {
     }
     const supabase = createClient();
     await supabase.auth.updateUser({ data: { onboarding_completed: true } });
-    router.push('/');
+    router.push('/app');
     router.refresh();
   }
 

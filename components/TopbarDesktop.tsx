@@ -170,7 +170,7 @@ export default function TopbarDesktop() {
       {/* Direita: notificações + Lançar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/app')}
           style={{
             position: 'relative',
             width: 34,

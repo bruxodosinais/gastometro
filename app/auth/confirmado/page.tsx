@@ -86,7 +86,7 @@ function ConfirmadoContent() {
                 Sua conta está ativa.
               </p>
               <Link
-                href="/"
+                href="/app"
                 style={{
                   display: 'block',
                   width: '100%',

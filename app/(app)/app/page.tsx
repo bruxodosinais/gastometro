@@ -46,16 +46,16 @@ import {
 import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
 import { useSubscription } from '@/hooks/useSubscription';
-import { anim, hidden } from './_components/home/_anim';
-import SaldoCard from './_components/home/SaldoCard';
-import EntradaSaidaCards from './_components/home/EntradaSaidaCards';
-import FaturaAlertCard from './_components/home/FaturaAlertCard';
-import OrcamentoCard from './_components/home/OrcamentoCard';
-import MissaoCard from './_components/home/MissaoCard';
-import CompromissosCard from './_components/home/CompromissosCard';
-import ContasDoMes from './_components/home/ContasDoMes';
-import InsightsCard from './_components/home/InsightsCard';
-import HomeModals from './_components/home/HomeModals';
+import { anim, hidden } from '../_components/home/_anim';
+import SaldoCard from '../_components/home/SaldoCard';
+import EntradaSaidaCards from '../_components/home/EntradaSaidaCards';
+import FaturaAlertCard from '../_components/home/FaturaAlertCard';
+import OrcamentoCard from '../_components/home/OrcamentoCard';
+import MissaoCard from '../_components/home/MissaoCard';
+import CompromissosCard from '../_components/home/CompromissosCard';
+import ContasDoMes from '../_components/home/ContasDoMes';
+import InsightsCard from '../_components/home/InsightsCard';
+import HomeModals from '../_components/home/HomeModals';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

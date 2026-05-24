@@ -340,7 +340,7 @@ export default function MissaoDashboardPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="flex items-center gap-3 pb-3">
         <Link
-          href="/"
+          href="/app"
           aria-label="Voltar"
           className="flex h-10 w-10 items-center justify-center rounded-full"
           style={{ background: 'var(--surface)', boxShadow: 'var(--hbtn-shadow)' }}

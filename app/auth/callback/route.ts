@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const nextParam = searchParams.get('next');
-  const next = nextParam ?? '/';
+  const next = nextParam ?? '/app';
   const ref = searchParams.get('ref');
 
   // Confirmação de cadastro não passa `next` (recuperação de senha usa

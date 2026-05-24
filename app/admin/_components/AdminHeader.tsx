@@ -37,7 +37,7 @@ export function AdminHeader({ tab, setTab, feedbackUnread }: Props) {
         </button>
       ))}
       <div style={{ flex: 1 }} />
-      <a href="/" style={{
+      <a href="/app" style={{
         padding: '10px 20px', color: 'var(--text-3)', fontSize: 13, textDecoration: 'none',
       }}>← Voltar ao app</a>
     </aside>

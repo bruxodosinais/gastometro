@@ -35,7 +35,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Principal',
     items: [
-      { href: '/',            label: 'Home',        Icon: Home       },
+      { href: '/app',         label: 'Home',        Icon: Home       },
       { href: '/lancamentos', label: 'Lançar',      Icon: Plus       },
       { href: '/recorrentes', label: 'Recorrentes', Icon: RefreshCw, badgeKey: 'recorrentes' },
       { href: '/historico',   label: 'Histórico',   Icon: Clock      },
