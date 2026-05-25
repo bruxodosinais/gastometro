@@ -388,7 +388,7 @@ export default function Sidebar() {
       {/* Footer fixo */}
       <div
         style={{
-          borderTop: '1px solid var(--border)',
+          borderTop: '1px solid var(--border-2)',
           padding: '8px 12px',
           display: 'flex',
           flexDirection: 'column',

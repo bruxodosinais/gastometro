@@ -55,6 +55,35 @@
   --color-text-muted: #6b7280;
 }
 
+/* ── Light theme explícito (permite forçar light em sub-árvores, ex.: /admin) ─ */
+[data-theme="light"] {
+  --bg: #F7F7F5;
+  --surface: #FFFFFF;
+  --logo-bg: #F7F7F5;
+  --border: #E8E8E2;
+  --border-2: #F0F0EA;
+  --text: #1A1A1A;
+  --text-2: #6B6B6B;
+  --text-3: #B4B4AA;
+  --green: #00C37A;
+  --green-bg: #E6FAF3;
+  --green-text: #007A4D;
+  --red: #FF4757;
+  --red-bg: #FFF0F1;
+  --yellow: #FFB800;
+  --yellow-bg: #FFF8E6;
+  --yellow-text: #996B00;
+  --accent: #5B5BD6;
+  --accent-bg: #EDEDFC;
+  --accent-soft: rgba(91,91,214,0.15);
+  --accent-shadow: rgba(91,91,214,0.25);
+  --plus-shadow: rgba(91,91,214,0.40);
+  --avatar-shadow: rgba(91,91,214,0.30);
+  --card-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  --hbtn-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --nav-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+}
+
 /* ── Dark theme (toggle manual via data-theme="dark" no <html>) ───────── */
 [data-theme="dark"] {
   --bg: #14141A;
@@ -82,6 +111,23 @@
   --card-shadow: 0 1px 4px rgba(0,0,0,0.30);
   --hbtn-shadow: 0 1px 3px rgba(0,0,0,0.30);
   --nav-shadow: 0 -4px 20px rgba(0,0,0,0.40);
+
+  * {
+    scrollbar-color: var(--border) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
 }
 
 /* Auto-detecta dark do SO quando o usuário não fixou um tema explícito.
