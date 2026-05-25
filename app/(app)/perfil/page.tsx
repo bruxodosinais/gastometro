@@ -9,6 +9,7 @@ import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useTheme, type Theme } from '@/lib/themeContext';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { openSupport } from '@/components/SupportButton';
@@ -77,6 +78,7 @@ export default function PerfilPage() {
   const { toasts, addToast, removeToast } = useToast();
   const { isPro, billingCycle, currentPeriodEnd, loading: subLoading } = useSubscription();
   const push = usePushNotifications();
+  const { theme, setTheme } = useTheme();
 
   // Basic profile
   const [userId, setUserId] = useState('');
@@ -747,6 +749,45 @@ export default function PerfilPage() {
             Alterar senha
             <ChevronRight size={16} color="var(--text-3)" />
           </button>
+        </div>
+
+        {/* Aparência */}
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+            Aparência
+          </p>
+          <div style={{ display: 'flex', gap: 6, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: 6 }}>
+            {([
+              { value: 'light' as const, label: '☀️ Claro' },
+              { value: 'dark' as const, label: '🌙 Escuro' },
+              { value: 'system' as const, label: '💻 Sistema' },
+            ]).map(({ value, label }) => {
+              const selected = theme === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTheme(value as Theme)}
+                  aria-pressed={selected}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: selected ? 'var(--accent)' : 'var(--surface)',
+                    color: selected ? '#fff' : 'var(--text-2)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'background 150ms, color 150ms',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Notificações */}

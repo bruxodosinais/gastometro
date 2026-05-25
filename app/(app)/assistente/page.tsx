@@ -89,8 +89,8 @@ function ExpenseCard({
         {isIncome ? '💵 Nova receita detectada' : '💳 Novo gasto detectado'}
       </p>
       <div className="space-y-1">
-        <p className="text-gray-900 text-sm font-medium">{expense.description}</p>
-        <p className="text-gray-500 text-xs flex items-center gap-1.5">
+        <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{expense.description}</p>
+        <p className="text-xs flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
           <span
             className="text-base font-bold"
             style={{ color: isIncome ? 'var(--green)' : 'var(--text)' }}
@@ -113,7 +113,8 @@ function ExpenseCard({
         </button>
         <button
           onClick={onCancel}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-300 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{ color: 'var(--text-2)', background: 'var(--bg)' }}
         >
           <X size={12} /> Cancelar
         </button>
@@ -125,7 +126,7 @@ function ExpenseCard({
 function ConfirmedCard({ expense }: { expense: ExpenseData }) {
   const isIncome = expense.type === 'income';
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-500">
+    <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-2)' }}>
       <span
         className="w-5 h-5 rounded-full flex items-center justify-center"
         style={{
@@ -151,18 +152,23 @@ function WelcomeScreen({ onSuggest }: { onSuggest: (text: string) => void }) {
         <Bot size={28} style={{ color: 'var(--accent)' }} />
       </div>
       <div className="text-center space-y-1.5">
-        <h2 className="text-gray-900 font-semibold text-base">Olá! Sou o GastôBot</h2>
-        <p className="text-gray-500 text-sm max-w-xs">
+        <h2 className="font-semibold text-base" style={{ color: 'var(--text)' }}>Olá! Sou o GastôBot</h2>
+        <p className="text-sm max-w-xs" style={{ color: 'var(--text-2)' }}>
           Posso registrar lançamentos, analisar seus gastos e responder dúvidas financeiras.
         </p>
       </div>
       <div className="w-full max-w-sm space-y-2">
-        <p className="text-xs text-gray-500 text-center">Sugestões</p>
+        <p className="text-xs text-center" style={{ color: 'var(--text-3)' }}>Sugestões</p>
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => onSuggest(s)}
-            className="w-full text-left text-sm text-gray-500 hover:text-gray-900 bg-gray-50/60 hover:bg-gray-50 border border-gray-200/50 hover:border-slate-600 px-4 py-2.5 rounded-xl transition-colors"
+            className="w-full text-left text-sm px-4 py-2.5 rounded-xl transition-colors"
+            style={{
+              color: 'var(--text-2)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+            }}
           >
             {s}
           </button>
@@ -350,10 +356,13 @@ export default function AssistentePage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] md:h-screen bg-white">
+    <div className="flex flex-col h-[calc(100vh-80px)] md:h-screen" style={{ background: 'var(--bg)' }}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 bg-white flex-shrink-0">
+      <div
+        className="flex items-center gap-3 px-4 py-3.5 flex-shrink-0"
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+      >
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{ background: 'var(--accent-bg)' }}
@@ -361,14 +370,15 @@ export default function AssistentePage() {
           <Bot size={20} style={{ color: 'var(--accent)' }} />
         </div>
         <div className="flex-1">
-          <h1 className="text-sm font-semibold text-gray-900">GastôBot</h1>
-          <p className="text-[11px] text-gray-500">Assistente financeiro com IA</p>
+          <h1 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>GastôBot</h1>
+          <p className="text-[11px]" style={{ color: 'var(--text-2)' }}>Assistente financeiro com IA</p>
         </div>
         {messages.length > 0 && (
           <button
             onClick={newConversation}
             title="Nova conversa"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors"
+            style={{ color: 'var(--text-2)', background: 'var(--bg)' }}
           >
             <RotateCcw size={13} />
             Nova
@@ -403,7 +413,8 @@ export default function AssistentePage() {
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
                   <div
-                    className="inline-block max-w-[90%] bg-gray-50 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed"
+                    className="inline-block max-w-[90%] rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed"
+                    style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
                     dangerouslySetInnerHTML={{ __html: renderBotText(msg.text) }}
                   />
 
@@ -418,7 +429,7 @@ export default function AssistentePage() {
                     <ConfirmedCard expense={msg.expense} />
                   )}
                   {msg.expense && msg.expenseStatus === 'cancelled' && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
                       <X size={11} /> Lançamento cancelado
                     </p>
                   )}
@@ -436,11 +447,14 @@ export default function AssistentePage() {
             >
               <Bot size={14} style={{ color: 'var(--accent)' }} />
             </div>
-            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3.5">
+            <div
+              className="rounded-2xl rounded-tl-sm px-4 py-3.5"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
               <div className="flex gap-1.5 items-center">
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:300ms]" />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0ms]" style={{ background: 'var(--text-3)' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:150ms]" style={{ background: 'var(--text-3)' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:300ms]" style={{ background: 'var(--text-3)' }} />
               </div>
             </div>
           </div>
@@ -450,7 +464,10 @@ export default function AssistentePage() {
       </div>
 
       {/* Input ou Upgrade Banner */}
-      <div className="px-4 py-3 border-t border-gray-100 bg-white flex-shrink-0">
+      <div
+        className="px-4 py-3 flex-shrink-0"
+        style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}
+      >
         {isBlocked ? (
           <UpgradeBanner
             variant="inline"
@@ -464,10 +481,14 @@ export default function AssistentePage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ex: Gastei R$ 50 no iFood hoje…"
-              className="flex-1 bg-gray-50 text-gray-900 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-gray-200 transition-colors"
-              style={{ borderColor: undefined }}
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+              style={{
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+              }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
               disabled={loading}
               autoComplete="off"
             />

@@ -126,7 +126,7 @@ export default function OrcamentoCard({
                 cursor: 'pointer',
                 fontSize: 12,
                 fontWeight: 500,
-                color: '#5B5BD6',
+                color: 'var(--accent)',
                 lineHeight: 1.1,
               }}
             >
@@ -151,7 +151,7 @@ export default function OrcamentoCard({
               <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
                 disponível
               </p>
-              <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
                 {valorLivreParaGastarPlanejado > 0
                   ? `de ${formatCurrency(valorLivreParaGastarPlanejado)} orçados`
                   : valorLivreParaGastarPlanejado < 0

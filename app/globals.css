@@ -55,6 +55,67 @@
   --color-text-muted: #6b7280;
 }
 
+/* ── Dark theme (toggle manual via data-theme="dark" no <html>) ───────── */
+[data-theme="dark"] {
+  --bg: #14141A;
+  --surface: #1C1C24;
+  --logo-bg: #232330;
+  --border: #2A2A36;
+  --border-2: #23232E;
+  --text: #F1F1EC;
+  --text-2: #9B9BAA;
+  --text-3: #7A7A8A;
+  --green: #00D88B;
+  --green-bg: rgba(0,216,139,0.14);
+  --green-text: #4BE3A8;
+  --red: #FF5C6A;
+  --red-bg: rgba(255,92,106,0.14);
+  --yellow: #FFC629;
+  --yellow-bg: rgba(255,198,41,0.13);
+  --yellow-text: #FFD466;
+  --accent: #7D7DE8;
+  --accent-bg: rgba(125,125,232,0.13);
+  --accent-soft: rgba(125,125,232,0.22);
+  --accent-shadow: rgba(0,0,0,0.50);
+  --plus-shadow: rgba(125,125,232,0.50);
+  --avatar-shadow: rgba(125,125,232,0.45);
+  --card-shadow: 0 1px 4px rgba(0,0,0,0.30);
+  --hbtn-shadow: 0 1px 3px rgba(0,0,0,0.30);
+  --nav-shadow: 0 -4px 20px rgba(0,0,0,0.40);
+}
+
+/* Auto-detecta dark do SO quando o usuário não fixou um tema explícito.
+   Se data-theme="light" estiver no <html>, esta media query NÃO aplica. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14141A;
+    --surface: #1C1C24;
+    --logo-bg: #232330;
+    --border: #2A2A36;
+    --border-2: #23232E;
+    --text: #F1F1EC;
+    --text-2: #9B9BAA;
+    --text-3: #7A7A8A;
+    --green: #00D88B;
+    --green-bg: rgba(0,216,139,0.14);
+    --green-text: #4BE3A8;
+    --red: #FF5C6A;
+    --red-bg: rgba(255,92,106,0.14);
+    --yellow: #FFC629;
+    --yellow-bg: rgba(255,198,41,0.13);
+    --yellow-text: #FFD466;
+    --accent: #7D7DE8;
+    --accent-bg: rgba(125,125,232,0.13);
+    --accent-soft: rgba(125,125,232,0.22);
+    --accent-shadow: rgba(0,0,0,0.50);
+    --plus-shadow: rgba(125,125,232,0.50);
+    --avatar-shadow: rgba(125,125,232,0.45);
+    --card-shadow: 0 1px 4px rgba(0,0,0,0.30);
+    --hbtn-shadow: 0 1px 3px rgba(0,0,0,0.30);
+    --nav-shadow: 0 -4px 20px rgba(0,0,0,0.40);
+  }
+}
+
 @theme inline {
   --color-background: var(--color-bg-base);
   --color-foreground: var(--color-text-primary);

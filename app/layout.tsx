@@ -4,6 +4,7 @@ import './globals.css';
 import OfflineBanner from '@/components/OfflineBanner';
 import CookieBanner from '@/components/CookieBanner';
 import CouponCapture from '@/components/CouponCapture';
+import { ThemeProvider } from '@/lib/themeContext';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -43,7 +44,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#5B5BD6',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#5B5BD6' },
+    { media: '(prefers-color-scheme: dark)', color: '#14141A' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -52,12 +56,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`h-full ${nunito.className}`}>
+    <html lang="pt-BR" className={`h-full ${nunito.className}`} suppressHydrationWarning>
       <body className="min-h-full" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-        <OfflineBanner />
-        <CouponCapture />
-        {children}
-        <CookieBanner />
+        <ThemeProvider>
+          <OfflineBanner />
+          <CouponCapture />
+          {children}
+          <CookieBanner />
+        </ThemeProvider>
       </body>
     </html>
   );

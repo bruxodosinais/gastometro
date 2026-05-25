@@ -500,7 +500,11 @@ export default function MissaoDashboardPage() {
         <section className="pt-3">
           <div
             className="rounded-2xl p-5"
-            style={{ background: '#EEEDFC', borderRadius: 'var(--r)' }}
+            style={{
+              background: 'var(--accent-bg)',
+              border: '1px solid var(--accent-soft)',
+              borderRadius: 'var(--r)',
+            }}
           >
             <div className="flex items-center gap-2">
               <Sparkles size={14} color="var(--accent)" />
@@ -542,7 +546,7 @@ export default function MissaoDashboardPage() {
             ) : (
               <p
                 className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-extrabold"
-                style={{ background: 'rgba(91,91,214,0.15)', color: 'var(--accent)' }}
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
               >
                 <Check size={12} /> Desafio aceito
               </p>
@@ -1064,7 +1068,7 @@ function BadgeGridItem({
     >
       <div
         className="flex h-[52px] w-[52px] items-center justify-center rounded-full"
-        style={{ background: unlocked ? '#EEEDFC' : '#f3f4f6' }}
+        style={{ background: unlocked ? 'var(--accent-bg)' : 'var(--border)' }}
       >
         <span className="text-xl leading-none" style={{ opacity: unlocked ? 1 : 0.4 }}>
           {badge.emoji}

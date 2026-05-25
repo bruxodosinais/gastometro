@@ -14,7 +14,7 @@ import { openSupport } from '@/components/SupportButton';
 import { MISSAO_FEATURE_KEY, markFeatureSeen, shouldShowNewBadge } from '@/lib/featureFlags';
 
 const ACTIVE = 'var(--accent)';
-const INACTIVE = '#9CA3AF';
+const INACTIVE = 'var(--text-3)';
 
 // Itens expostos no sheet "Mais". `newKey` marca itens elegíveis ao selo NOVO
 // (badge verde + auto-dismiss via featureFlags).
@@ -59,8 +59,8 @@ export default function Navigation() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
         style={{
-          background: '#FFFFFF',
-          borderTop: '1px solid #F3F4F6',
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--border)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >

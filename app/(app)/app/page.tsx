@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Moon, RefreshCw, Sun } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
+import { useTheme } from '@/lib/themeContext';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
@@ -63,6 +64,7 @@ export default function HomePage() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
   const { isFree, loading: subLoading } = useSubscription();
+  const { resolvedTheme, setTheme } = useTheme();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -855,6 +857,29 @@ export default function HomePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Toggle de tema */}
+          <button
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            title={resolvedTheme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+            aria-label={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            style={{
+              width: 38,
+              height: 38,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--hbtn-shadow)',
+              cursor: 'pointer',
+            }}
+          >
+            {resolvedTheme === 'dark'
+              ? <Sun size={16} color="var(--text-2)" />
+              : <Moon size={16} color="var(--text-2)" />}
+          </button>
+
           {/* Notificações */}
           <div style={{ position: 'relative' }}>
             <button

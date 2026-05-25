@@ -77,7 +77,7 @@ export default function MissaoCard({ mounted }: Props) {
         style={{
           margin: '10px 16px 0',
           display: 'block',
-          background: '#EEEDFC',
+          background: 'var(--accent-bg)',
           borderRadius: 'var(--r)',
           padding: '14px 16px',
           textDecoration: 'none',
@@ -90,7 +90,7 @@ export default function MissaoCard({ mounted }: Props) {
               width: 36,
               height: 36,
               borderRadius: 10,
-              background: '#fff',
+              background: 'var(--surface)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

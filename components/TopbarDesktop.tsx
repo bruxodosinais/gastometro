@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Moon, Plus, Sun } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
 import { usePeriod } from '@/lib/periodContext';
+import { useTheme } from '@/lib/themeContext';
 import { getMonthKey } from '@/lib/calculations';
 import {
   getMonthlyObligations,
@@ -17,6 +18,7 @@ import {
 export default function TopbarDesktop() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
+  const { resolvedTheme, setTheme } = useTheme();
   const [userName, setUserName] = useState('');
   const [hasPending, setHasPending] = useState(false);
 
@@ -167,8 +169,29 @@ export default function TopbarDesktop() {
         </div>
       </div>
 
-      {/* Direita: notificações + Lançar */}
+      {/* Direita: tema + notificações + Lançar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          style={{
+            width: 34,
+            height: 34,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 9,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          aria-label={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          title={resolvedTheme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+        >
+          {resolvedTheme === 'dark'
+            ? <Sun size={15} color="var(--text-2)" />
+            : <Moon size={15} color="var(--text-2)" />}
+        </button>
+
         <button
           onClick={() => router.push('/app')}
           style={{
