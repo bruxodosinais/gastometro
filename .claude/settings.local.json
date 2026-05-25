@@ -91,7 +91,9 @@
       "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/recorrentes.png\" public/assets/)",
       "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/gastobot.png\" public/assets/)",
       "Bash(lsof -ti:3000,3001)",
-      "Bash(ps -p 29783,72000,16873,16960 -o pid,ppid,etime,command)"
+      "Bash(ps -p 29783,72000,16873,16960 -o pid,ppid,etime,command)",
+      "Bash(ps -p 16873 -o command=)",
+      "Bash(ps -p 16960 -o command=)"
     ]
   }
 }

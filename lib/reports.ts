@@ -35,6 +35,7 @@ export type WeeklyReport = {
   pendingBills: PendingBill[];
   availableBalance: number;
   expectedIncome: number;
+  monthIncome: number;
   monthSpent: number;
   missao: WeeklyMissionData | null;
 };
@@ -159,6 +160,9 @@ export async function computeWeeklyReport(
   const monthSpent = (monthExp ?? [])
     .filter((e) => e.type === 'expense')
     .reduce((s, e) => s + Number(e.amount), 0);
+  const monthIncome = (monthExp ?? [])
+    .filter((e) => e.type === 'income')
+    .reduce((s, e) => s + Number(e.amount), 0);
 
   const variationPercent =
     previousSpent > 0 ? ((totalSpent - previousSpent) / previousSpent) * 100 : null;
@@ -173,7 +177,10 @@ export async function computeWeeklyReport(
     }));
 
   const expectedIncome = plan?.expected_income ? Number(plan.expected_income) : 0;
-  const availableBalance = expectedIncome - monthSpent;
+  // Renda real lançada no mês prevalece; cai para expected_income se o usuário
+  // ainda não registrou nenhuma receita.
+  const incomeBase = monthIncome > 0 ? monthIncome : expectedIncome;
+  const availableBalance = incomeBase - monthSpent;
 
   // Bloco de Missão de Poupança (S4-1). Equivalente a getMission +
   // getTotalSaved + calcStreak de lib/storage/missions.ts, mas inline com o
@@ -242,6 +249,7 @@ export async function computeWeeklyReport(
     pendingBills,
     availableBalance,
     expectedIncome,
+    monthIncome,
     monthSpent,
     missao,
   };
@@ -479,7 +487,12 @@ export function renderWeeklyEmailHtml(report: WeeklyReport): string {
       <p style="font-size:18px; font-weight:800; color:${report.availableBalance >= 0 ? '#16a34a' : '#dc2626'}; margin:0;">
         ${fmtBRL(report.availableBalance)}
       </p>
-      ${report.expectedIncome > 0 ? `<p style="font-size:11px; color:#6B6B6B; margin:2px 0 0;">Renda esperada ${fmtBRL(report.expectedIncome)} − gastos do mês ${fmtBRL(report.monthSpent)}</p>` : ''}
+      ${(() => {
+        const usedIncome = report.monthIncome > 0 ? report.monthIncome : report.expectedIncome;
+        if (usedIncome <= 0) return '';
+        const label = report.monthIncome > 0 ? 'Renda lançada' : 'Renda esperada';
+        return `<p style="font-size:11px; color:#6B6B6B; margin:2px 0 0;">${label} ${fmtBRL(usedIncome)} − gastos do mês ${fmtBRL(report.monthSpent)}</p>`;
+      })()}
     </div>
 
     ${pendingBlock(report.pendingBills)}
