@@ -15,10 +15,20 @@ import {
   type MissionContribution,
   type SavingsMission,
 } from '@/lib/storage/missions';
-import { BADGES, type BadgeDef } from '../../_components/missao/badges';
+import { BADGES, badgesByCategory, type BadgeDef } from '../../_components/missao/badges';
+import { getMissionLevel, type BadgeCategory } from '@/lib/badges';
 import BadgeDetailSheet from '../../_components/missao/BadgeDetailSheet';
 
 type Tab = 'badges' | 'history';
+
+// Rótulos visíveis das categorias de badge. A ordem das seções na grid é
+// definida no JSX (streak → valor → missoes → comportamento).
+const CATEGORY_LABELS: Record<BadgeCategory, string> = {
+  streak: 'Streak',
+  valor: 'Valor acumulado',
+  missoes: 'Missões',
+  comportamento: 'Comportamento',
+};
 
 // Entrada da aba Histórico: a missão + dados derivados das contribuições
 // (total guardado + data da última contribuição, que serve como "meta
@@ -146,9 +156,19 @@ function BadgesContent() {
     () => (state ? BADGES.filter((b) => !state.unlockedKeys.has(b.key)) : []),
     [state],
   );
+  const byCategory = useMemo(() => badgesByCategory(), []);
 
   // Próximo: primeiro da grid bloqueada (ordem das BADGES = ordem de progressão).
   const next = locked[0];
+
+  // Progresso da missão ativa → nível atual (5 faixas). Quando não há missão
+  // ativa (usuário acessou /missao/badges sem missão criada), level fica null
+  // e o card de XP é ocultado.
+  const missionLevel = useMemo(() => {
+    if (!state?.mission || state.mission.targetAmount <= 0) return null;
+    const pct = Math.min(100, (state.totalSaved / state.mission.targetAmount) * 100);
+    return { ...getMissionLevel(pct), progressPercent: pct };
+  }, [state]);
 
   if (loading) {
     return (
@@ -201,8 +221,46 @@ function BadgesContent() {
       ) : (
         <>
 
+      {/* ── Card de XP por nível ───────────────────────────────────────── */}
+      {/* Cinco faixas baseadas no progressPercent da missão ativa. Fica
+          oculto quando o usuário não tem missão ativa (ex.: chegou aqui via
+          deep link sem nunca ter criado missão). Fundo lilás conforme spec. */}
+      {missionLevel && (
+        <section className="px-5 pt-2">
+          <div
+            className="flex items-center gap-4 p-5"
+            style={{ background: '#EEEDFC', borderRadius: 16 }}
+          >
+            <span className="text-[44px] leading-none">{missionLevel.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[18px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
+                {missionLevel.label}
+              </p>
+              <div
+                className="mt-2 h-1.5 w-full overflow-hidden rounded-full"
+                style={{ background: 'rgba(91,91,214,0.18)' }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${missionLevel.progressInLevel}%`,
+                    background: '#5B5BD6',
+                    transition: 'width 600ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                />
+              </div>
+              <p className="mt-1.5 text-xs font-bold" style={{ color: '#6b7280' }}>
+                {missionLevel.next
+                  ? `${missionLevel.toNextPercent}% para o próximo nível`
+                  : 'Você atingiu o nível máximo!'}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Banner com donut ───────────────────────────────────────────── */}
-      <section className="px-5 pt-2">
+      <section className="px-5 pt-3">
         <div
           className="flex items-center gap-4 rounded-2xl p-5"
           style={{ background: 'var(--surface)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--r)' }}
@@ -219,91 +277,65 @@ function BadgesContent() {
         </div>
       </section>
 
-      {/* ── Desbloqueados ──────────────────────────────────────────────── */}
-      {unlocked.length > 0 && (
-        <section className="px-5 pt-5">
-          <p
-            className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.12em]"
-            style={{ color: 'var(--text-3)' }}
-          >
-            Desbloqueados
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            {unlocked.map((b) => (
-              <button
-                key={b.key}
-                onClick={() => setActive(b)}
-                className="relative flex flex-col items-center rounded-2xl p-3 transition active:scale-95"
-                style={{
-                  background: 'var(--surface)',
-                  boxShadow: 'var(--card-shadow)',
-                  borderRadius: 'var(--r)',
-                }}
-              >
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-full text-[26px]"
-                  style={{ background: 'var(--accent-bg)' }}
-                >
-                  {b.emoji}
-                </div>
-                <p
-                  className="mt-2 text-center text-[11px] font-extrabold leading-tight"
-                  style={{ color: 'var(--text)' }}
-                >
-                  {b.name}
-                </p>
-                <span
-                  className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full"
-                  style={{ background: 'var(--green)', color: 'white' }}
-                >
-                  <Check size={12} strokeWidth={3} />
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Bloqueados ─────────────────────────────────────────────────── */}
-      {locked.length > 0 && (
-        <section className="px-5 pt-5">
-          <p
-            className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.12em]"
-            style={{ color: 'var(--text-3)' }}
-          >
-            A conquistar
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            {locked.map((b) => (
-              <button
-                key={b.key}
-                onClick={() => setActive(b)}
-                className="flex flex-col items-center rounded-2xl p-3 transition active:scale-95"
-                style={{
-                  background: 'var(--surface)',
-                  boxShadow: 'var(--card-shadow)',
-                  borderRadius: 'var(--r)',
-                }}
-              >
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: '#f3f4f6' }}
-                >
-                  <span className="text-[26px] leading-none" style={{ opacity: 0.4 }}>
-                    {b.emoji}
-                  </span>
-                </div>
-                <p
-                  className="mt-2 text-center text-[11px] font-extrabold leading-tight"
-                  style={{ color: 'var(--text-2)' }}
-                >
-                  {b.name}
-                </p>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Badges por categoria ──────────────────────────────────────── */}
+      {/* Substitui o split Desbloqueados/A conquistar — cada seção mostra
+          todos os badges da categoria, com check verde nos desbloqueados.
+          Ordem das seções espelha BadgeCategory: streak, valor, missoes,
+          comportamento (que é a ordem natural de progressão na app). */}
+      {(['streak', 'valor', 'missoes', 'comportamento'] as BadgeCategory[]).map((cat) => {
+        const items = byCategory[cat];
+        if (items.length === 0) return null;
+        return (
+          <section key={cat} className="px-5 pt-5">
+            <p
+              className="mb-3 text-xs font-extrabold uppercase tracking-[0.12em]"
+              style={{ color: '#6b7280' }}
+            >
+              {CATEGORY_LABELS[cat]}
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {items.map((b) => {
+                const isUnlocked = state?.unlockedKeys.has(b.key) ?? false;
+                return (
+                  <button
+                    key={b.key}
+                    onClick={() => setActive(b)}
+                    className="relative flex flex-col items-center rounded-2xl p-3 transition active:scale-95"
+                    style={{
+                      background: 'var(--surface)',
+                      boxShadow: 'var(--card-shadow)',
+                      borderRadius: 'var(--r)',
+                    }}
+                  >
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-full"
+                      style={{ background: isUnlocked ? 'var(--accent-bg)' : '#f3f4f6' }}
+                    >
+                      <span className="text-[26px] leading-none" style={{ opacity: isUnlocked ? 1 : 0.4 }}>
+                        {b.emoji}
+                      </span>
+                    </div>
+                    <p
+                      className="mt-2 text-center text-[11px] font-extrabold leading-tight"
+                      style={{ color: isUnlocked ? 'var(--text)' : 'var(--text-2)' }}
+                    >
+                      {b.name}
+                    </p>
+                    {isUnlocked && (
+                      <span
+                        className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full"
+                        style={{ background: 'var(--green)', color: 'white' }}
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
 
       {/* ── Banner próximo badge ──────────────────────────────────────── */}
       {next && state && (

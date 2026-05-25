@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getExpenses } from '@/lib/storage';
-import { addContribution } from '@/lib/storage/missions';
+import { addContribution, checkAndUnlockBadges } from '@/lib/storage/missions';
 
 type Props = {
   open: boolean;
@@ -65,6 +65,14 @@ export default function ContributionSheet({
       setSaving(false);
       return;
     }
+
+    // Avalia badges automáticos (streak, valor acumulado, comportamento).
+    // Fire-and-forget: o aporte já foi persistido — falha no badge não deve
+    // bloquear o fluxo nem mostrar erro pro usuário. O loadAll() do dashboard
+    // (disparado via onSaved) busca o estado atualizado do banco.
+    checkAndUnlockBadges(userId, missionId).catch((err) =>
+      console.error('checkAndUnlockBadges:', err),
+    );
 
     // Fire-and-forget: a geração do desafio via IA é assíncrona, não bloqueia
     // o fechamento do sheet. Se a rota não existir/falhar, segue normal.

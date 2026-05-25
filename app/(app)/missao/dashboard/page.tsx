@@ -27,7 +27,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import ContributionSheet from '../../_components/missao/ContributionSheet';
 import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
 import BadgeDetailSheet from '../../_components/missao/BadgeDetailSheet';
-import { BADGES, levelByActivity, QUARTER_BADGE_KEY, type BadgeDef } from '../../_components/missao/badges';
+import { BADGES, QUARTER_BADGE_KEY, type BadgeDef } from '../../_components/missao/badges';
+import { getMissionLevel } from '@/lib/badges';
 
 // Milestones (% → badge_key). Ordem decrescente: ao detectar cruzamento,
 // processamos o maior primeiro para mostrar a celebração mais alta.
@@ -202,13 +203,10 @@ export default function MissaoDashboardPage() {
   const monthlyTarget = mission?.monthlyTarget ?? 0;
   const progressPercent = target > 0 ? Math.min(100, (totalSaved / target) * 100) : 0;
   const streak = useMemo(() => calcStreak(contributions), [contributions]);
-  // Nível segue contagem de meses distintos com aporte (não streak): a UX
-  // do badge premia consistência ao longo do tempo, não só meses seguidos.
-  const monthsActive = useMemo(
-    () => new Set(contributions.map((c) => c.month)).size,
-    [contributions],
-  );
-  const level = levelByActivity(contributions.length, monthsActive);
+  // Nível agora segue o progresso da missão (0–24, 25–49, 50–74, 75–99, 100).
+  // Cinco faixas exibidas como chip no header + linha de "próximo nível"
+  // logo abaixo da barra de progresso.
+  const level = useMemo(() => getMissionLevel(progressPercent), [progressPercent]);
 
   const currentMonthKey = getMonthKey(new Date());
   const contribsThisMonth = useMemo(
@@ -366,8 +364,8 @@ export default function MissaoDashboardPage() {
           className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-extrabold"
           style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
         >
+          <span>{level.emoji}</span>
           <span>{level.label}</span>
-          {level.emoji && <span>{level.emoji}</span>}
         </Link>
         {/* Menu ⋯: ficou à direita do badge de nível pra não competir com
             o botão voltar à esquerda. relative+absolute pra ancorar o popover
@@ -456,6 +454,14 @@ export default function MissaoDashboardPage() {
             <span>75%</span>
             <span>🏁</span>
           </div>
+
+          {/* Linha de próximo nível. No topo (level.next === null), troca
+              para a mensagem de conclusão. text-xs #6b7280 conforme spec. */}
+          <p className="mt-3 text-xs font-bold" style={{ color: '#6b7280' }}>
+            {level.next
+              ? <>Próximo nível: <span>{level.next.emoji}</span> {level.next.label} · faltam {level.toNextPercent}%</>
+              : <>🏆 Missão completa!</>}
+          </p>
         </div>
       </section>
 

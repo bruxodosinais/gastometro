@@ -117,6 +117,23 @@ export async function getMission(userId: string): Promise<SavingsMission | null>
   });
 }
 
+// Fetch direto por ID, usado pelo checkAndUnlockBadges que precisa do
+// start_date/monthly_target da missão exata sendo aportada (pode não ser a
+// "ativa" se a UI mudou no meio do fluxo). Cacheado pelo mesmo prefixo do
+// getMission para invalidar junto em qualquer escrita de savings_missions.
+export async function getMissionById(missionId: string): Promise<SavingsMission | null> {
+  return cachedFetch(`savings_missions:byId:${missionId}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('savings_missions')
+      .select('*')
+      .eq('id', missionId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return toMission(data);
+  });
+}
+
 // Lista de missões fechadas (concluídas) ou pausadas — usada pela aba
 // Histórico em /missao/badges. Cacheada com prefixo `savings_missions:` para
 // invalidar junto com getMission/getCompletedMissionsCount quando uma missão
@@ -239,6 +256,21 @@ export async function addContribution(
 export async function getTotalSaved(missionId: string): Promise<number> {
   const contributions = await getContributions(missionId);
   return contributions.reduce((sum, c) => sum + Number(c.amount), 0);
+}
+
+// Soma de TODOS os aportes do usuário em qualquer missão (ativa, pausada ou
+// concluída). Usado para os badges `poupador_iniciante/dedicado/elite`, que
+// medem o esforço acumulado ao longo do tempo, não o progresso de uma missão.
+export async function getTotalSavedByUser(userId: string): Promise<number> {
+  return cachedFetch(`mission_contributions:total:${userId}`, TTL.LIST, async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('mission_contributions')
+      .select('amount')
+      .eq('user_id', userId);
+    if (error || !data) return 0;
+    return data.reduce((s, r) => s + Number(r.amount), 0);
+  });
 }
 
 export async function getChallenges(missionId: string, month: string): Promise<MissionChallenge[]> {
@@ -370,4 +402,114 @@ function isPreviousMonth(current: string, candidate: string): boolean {
   const [py, pm] = candidate.split('-').map(Number);
   if (cm === 1) return py === cy - 1 && pm === 12;
   return py === cy && pm === cm - 1;
+}
+
+// Total de meses cobertos entre `startDate` (YYYY-MM-DD) e o mês corrente
+// (inclusive em ambos). Ex.: start='2026-01-15', hoje em '2026-05-*' → 5.
+function monthsSinceStartInclusive(startDate: string, today: Date): number {
+  const [sy, sm] = startDate.split('-').map(Number);
+  const cy = today.getFullYear();
+  const cm = today.getMonth() + 1;
+  return Math.max(1, (cy - sy) * 12 + (cm - sm) + 1);
+}
+
+// Diferença em dias entre a data de início da missão e a primeira contribuição
+// (ambas convertidas para BRT pra não atravessar fronteira de dia por UTC).
+function daysBetweenStartAndFirst(startDate: string, firstRegisteredAt: string): number {
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  const firstMs = new Date(firstRegisteredAt).getTime();
+  return (firstMs - startMs) / 86_400_000;
+}
+
+// Avalia todos os badges automáticos (silenciosos + novos da expansão) e
+// desbloqueia os que o usuário merece e ainda não tem. Idempotente: roda
+// múltiplas vezes sem custo (UNIQUE constraint no banco) e devolve a lista
+// de chaves recém-criadas para callers que queiram reagir (toast, animação).
+//
+// Os badges de marco visual (meio_caminho, meta_batida, primeiro_quarto e
+// mestre_clt) seguem sendo tratados no dashboard pelo triggerMilestoneIfAny,
+// porque disparam MilestoneModal — não devem ser unlockeados silenciosamente
+// aqui pra não engolir a celebração.
+export async function checkAndUnlockBadges(
+  userId: string,
+  missionId: string,
+): Promise<string[]> {
+  const [mission, existing, contribs, totalAcrossUser, completedCount] = await Promise.all([
+    getMissionById(missionId),
+    getAllUserBadges(userId),
+    getContributions(missionId),
+    getTotalSavedByUser(userId),
+    getCompletedMissionsCount(userId),
+  ]);
+  if (!mission) return [];
+
+  const have = new Set(existing);
+  const toUnlock: string[] = [];
+
+  const push = (key: string) => {
+    if (!have.has(key)) toUnlock.push(key);
+  };
+
+  // ─── Silenciosos legados (também tratados no dashboard, idempotência ok) ─
+  if (contribs.length >= 1) push('primeiro_passo');
+
+  // ─── Streak ────────────────────────────────────────────────────────────
+  const streak = calcStreak(contribs);
+  if (streak >= 3) {
+    push('consistente');
+    push('em_chama');
+  }
+  if (streak >= 6) {
+    push('expert');
+    push('inabalavel');
+  }
+  if (streak >= 12) push('lendario');
+
+  // ─── Valor acumulado cross-missão ──────────────────────────────────────
+  if (totalAcrossUser >= 1_000) push('poupador_iniciante');
+  if (totalAcrossUser >= 5_000) push('poupador_dedicado');
+  if (totalAcrossUser >= 50_000) push('poupador_elite');
+
+  // ─── Missões concluídas (somam-se ao mestre_clt do dashboard) ─────────
+  if (completedCount >= 3) push('recorrente');
+  if (completedCount >= 5) push('serial_saver');
+
+  // ─── Comportamento ─────────────────────────────────────────────────────
+  // largada_rapida: 1º depósito dentro de 7 dias após start_date.
+  if (contribs.length > 0 && !have.has('largada_rapida')) {
+    // getContributions vem ordenado desc por registered_at; pegamos o último
+    // (mais antigo) como primeiro depósito.
+    const first = contribs[contribs.length - 1];
+    if (daysBetweenStartAndFirst(mission.startDate, first.registeredAt) <= 7) {
+      push('largada_rapida');
+    }
+  }
+
+  // pontual: aporte em todos os meses desde o início. Exige ≥2 meses de
+  // tenure pro badge não disparar trivialmente no 1º depósito.
+  if (!have.has('pontual')) {
+    const monthsCovered = new Set(contribs.map((c) => c.month)).size;
+    const monthsSinceStart = monthsSinceStartInclusive(mission.startDate, new Date());
+    if (monthsSinceStart >= 2 && monthsCovered >= monthsSinceStart) push('pontual');
+  }
+
+  // dobrou_meta: algum mês com total ≥ 2× monthlyTarget.
+  if (mission.monthlyTarget > 0 && !have.has('dobrou_meta')) {
+    const byMonth = new Map<string, number>();
+    for (const c of contribs) {
+      byMonth.set(c.month, (byMonth.get(c.month) ?? 0) + Number(c.amount));
+    }
+    for (const total of byMonth.values()) {
+      if (total >= 2 * mission.monthlyTarget) {
+        push('dobrou_meta');
+        break;
+      }
+    }
+  }
+
+  if (toUnlock.length === 0) return [];
+  // Promise.all + ignoreDuplicates no upsert: idempotente mesmo em race.
+  await Promise.all(toUnlock.map((k) => unlockBadge(userId, missionId, k)));
+  return toUnlock;
 }

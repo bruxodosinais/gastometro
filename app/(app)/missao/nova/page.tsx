@@ -18,6 +18,26 @@ const AMOUNT_PILLS = [5_000, 10_000, 20_000, 50_000];
 const CUSTOM_MONTHS_MIN = 1;
 const CUSTOM_MONTHS_MAX = 60;
 
+// Templates de missão (pré-preenchimento do formulário). A 7ª opção
+// "personalizada" não tem valores e leva ao formulário em branco — mantém o
+// comportamento original do fluxo para quem prefere começar do zero.
+type MissionTemplate = {
+  id: string;
+  emoji: string;
+  name: string;
+  targetAmount: number;
+  months: number;
+};
+
+const TEMPLATES: MissionTemplate[] = [
+  { id: 'viagem',       emoji: '🏖️', name: 'Viagem dos sonhos',     targetAmount: 5_000,  months: 12 },
+  { id: 'reserva',      emoji: '🏠', name: 'Reserva de emergência', targetAmount: 10_000, months: 24 },
+  { id: 'celular',      emoji: '📱', name: 'Trocar de celular',     targetAmount: 3_000,  months: 6 },
+  { id: 'estudo',       emoji: '🎓', name: 'Curso ou faculdade',    targetAmount: 8_000,  months: 18 },
+  { id: 'carro',        emoji: '🚗', name: 'Entrada do carro',      targetAmount: 15_000, months: 36 },
+  { id: 'noivado',      emoji: '💍', name: 'Anel de noivado',       targetAmount: 5_000,  months: 12 },
+];
+
 // easeOutCubic — começa rápido, suaviza no fim. Usado para subir do 0 ao
 // alvo quando uma pill de valor é tocada e para tweenar o monthly target
 // ao trocar de prazo.
@@ -80,7 +100,11 @@ function NovaMissaoWizard() {
   const { isPro, loading: subLoading } = useSubscription();
   const { toasts, addToast, removeToast } = useToast();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // Step 0 é a seleção de template. Deep-link com ?nome= pula pro step 1
+  // direto (já tem prefill via URL — não faz sentido perguntar template).
+  const initialStep: 0 | 1 = searchParams.get('nome') ? 1 : 0;
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(initialStep);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [name, setName] = useState(() => searchParams.get('nome') ?? '');
   const [targetAmount, setTargetAmount] = useState(0);
   const [pillSeed, setPillSeed] = useState(0); // dispara tween ao tocar pill
@@ -135,6 +159,26 @@ function NovaMissaoWizard() {
   const pickPillAmount = useCallback((amount: number) => {
     setTargetAmount(amount);
     setPillSeed((s) => s + 1);
+  }, []);
+
+  // Selecionar um template (ou "personalizada" → null) leva ao step 1 já
+  // pré-preenchido. Meses fora do preset (ex.: 36) entram em customMode
+  // para o input numérico aparecer no Step2.
+  const handlePickTemplate = useCallback((tpl: MissionTemplate | null) => {
+    if (tpl === null) {
+      setSelectedTemplateId(null);
+      setName('');
+      setTargetAmount(0);
+      setMonths(null);
+      setCustomMonthsMode(false);
+    } else {
+      setSelectedTemplateId(tpl.id);
+      setName(tpl.name);
+      setTargetAmount(tpl.targetAmount);
+      setMonths(tpl.months);
+      setCustomMonthsMode(!(MONTHS_OPTIONS as number[]).includes(tpl.months));
+    }
+    setStep(1);
   }, []);
 
   const canContinueStep1 = name.trim().length > 0 && targetAmount > 0;
@@ -204,7 +248,13 @@ function NovaMissaoWizard() {
 
       <header className="flex items-center gap-3 pt-5 pb-3">
         <button
-          onClick={() => (step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : router.push('/missao'))}
+          onClick={() => {
+            // step 0/1 saem da página; step 2/3 voltam pro anterior.
+            // Step 1 vinda de deep-link (initialStep===1) também sai pra /missao.
+            if (step >= 2) setStep((s) => (s - 1) as 0 | 1 | 2 | 3);
+            else if (step === 1 && initialStep === 0) setStep(0);
+            else router.push('/missao');
+          }}
           aria-label="Voltar"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
           style={{ background: 'var(--surface)', boxShadow: 'var(--hbtn-shadow)' }}
@@ -217,7 +267,8 @@ function NovaMissaoWizard() {
         >
           Nova missão
         </h1>
-        <div className="flex shrink-0 items-center gap-2">
+        {/* Pills só nos steps 1-3. Step 0 (seleção de template) é pré-fluxo. */}
+        <div className="flex shrink-0 items-center gap-2" style={{ visibility: step === 0 ? 'hidden' : 'visible' }}>
           {[1, 2, 3].map((n) => (
             <span
               key={n}
@@ -233,6 +284,13 @@ function NovaMissaoWizard() {
           ))}
         </div>
       </header>
+
+      {step === 0 && (
+        <Step0
+          selectedId={selectedTemplateId}
+          onPick={handlePickTemplate}
+        />
+      )}
 
       {step === 1 && (
         <Step1
@@ -281,6 +339,81 @@ function NovaMissaoWizard() {
         />
       )}
     </main>
+  );
+}
+
+// ─── STEP 0 — Seleção de template ────────────────────────────────────────
+// Pré-fluxo: oferece templates prontos antes do formulário livre. Selecionar
+// um card pré-preenche nome + valor + prazo no step 1; "Missão personalizada"
+// vai pro step 1 em branco (comportamento original).
+
+function Step0(props: {
+  selectedId: string | null;
+  onPick: (tpl: MissionTemplate | null) => void;
+}) {
+  return (
+    <section className="pt-2 pb-10">
+      <h2 className="text-[24px] font-extrabold leading-tight" style={{ color: 'var(--text)' }}>
+        Por onde quer começar?
+      </h2>
+      <p className="mt-1 text-[14px] font-medium" style={{ color: 'var(--text-2)' }}>
+        Escolha um modelo ou crie a sua do zero.
+      </p>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {TEMPLATES.map((tpl) => {
+          const active = props.selectedId === tpl.id;
+          return (
+            <button
+              key={tpl.id}
+              type="button"
+              onClick={() => props.onPick(tpl)}
+              className="flex flex-col items-center rounded-2xl p-4 text-center transition active:scale-[0.97]"
+              style={{
+                background: active ? '#EEEDFC' : '#FFFFFF',
+                border: `2px solid ${active ? '#5B5BD6' : 'transparent'}`,
+                borderRadius: 16,
+                boxShadow: 'var(--card-shadow)',
+                minHeight: 132,
+              }}
+            >
+              <span className="text-[36px] leading-none">{tpl.emoji}</span>
+              <span
+                className="mt-2 text-[13px] font-extrabold leading-tight"
+                style={{ color: 'var(--text)' }}
+              >
+                {tpl.name}
+              </span>
+              <span className="mt-1 text-xs font-bold" style={{ color: '#6b7280' }}>
+                {formatCurrency(tpl.targetAmount)} · {tpl.months} meses
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => props.onPick(null)}
+        className="mt-3 flex w-full flex-col items-center rounded-2xl p-4 text-center transition active:scale-[0.98]"
+        style={{
+          background: '#FFFFFF',
+          border: '2px dashed #d1d5db',
+          borderRadius: 16,
+        }}
+      >
+        <span className="text-[28px] leading-none">✏️</span>
+        <span
+          className="mt-1 text-[13px] font-extrabold leading-tight"
+          style={{ color: 'var(--text)' }}
+        >
+          Missão personalizada
+        </span>
+        <span className="mt-1 text-xs font-bold" style={{ color: '#6b7280' }}>
+          Formulário em branco
+        </span>
+      </button>
+    </section>
   );
 }
 
