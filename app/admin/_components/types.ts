@@ -5,22 +5,62 @@ export interface Stats {
     completedOnboarding: number; skippedOnboarding: number;
     withRecurring: number; withCreditCard: number; withCSVImport: number;
     neverLaunched: number; inactiveRisk: number;
+    dau24h: number;
+    active7d: number;
+    risk7to14: number;
+    lost14plus: number;
+    withMission: number;
   };
-  launches: { total: number; avgPerUser: number; byDayOfWeek: number[]; weekGrowth: number };
+  launches: {
+    total: number; avgPerUser: number; byDayOfWeek: number[]; weekGrowth: number;
+    topCategories: { category: string; emoji: string; count: number }[];
+  };
   cards: { total: number };
   revenue: {
     mrr: number;
+    mrrPrevMonth: number;
     mrrMonthly: number;
     mrrAnnual: number;
     totalProActive: number;
     breakdown: { monthly: number; annual: number; manual: number; beta: number; coupon: number };
     conversionRate: number;
     churnedThisMonth: number;
+    proList: ProListItem[];
+    churnList: ChurnListItem[];
   };
   churn: {
     neverLaunched: { user_id: string; email: string; created_at: string }[];
     inactiveRisk: { user_id: string; email: string; created_at: string; lastLaunch: string | null }[];
   };
+  funnel: {
+    signup: number;
+    confirmed: number;
+    launched: number;
+    mission: number;
+    pro: number;
+  };
+  signupsByWeek: { weekStart: string; count: number }[];
+  topStreaks: { email: string; streak: number }[];
+  missions: {
+    activeCount: number;
+    avgProgressPercent: number;
+    topBadges: { key: string; emoji: string; name: string; count: number }[];
+  };
+}
+
+export interface ProListItem {
+  user_id: string;
+  email: string;
+  billing_cycle: string | null;
+  since: string | null;
+  monthlyValue: number;
+}
+
+export interface ChurnListItem {
+  user_id: string;
+  email: string;
+  cancelledAt: string | null;
+  billing_cycle: string | null;
 }
 
 export type ActivityType = 'signup' | 'upgrade' | 'cancel' | 'feedback';
@@ -88,9 +128,11 @@ export interface FeedbackItem {
   created_at: string;
 }
 
-export type TabKey = 'overview' | 'users' | 'growth' | 'activity' | 'feedback' | 'coupons' | 'notifications';
+export type TabKey =
+  | 'overview' | 'users' | 'activity' | 'feedback'
+  | 'coupons' | 'notifications' | 'communication';
 
-export type EmailSegment = 'all' | 'free' | 'pro' | 'inactive';
+export type EmailSegment = 'all' | 'free' | 'pro' | 'inactive' | 'never_launched';
 
 export type PushTarget = 'all' | 'pro' | 'free';
 
@@ -99,14 +141,15 @@ export type StatusMessage = { kind: 'success' | 'error'; text: string };
 export interface NavTab {
   key: TabKey;
   label: string;
+  icon?: string;
 }
 
 export const NAV_TABS: readonly NavTab[] = [
   { key: 'overview', label: 'Visão Geral' },
   { key: 'users', label: 'Usuários' },
-  { key: 'growth', label: 'Gráfico' },
   { key: 'activity', label: 'Atividade' },
   { key: 'feedback', label: 'Feedback' },
   { key: 'coupons', label: 'Cupons' },
   { key: 'notifications', label: 'Notificações' },
+  { key: 'communication', label: 'Comunicação', icon: '📣' },
 ] as const;

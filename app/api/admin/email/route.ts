@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 
-type Segment = 'all' | 'free' | 'pro' | 'inactive';
+type Segment = 'all' | 'free' | 'pro' | 'inactive' | 'never_launched';
 
 const MAX_PER_SEND = 50;
 
@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
     userIds = allUsers
       .filter(u => new Date(u.created_at) < sevenDaysAgo && !activeSet.has(u.id))
       .map(u => u.id);
+  } else if (segment === 'never_launched') {
+    const { data: exps } = await admin.from('expenses').select('user_id');
+    const launched = new Set(exps?.map(e => e.user_id) ?? []);
+    userIds = allUsers.filter(u => !launched.has(u.id)).map(u => u.id);
   } else {
     const { data: subs } = await admin
       .from('subscriptions')

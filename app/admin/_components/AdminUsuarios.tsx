@@ -87,8 +87,24 @@ export function AdminUsuarios({
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
-              {['E-mail', 'Cadastro', 'Último acesso', 'Lançamentos', 'Plano', 'Status', 'Ações'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
+              {(
+                [
+                  { label: 'E-mail', hideMobile: false },
+                  { label: 'Cadastro', hideMobile: true },
+                  { label: 'Último acesso', hideMobile: true },
+                  { label: 'Lançamentos', hideMobile: true },
+                  { label: 'Plano', hideMobile: false },
+                  { label: 'Status', hideMobile: true },
+                  { label: 'Ações', hideMobile: false },
+                ] as const
+              ).map(h => (
+                <th
+                  key={h.label}
+                  className={h.hideMobile ? 'admin-user-hide-mobile' : undefined}
+                  style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}
+                >
+                  {h.label}
+                </th>
               ))}
             </tr>
           </thead>
@@ -102,13 +118,13 @@ export function AdminUsuarios({
                 <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {u.email}
                 </td>
-                <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
-                <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
-                <td style={{ padding: '10px 14px', fontWeight: 700 }}>{u.launches_count}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700 }}>{u.launches_count}</td>
                 <td style={{ padding: '10px 14px' }}>
                   <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} />
                 </td>
-                <td style={{ padding: '10px 14px' }}>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px' }}>
                   {u.is_blocked
                     ? <Chip label="Bloqueado" color="#c0392b" bg="var(--red-bg)" />
                     : u.email_confirmed_at

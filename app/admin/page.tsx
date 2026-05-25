@@ -2,16 +2,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { AdminHeader } from './_components/AdminHeader';
-import { AdminTabs } from './_components/AdminTabs';
 import { AdminOverview } from './_components/AdminOverview';
 import { AdminUsuarios } from './_components/AdminUsuarios';
-import { AdminGrafico } from './_components/AdminGrafico';
 import { AdminAtividade } from './_components/AdminAtividade';
 import { AdminFeedback } from './_components/AdminFeedback';
 import { AdminCupons } from './_components/AdminCupons';
 import { AdminNotificacoes } from './_components/AdminNotificacoes';
+import { AdminComunicacao } from './_components/AdminComunicacao';
 import { Modal, PlanBadge, Row } from './_components/shared';
-import { DAYS, fmt } from './_components/utils';
+import { fmt } from './_components/utils';
 import type {
   ActivityItem, Coupon, EmailSegment, FeedbackCategory, FeedbackItem,
   PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
@@ -166,7 +165,9 @@ export default function AdminPage() {
       .finally(() => setPushHistoryLoading(false));
   }, []);
 
-  useEffect(() => { if (tab === 'notifications') fetchPushHistory(); }, [tab, fetchPushHistory]);
+  useEffect(() => {
+    if (tab === 'notifications' || tab === 'communication') fetchPushHistory();
+  }, [tab, fetchPushHistory]);
 
   async function sendPushManual() {
     setPushSending(true);
@@ -378,22 +379,11 @@ export default function AdminPage() {
     }
   }
 
-  /* Growth data — cadastros por semana (últimas 8 semanas) */
-  const growthData = (() => {
-    if (!stats) return [];
-    return DAYS.map((d, i) => ({
-      name: d,
-      lançamentos: stats.launches.byDayOfWeek[i] ?? 0,
-    }));
-  })();
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <AdminHeader tab={tab} setTab={setTab} feedbackUnread={feedbackUnread} />
 
       <main style={{ flex: 1, marginLeft: 220, padding: '32px 28px', maxWidth: 1100 }} className="admin-main">
-        <AdminTabs tab={tab} setTab={setTab} feedbackUnread={feedbackUnread} />
-
         {tab === 'overview' && (
           <AdminOverview
             stats={stats}
@@ -402,15 +392,6 @@ export default function AdminPage() {
             setNeverExpanded={setNeverExpanded}
             riskExpanded={riskExpanded}
             setRiskExpanded={setRiskExpanded}
-            emailSegment={emailSegment}
-            setEmailSegment={setEmailSegment}
-            emailSubject={emailSubject}
-            setEmailSubject={setEmailSubject}
-            emailMessage={emailMessage}
-            setEmailMessage={setEmailMessage}
-            emailSending={emailSending}
-            emailResult={emailResult}
-            onSendBulkEmail={sendBulkEmail}
           />
         )}
 
@@ -433,10 +414,6 @@ export default function AdminPage() {
             onToggleBlock={toggleBlock}
             onConfirmDelete={setConfirmDelete}
           />
-        )}
-
-        {tab === 'growth' && (
-          <AdminGrafico loadingStats={loadingStats} growthData={growthData} />
         )}
 
         {tab === 'activity' && (
@@ -494,6 +471,33 @@ export default function AdminPage() {
             pushHistory={pushHistory}
             pushHistoryLoading={pushHistoryLoading}
             onSendPushManual={sendPushManual}
+          />
+        )}
+
+        {tab === 'communication' && (
+          <AdminComunicacao
+            emailSegment={emailSegment}
+            setEmailSegment={setEmailSegment}
+            emailSubject={emailSubject}
+            setEmailSubject={setEmailSubject}
+            emailMessage={emailMessage}
+            setEmailMessage={setEmailMessage}
+            emailSending={emailSending}
+            emailResult={emailResult}
+            onSendBulkEmail={sendBulkEmail}
+            pushTitle={pushTitle}
+            setPushTitle={setPushTitle}
+            pushMessage={pushMessage}
+            setPushMessage={setPushMessage}
+            pushUrl={pushUrl}
+            setPushUrl={setPushUrl}
+            pushTarget={pushTarget}
+            setPushTarget={setPushTarget}
+            pushSending={pushSending}
+            pushResult={pushResult}
+            onSendPushManual={sendPushManual}
+            pushHistory={pushHistory}
+            pushHistoryLoading={pushHistoryLoading}
           />
         )}
       </main>
@@ -706,8 +710,19 @@ export default function AdminPage() {
       <style>{`
         @media (max-width: 768px) {
           .admin-sidebar { display: none !important; }
-          .admin-main { margin-left: 0 !important; padding: 20px 16px !important; }
-          .admin-mobile-tabs { display: flex !important; }
+          .admin-main {
+            margin-left: 0 !important;
+            padding: 72px 16px 20px !important;
+            max-width: 100% !important;
+          }
+          .admin-topbar { display: flex !important; }
+          .admin-drawer { display: flex !important; }
+          .admin-mobile-tabs { display: none !important; }
+          .admin-user-hide-mobile { display: none !important; }
+        }
+        @media (max-width: 640px) {
+          .admin-metric-grid { grid-template-columns: 1fr !important; }
+          .admin-form-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

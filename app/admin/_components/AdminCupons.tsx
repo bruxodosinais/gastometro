@@ -37,7 +37,7 @@ export function AdminCupons({
         border: '1px solid var(--border)', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Criar cupom</h2>
-        <div style={{
+        <div className="admin-form-grid" style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12,
         }}>
           <label style={{ fontSize: 13, fontWeight: 700 }}>
