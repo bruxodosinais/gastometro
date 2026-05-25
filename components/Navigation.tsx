@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, LayoutGrid,
   Target, Bot, TrendingUp, UserCircle, X, CreditCard, Sparkles,
-  MessageSquare, Rocket, Headphones,
+  MessageSquare, Rocket, Headphones, BarChart2,
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { openFeedback } from '@/components/FeedbackButton';
@@ -28,6 +28,7 @@ type SheetItem = {
 const sheetItems: SheetItem[] = [
   { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,     newKey: MISSAO_FEATURE_KEY },
   { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
+  { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
   { href: '/metas',       label: 'Metas',                Icon: Target      },
   { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
   { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },

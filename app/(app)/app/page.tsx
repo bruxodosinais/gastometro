@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, Moon, RefreshCw, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
-import { useTheme } from '@/lib/themeContext';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
+import { OPEN_NOTIF_EVENT } from '@/components/TopbarMobile';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { retryAsync } from '@/lib/retry';
@@ -64,7 +64,6 @@ export default function HomePage() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
   const { isFree, loading: subLoading } = useSubscription();
-  const { resolvedTheme, setTheme } = useTheme();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -220,6 +219,14 @@ export default function HomePage() {
   useEffect(() => {
     if (ready) setMounted(true);
   }, [ready]);
+
+  // Sino da TopbarMobile dispara este evento quando o usuário já está em /app
+  // (router.push noop) — assim o drawer abre sem precisar recarregar a página.
+  useEffect(() => {
+    const open = () => setShowNotifDrawer(true);
+    window.addEventListener(OPEN_NOTIF_EVENT, open);
+    return () => window.removeEventListener(OPEN_NOTIF_EVENT, open);
+  }, []);
 
   // Monthly close modal on day 1
   useEffect(() => {
@@ -824,15 +831,7 @@ export default function HomePage() {
         paddingBottom: 16,
       }}
     >
-      {/* ── 1. WORDMARK ────────────────────────────────────────────────────── */}
-      <div className="mobile-only" style={{ padding: '16px 22px 0', ...(mounted ? anim(0) : hidden) }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-horizontal.png"
-          alt="TôOrganizado"
-          style={{ height: 24, width: 'auto', display: 'block' }}
-        />
-      </div>
+      {/* Wordmark e toggle/sino agora vivem na TopbarMobile global do layout (app). */}
 
       {/* ── 2. HEADER ──────────────────────────────────────────────────────── */}
       <div
@@ -857,64 +856,7 @@ export default function HomePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Toggle de tema */}
-          <button
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            title={resolvedTheme === 'dark' ? 'Tema claro' : 'Tema escuro'}
-            aria-label={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            style={{
-              width: 38,
-              height: 38,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: 'var(--hbtn-shadow)',
-              cursor: 'pointer',
-            }}
-          >
-            {resolvedTheme === 'dark'
-              ? <Sun size={16} color="var(--text-2)" />
-              : <Moon size={16} color="var(--text-2)" />}
-          </button>
-
-          {/* Notificações */}
-          <div style={{ position: 'relative' }}>
-            <button
-              title="Notificações"
-              onClick={() => setShowNotifDrawer(true)}
-              style={{
-                width: 38,
-                height: 38,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: 'var(--hbtn-shadow)',
-                cursor: 'pointer',
-              }}
-            >
-              <Bell size={16} color="var(--text-2)" />
-            </button>
-            {unreadCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 1,
-                  right: 1,
-                  width: 8,
-                  height: 8,
-                  background: 'var(--yellow)',
-                  borderRadius: '50%',
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
-          </div>
+          {/* Toggle de tema e sino foram movidos para TopbarMobile (layout app). */}
 
           {/* Avatar */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>

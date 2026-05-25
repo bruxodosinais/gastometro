@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
-  MessageSquare, Rocket, Headphones,
+  MessageSquare, Rocket, Headphones, BarChart2,
 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
@@ -46,6 +46,7 @@ const SECTIONS: Section[] = [
     items: [
       { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,    newKey: MISSAO_FEATURE_KEY },
       { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
+      { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
       { href: '/metas',       label: 'Metas',                Icon: Target      },
       { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
       { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },
