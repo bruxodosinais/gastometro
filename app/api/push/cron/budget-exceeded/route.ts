@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  findLoggedNotifications,
   getSubscriptionsForUsers,
   logPushHistory,
+  recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
 
 export const maxDuration = 60;
 
+// Threshold mínimo de estouro para notificar — abaixo disso (100% – 110%),
+// consideramos uma variação pequena e não vale a pena alertar.
+const BREACH_THRESHOLD_PCT = 110;
+
+// Janela de cooldown por usuário (em dias). Se já recebeu qualquer push
+// de orçamento estourado nos últimos N dias, pula nessa rodada.
+const USER_COOLDOWN_DAYS = 7;
+
 function pct(value: number, total: number): number {
   if (!total) return 0;
   return Math.round((value / total) * 100);
+}
+
+function formatGroupedMessage(categories: string[]): string {
+  if (categories.length === 0) return '';
+  if (categories.length === 1) return `${categories[0]} estourou o orçamento`;
+  if (categories.length === 2) return `${categories[0]} e ${categories[1]} estouraram o orçamento`;
+  return `${categories.length} categorias estouraram — ${categories[0]}, ${categories[1]} e mais`;
 }
 
 export async function GET(req: NextRequest) {
@@ -28,6 +45,7 @@ export async function GET(req: NextRequest) {
   const month = now.getMonth(); // 0-11
   const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
   const monthEnd = new Date(year, month + 1, 1).toISOString().split('T')[0];
+  const monthKey = monthStart.slice(0, 7); // YYYY-MM
 
   // 1. Carrega todos os orçamentos (budgets).
   const { data: budgets, error: budgetErr } = await admin
@@ -63,7 +81,7 @@ export async function GET(req: NextRequest) {
     spentByKey.set(key, (spentByKey.get(key) ?? 0) + Number(e.amount));
   }
 
-  // 4. Identifica orçamentos estourados.
+  // 4. Identifica orçamentos estourados acima do threshold (110%).
   const breaches = budgets
     .map((b) => {
       const spent = spentByKey.get(`${b.user_id}|${b.category}`) ?? 0;
@@ -76,7 +94,7 @@ export async function GET(req: NextRequest) {
         percentage: pct(spent, limit),
       };
     })
-    .filter((row) => row.limit > 0 && row.spent > row.limit);
+    .filter((row) => row.limit > 0 && row.percentage >= BREACH_THRESHOLD_PCT);
 
   if (breaches.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0, total: 0, users: 0 });
@@ -97,16 +115,58 @@ export async function GET(req: NextRequest) {
     if (!(profiles ?? []).some((p) => p.id === uid)) optedIn.add(uid);
   }
 
-  const eligible = breaches.filter((b) => optedIn.has(b.user_id));
-  if (eligible.length === 0) {
+  const eligibleBreaches = breaches.filter((b) => optedIn.has(b.user_id));
+  if (eligibleBreaches.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0, total: 0, users: 0 });
   }
 
-  // 6. Carrega subscriptions e dispara um push por estouro.
-  const subscriptions = await getSubscriptionsForUsers(
-    admin,
-    Array.from(new Set(eligible.map((b) => b.user_id)))
+  const eligibleUserIds = Array.from(new Set(eligibleBreaches.map((b) => b.user_id)));
+
+  // 6a. Cooldown semanal por usuário: se já mandou 'budget_exceeded' nos
+  // últimos 7 dias, pula esse usuário inteiro.
+  const cooldownSince = new Date(
+    now.getTime() - USER_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
+  const recentUserHits = await findLoggedNotifications(admin, {
+    userIds: eligibleUserIds,
+    types: ['budget_exceeded'],
+    sinceIso: cooldownSince,
+  });
+  const usersOnCooldown = new Set<string>();
+  for (const uid of eligibleUserIds) {
+    if (recentUserHits.has(`${uid}|budget_exceeded`)) usersOnCooldown.add(uid);
+  }
+
+  // 6b. Dedup mensal por categoria: tipos tipo 'budget_exceeded:Alimentação:2026-05'.
+  const perCategoryTypes = Array.from(
+    new Set(
+      eligibleBreaches.map((b) => `budget_exceeded:${b.category}:${monthKey}`)
+    )
   );
+  const monthlyHits = await findLoggedNotifications(admin, {
+    userIds: eligibleUserIds,
+    types: perCategoryTypes,
+  });
+
+  // 7. Para cada usuário (não em cooldown), monta a lista de categorias
+  // novas (ainda não notificadas neste mês) e dispara 1 push agrupado.
+  const groupedByUser = new Map<string, typeof eligibleBreaches>();
+  for (const b of eligibleBreaches) {
+    if (usersOnCooldown.has(b.user_id)) continue;
+    const monthlyKey = `${b.user_id}|budget_exceeded:${b.category}:${monthKey}`;
+    if (monthlyHits.has(monthlyKey)) continue;
+    const arr = groupedByUser.get(b.user_id) ?? [];
+    arr.push(b);
+    groupedByUser.set(b.user_id, arr);
+  }
+
+  if (groupedByUser.size === 0) {
+    return NextResponse.json({ sent: 0, failed: 0, total: 0, users: 0 });
+  }
+
+  // 8. Carrega subscriptions dos usuários que vão receber push.
+  const targetUserIds = Array.from(groupedByUser.keys());
+  const subscriptions = await getSubscriptionsForUsers(admin, targetUserIds);
   const subsByUser = new Map<string, typeof subscriptions>();
   for (const s of subscriptions) {
     const arr = subsByUser.get(s.user_id) ?? [];
@@ -117,24 +177,49 @@ export async function GET(req: NextRequest) {
   let totalSent = 0;
   let totalFailed = 0;
   let usersNotified = 0;
+  const logEntries: Array<{ user_id: string; type: string }> = [];
 
-  for (const item of eligible) {
-    const userSubs = subsByUser.get(item.user_id) ?? [];
+  for (const [userId, items] of groupedByUser.entries()) {
+    const userSubs = subsByUser.get(userId) ?? [];
     if (userSubs.length === 0) continue;
+
+    // Ordena por % decrescente para mostrar a mais crítica primeiro.
+    const sorted = [...items].sort((a, b) => b.percentage - a.percentage);
+    const categories = sorted.map((b) => b.category);
+    let message: string;
+    if (categories.length === 1) {
+      message = `${categories[0]} — ${sorted[0].percentage}% usado`;
+    } else {
+      message = formatGroupedMessage(categories);
+    }
+
     const payload = {
       title: '⚠️ Orçamento estourado',
-      message: `${item.category} — ${item.percentage}% usado`,
+      message,
       url: '/categorias',
     };
     const res = await sendPushToSubscriptions(admin, userSubs, payload);
     totalSent += res.sent;
     totalFailed += res.failed;
-    if (res.sent > 0) usersNotified += 1;
+    if (res.sent > 0) {
+      usersNotified += 1;
+      // Marca o gate semanal por usuário…
+      logEntries.push({ user_id: userId, type: 'budget_exceeded' });
+      // …e cada categoria como já notificada neste mês.
+      for (const cat of categories) {
+        logEntries.push({
+          user_id: userId,
+          type: `budget_exceeded:${cat}:${monthKey}`,
+        });
+      }
+    }
   }
+
+  await recordNotifications(admin, logEntries);
 
   await logPushHistory(admin, {
     title: '⚠️ Orçamento estourado',
-    message: `${eligible.length} estouro(s) detectado(s)`,
+    message: `${usersNotified} usuário(s) notificado(s) — ${eligibleBreaches.length} estouro(s) avaliado(s)`,
     target: 'cron:budget-exceeded',
     sent: totalSent,
     failed: totalFailed,
@@ -144,7 +229,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     sent: totalSent,
     failed: totalFailed,
-    total: eligible.length,
+    total: eligibleBreaches.length,
     users: usersNotified,
   });
 }

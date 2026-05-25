@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  findLoggedNotifications,
   getSubscriptionsForUsers,
   logPushHistory,
+  recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
 
@@ -26,11 +28,15 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const tomorrowDay = tomorrow.getDate();
+  // Mês corrente (não o de amanhã) — quando o vencimento é dia 1, o cron roda
+  // no último dia do mês anterior; queremos a chave do mês cujo vencimento
+  // estamos avisando, então usamos a data de "amanhã".
+  const cycleKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}`;
 
   // 1. Busca recurring_expenses ativas com due_day = amanhã (type = expense).
   const { data: recurring, error: recErr } = await admin
     .from('recurring_expenses')
-    .select('user_id, description, amount, due_day, active, type')
+    .select('id, user_id, description, amount, due_day, active, type')
     .eq('active', true)
     .eq('due_day', tomorrowDay)
     .eq('type', 'expense');
@@ -60,7 +66,28 @@ export async function GET(req: NextRequest) {
   }
 
   // 3. Agrupa contas por usuário (cada usuário recebe um push por conta).
-  const eligible = recurring.filter((r) => optedIn.has(r.user_id as string));
+  const optedInRecurring = recurring.filter((r) => optedIn.has(r.user_id as string));
+  if (optedInRecurring.length === 0) {
+    return NextResponse.json({ sent: 0, failed: 0, total: 0, users: 0 });
+  }
+
+  // 3b. Dedup por recorrente + mês — se já avisamos esse "Aluguel" em maio,
+  // não avisa de novo até junho mesmo que o cron rode várias vezes.
+  const dedupTypes = Array.from(
+    new Set(optedInRecurring.map((r) => `due_tomorrow:${r.id as string}:${cycleKey}`))
+  );
+  const dedupUserIds = Array.from(
+    new Set(optedInRecurring.map((r) => r.user_id as string))
+  );
+  const alreadyNotified = await findLoggedNotifications(admin, {
+    userIds: dedupUserIds,
+    types: dedupTypes,
+  });
+
+  const eligible = optedInRecurring.filter((r) => {
+    const key = `${r.user_id as string}|due_tomorrow:${r.id as string}:${cycleKey}`;
+    return !alreadyNotified.has(key);
+  });
   if (eligible.length === 0) {
     return NextResponse.json({ sent: 0, failed: 0, total: 0, users: 0 });
   }
@@ -80,9 +107,11 @@ export async function GET(req: NextRequest) {
   let totalSent = 0;
   let totalFailed = 0;
   let usersNotified = 0;
+  const logEntries: Array<{ user_id: string; type: string }> = [];
 
   for (const item of eligible) {
-    const userSubs = subsByUser.get(item.user_id as string) ?? [];
+    const userId = item.user_id as string;
+    const userSubs = subsByUser.get(userId) ?? [];
     if (userSubs.length === 0) continue;
     const description = (item.description as string) ?? 'Conta recorrente';
     const amount = Number(item.amount ?? 0);
@@ -94,8 +123,16 @@ export async function GET(req: NextRequest) {
     const res = await sendPushToSubscriptions(admin, userSubs, payload);
     totalSent += res.sent;
     totalFailed += res.failed;
-    if (res.sent > 0) usersNotified += 1;
+    if (res.sent > 0) {
+      usersNotified += 1;
+      logEntries.push({
+        user_id: userId,
+        type: `due_tomorrow:${item.id as string}:${cycleKey}`,
+      });
+    }
   }
+
+  await recordNotifications(admin, logEntries);
 
   await logPushHistory(admin, {
     title: '🔔 Conta vence amanhã',

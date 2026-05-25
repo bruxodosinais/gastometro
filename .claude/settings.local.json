@@ -70,7 +70,28 @@
       "Bash(echo \"ESLINT_EXIT=$?\")",
       "Bash(echo \"exit: $?\")",
       "Bash(awk '{$1=$1};1')",
-      "Bash(echo \"TSC_EXIT=$?\")"
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(PORT=3000 npm run *)",
+      "Bash(rm /Users/anderson/gastometro/app/api/reports/weekly-preview/route.ts)",
+      "Bash(rmdir /Users/anderson/gastometro/app/api/reports/weekly-preview)",
+      "Read(//tmp/**)",
+      "Bash(cp /Users/anderson/Downloads/home.png public/assets/)",
+      "Bash(cp /Users/anderson/Downloads/missao.png public/assets/)",
+      "Bash(cp /Users/anderson/Downloads/lancar.png public/assets/)",
+      "Bash(cp /Users/anderson/Downloads/recorrentes.png public/assets/)",
+      "Bash(cp /Users/anderson/Downloads/gastobot.png public/assets/)",
+      "Bash(cp \"/Users/anderson/Documentos/gastometro arquivos/home.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documentos/gastometro arquivos/missao.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documentos/gastometro arquivos/lancar.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documentos/gastometro arquivos/recorrentes.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documentos/gastometro arquivos/gastobot.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/home.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/missao.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/lancar.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/recorrentes.png\" public/assets/)",
+      "Bash(cp \"/Users/anderson/Documents/gastometro arquivos/gastobot.png\" public/assets/)",
+      "Bash(lsof -ti:3000,3001)",
+      "Bash(ps -p 29783,72000,16873,16960 -o pid,ppid,etime,command)"
     ]
   }
 }

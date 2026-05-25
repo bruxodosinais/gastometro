@@ -112,3 +112,43 @@ export async function logPushHistory(
   });
   if (error) console.error('[push] erro registrando histórico:', error);
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// Dedup / controle de frequência (tabela push_notification_log).
+// ────────────────────────────────────────────────────────────────────────
+
+// Conjunto de (user_id, type) que já estão no log. Cobre tanto o gate de
+// "última semana" (passar `sinceIso`) quanto o gate "este mês" (passando os
+// types já com o sufixo :YYYY-MM).
+export async function findLoggedNotifications(
+  admin: SupabaseClient,
+  params: { userIds: string[]; types: string[]; sinceIso?: string }
+): Promise<Set<string>> {
+  const { userIds, types, sinceIso } = params;
+  if (userIds.length === 0 || types.length === 0) return new Set();
+  let query = admin
+    .from('push_notification_log')
+    .select('user_id, type')
+    .in('user_id', userIds)
+    .in('type', types);
+  if (sinceIso) query = query.gte('sent_at', sinceIso);
+  const { data, error } = await query;
+  if (error) {
+    console.error('[push] erro consultando push_notification_log:', error);
+    return new Set();
+  }
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    set.add(`${row.user_id as string}|${row.type as string}`);
+  }
+  return set;
+}
+
+export async function recordNotifications(
+  admin: SupabaseClient,
+  entries: Array<{ user_id: string; type: string }>
+): Promise<void> {
+  if (entries.length === 0) return;
+  const { error } = await admin.from('push_notification_log').insert(entries);
+  if (error) console.error('[push] erro registrando push_notification_log:', error);
+}
