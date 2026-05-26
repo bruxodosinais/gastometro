@@ -99,7 +99,8 @@
       "Bash(npm ls *)",
       "Bash(lsof -ti:3000)",
       "Bash(ps *)",
-      "Bash(open *)"
+      "Bash(open *)",
+      "Bash(lsof -i:3000 -sTCP:LISTEN)"
     ]
   }
 }

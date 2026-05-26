@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, Camera, Check, ChevronRight, Eye, EyeOff, Headphones, Loader2, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Check, ChevronRight, Download, Eye, EyeOff, Headphones, Loader2, MessageCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
@@ -144,6 +144,9 @@ export default function PerfilPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // Export LGPD
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -451,6 +454,31 @@ export default function PerfilPage() {
       addToast('Erro ao desvincular. Tente novamente.', 'error');
     } finally {
       setWaUnlinking(false);
+    }
+  }
+
+  async function handleExportData() {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export-my-data');
+      if (!res.ok) {
+        addToast('Não foi possível exportar seus dados. Tente novamente.', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'meus-dados-toorganizado.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      addToast('Download iniciado!');
+    } catch {
+      addToast('Erro ao exportar dados. Tente novamente.', 'error');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -1263,6 +1291,32 @@ export default function PerfilPage() {
                 <ChevronRight size={16} color="var(--text-3)" />
               </a>
             ))}
+            <button
+              onClick={handleExportData}
+              disabled={exporting}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--r-sm)',
+                padding: '12px 14px',
+                fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                cursor: exporting ? 'default' : 'pointer',
+                opacity: exporting ? 0.6 : 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {exporting ? (
+                  <Loader2 size={16} color="var(--accent)" className="animate-spin" />
+                ) : (
+                  <Download size={16} color="var(--accent)" />
+                )}
+                {exporting ? 'Exportando…' : 'Exportar meus dados'}
+              </span>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </button>
             <button
               onClick={() => { setDeleteError(''); setDeleteModalOpen(true); }}
               style={{

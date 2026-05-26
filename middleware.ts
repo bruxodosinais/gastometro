@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
+import { createAdminClient } from './lib/supabase/admin';
 
 export default async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -100,21 +101,14 @@ export default async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith('/admin') && !pathname.startsWith('/api/')) {
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (!serviceRoleKey || !supabaseUrl) {
-        return NextResponse.redirect(new URL('/app', request.url));
-      }
       try {
-        const fetchUrl = `${supabaseUrl}/rest/v1/admins?user_id=eq.${user.id}&select=id&limit=1`;
-        const res = await fetch(fetchUrl, {
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-          },
-        });
-        const rows = await res.json() as unknown[];
-        if (!Array.isArray(rows) || rows.length === 0) {
+        const adminClient = createAdminClient();
+        const { data, error } = await adminClient
+          .from('admins')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (error || !data) {
           return NextResponse.redirect(new URL('/app', request.url));
         }
       } catch {
