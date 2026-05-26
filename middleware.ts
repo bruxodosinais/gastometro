@@ -100,32 +100,24 @@ export default async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith('/admin') && !pathname.startsWith('/api/')) {
-      console.log('[ADMIN DEBUG] Verificando acesso admin para user:', user.id);
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!serviceRoleKey || !supabaseUrl) {
-        console.log('[ADMIN DEBUG] REDIRECT: SUPABASE_SERVICE_ROLE_KEY ou SUPABASE_URL ausente');
         return NextResponse.redirect(new URL('/app', request.url));
       }
       try {
         const fetchUrl = `${supabaseUrl}/rest/v1/admins?user_id=eq.${user.id}&select=id&limit=1`;
-        console.log('[ADMIN DEBUG] Consultando:', fetchUrl);
         const res = await fetch(fetchUrl, {
           headers: {
             apikey: serviceRoleKey,
             Authorization: `Bearer ${serviceRoleKey}`,
           },
         });
-        console.log('[ADMIN DEBUG] HTTP status da consulta:', res.status);
         const rows = await res.json() as unknown[];
-        console.log('[ADMIN DEBUG] Linhas retornadas:', JSON.stringify(rows));
         if (!Array.isArray(rows) || rows.length === 0) {
-          console.log('[ADMIN DEBUG] REDIRECT: usuário não encontrado na tabela admins');
           return NextResponse.redirect(new URL('/app', request.url));
         }
-        console.log('[ADMIN DEBUG] Acesso liberado — usuário é admin');
-      } catch (err) {
-        console.log('[ADMIN DEBUG] REDIRECT: exceção ao consultar tabela admins:', err);
+      } catch {
         return NextResponse.redirect(new URL('/app', request.url));
       }
     }

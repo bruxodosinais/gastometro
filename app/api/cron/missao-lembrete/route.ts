@@ -154,13 +154,14 @@ export async function GET(req: NextRequest) {
       });
       if (sendErr) {
         failed += 1;
-        console.error('[missao-lembrete] resend erro', m.user_id, sendErr);
+        console.error('[missao-lembrete] erro ao enviar', { error: sendErr.message });
       } else {
         sent += 1;
       }
     } catch (err) {
       failed += 1;
-      console.error('[missao-lembrete] erro processando', m.user_id, err);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[missao-lembrete] erro ao enviar', { error: message });
     }
   }
 

@@ -1,9 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Rate limit in-memory (best-effort: serverless multi-instância, cada uma com
+// seu mapa). 100 req/min por IP é folgado para a Kiwify legítima e barra
+// brute force de token na URL.
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 100;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(ip);
+  if (!bucket || bucket.resetAt < now) {
+    rateLimitBuckets.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+// Comparação resistente a timing attacks. Quando os tamanhos diferem,
+// timingSafeEqual lança — fazemos uma comparação fake do mesmo tamanho de
+// `provided` para evitar oracle de comprimento.
+function safeEqual(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) {
+    try {
+      timingSafeEqual(a, Buffer.alloc(a.length));
+    } catch {
+      // ignora
+    }
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
+
+function verifyHmac(secret: string, rawBody: string, signature: string): boolean {
+  const computed = createHmac('sha1', secret).update(rawBody).digest('hex');
+  return safeEqual(signature, computed);
+}
 
 type KiwifyPayload = {
   webhook_event?: string;
@@ -155,33 +204,62 @@ function ok(payload: Record<string, unknown> = { ok: true }) {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+
+  if (!checkRateLimit(ip)) {
+    console.warn('[kiwify] rate limit excedido', { ip });
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
+  // Dois modos de auth, em ordem de preferência:
+  //   1) HMAC: KIWIFY_WEBHOOK_SECRET setado + ?signature= no query string.
+  //      Kiwify envia HMAC-SHA1(rawBody, secret) em hex. Imune a replay
+  //      de token vazado, pois o atacante precisaria do secret para
+  //      assinar QUALQUER payload.
+  //   2) Token estático (legado): KIWIFY_WEBHOOK_TOKEN comparado a
+  //      Authorization Bearer / ?token= / ?signature=. Mantido para
+  //      compat com configs antigas; deve ser desativado migrando o
+  //      webhook na Kiwify para o secret HMAC.
+  const hmacSecret = process.env.KIWIFY_WEBHOOK_SECRET;
   const expectedToken = process.env.KIWIFY_WEBHOOK_TOKEN;
-  if (!expectedToken) {
-    console.error('[kiwify-webhook] KIWIFY_WEBHOOK_TOKEN não configurado');
+  if (!hmacSecret && !expectedToken) {
+    console.error('[kiwify-webhook] nenhum método de auth configurado (defina KIWIFY_WEBHOOK_SECRET para HMAC ou KIWIFY_WEBHOOK_TOKEN para legado)');
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
   }
 
-  // Autenticação: header Authorization OR ?token= OR ?signature=
-  const auth = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  // Lê o body como texto UMA vez. Necessário para HMAC (precisa do raw)
+  // e para o fallback de form-urlencoded.
+  let rawBody: string;
+  try {
+    rawBody = await req.text();
+  } catch {
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+  }
+
   const url = new URL(req.url);
-  const qToken = url.searchParams.get('token') ?? url.searchParams.get('signature');
-  const provided = auth || qToken;
-  if (provided !== expectedToken) {
+  const signature = url.searchParams.get('signature');
+  const qToken = url.searchParams.get('token');
+  const auth = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+
+  let authenticated = false;
+  if (hmacSecret && signature) {
+    authenticated = verifyHmac(hmacSecret, rawBody, signature);
+  }
+  if (!authenticated && expectedToken) {
+    const provided = auth || qToken || signature || '';
+    authenticated = provided.length > 0 && safeEqual(provided, expectedToken);
+  }
+  if (!authenticated) {
+    console.warn('[kiwify] token inválido', { ip });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   let payload: KiwifyPayload;
   try {
-    payload = (await req.json()) as KiwifyPayload;
+    payload = JSON.parse(rawBody) as KiwifyPayload;
   } catch {
-    // Kiwify às vezes manda form-urlencoded
-    try {
-      const text = await req.text();
-      payload = JSON.parse(text) as KiwifyPayload;
-    } catch {
-      console.error('[kiwify-webhook] payload inválido');
-      return ok({ ok: true, ignored: 'invalid-payload' });
-    }
+    console.error('[kiwify-webhook] payload inválido');
+    return ok({ ok: true, ignored: 'invalid-payload' });
   }
 
   const event = getEvent(payload).toLowerCase();
@@ -219,12 +297,12 @@ export async function POST(req: NextRequest) {
       const orderId = payload.order_id ?? null;
       const subId = payload.Subscription?.id ?? null;
       if (!email) {
-        console.warn('[kiwify-webhook] order_approved sem email', payload);
+        console.warn('[kiwify] webhook error', { event });
         return ok({ ok: true, ignored: 'no-email' });
       }
       const userId = await findUserIdByEmail(admin, email);
       if (!userId) {
-        console.warn('[kiwify-webhook] usuário não encontrado para', email);
+        console.warn('[kiwify] webhook error', { event });
         return ok({ ok: true, ignored: 'user-not-found' });
       }
 
