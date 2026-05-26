@@ -121,12 +121,13 @@ function SubTabsNav({
 // Cards reutilizáveis
 // ──────────────────────────────────────────────────────────────
 function FeaturedKpiCard({
-  label, value, variationPct, sub, accentColor, children,
+  label, value, variationPct, sub, note, accentColor, children,
 }: {
   label: string;
   value: string;
   variationPct?: number | null;
   sub?: string;
+  note?: string;
   accentColor: string;
   children?: React.ReactNode;
 }) {
@@ -148,6 +149,9 @@ function FeaturedKpiCard({
       {sub && (
         <div style={{ fontSize: 12, color: C.text3, marginTop: 6 }}>{sub}</div>
       )}
+      {note && (
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{note}</div>
+      )}
       {children}
     </div>
   );
@@ -167,9 +171,9 @@ function VariationBadge({ pct }: { pct: number }) {
 }
 
 function MiniKpi({
-  label, value, sub, color,
+  label, value, sub, note, color,
 }: {
-  label: string; value: string | number; sub?: string; color?: string;
+  label: string; value: string | number; sub?: string; note?: string; color?: string;
 }) {
   return (
     <div style={{
@@ -183,6 +187,7 @@ function MiniKpi({
         {value}
       </div>
       {sub && <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>{sub}</div>}
+      {note && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{note}</div>}
     </div>
   );
 }
@@ -226,6 +231,7 @@ function OverviewPanel({
           value={fmtBRL(mrr)}
           variationPct={mrrVariation ?? undefined}
           sub={`Projeção fim do mês: ${fmtBRL(projecao)}`}
+          note="líquido após taxa Kiwify"
           accentColor={C.success}
         />
         <FeaturedKpiCard
@@ -261,7 +267,12 @@ function OverviewPanel({
       <div className="admin-kpi-grid" style={{
         display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16,
       }}>
-        <MiniKpi label="MRR" value={fmtBRL(stats.revenue.mrr)} color={C.success} />
+        <MiniKpi
+          label="MRR"
+          value={fmtBRL(stats.revenue.mrr)}
+          note="líquido após taxa Kiwify"
+          color={C.success}
+        />
         <MiniKpi label="Pro ativos" value={stats.revenue.totalProActive} sub={`${stats.revenue.conversionRate}% conversão`} />
         <MiniKpi
           label="Churn do mês"
@@ -582,11 +593,13 @@ function ReceitaPanel({ stats }: { stats: Stats }) {
           label="MRR atual"
           value={fmtBRL(mrr)}
           sub={`Mensal ${fmtBRL(stats.revenue.mrrMonthly)} + Anual ${fmtBRL(stats.revenue.mrrAnnual)}`}
+          note="líquido após taxa Kiwify"
           color={C.success}
         />
         <MiniKpi
           label="MRR mês anterior"
           value={fmtBRL(stats.revenue.mrrPrevMonth)}
+          note="líquido após taxa Kiwify"
         />
         <MiniKpi
           label="LTV estimado"

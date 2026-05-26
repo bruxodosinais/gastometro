@@ -41,10 +41,25 @@ function parsePriceCents(value: unknown): number | null {
 }
 
 function detectBillingCycle(p: KiwifyPayload): 'monthly' | 'annual' | null {
+  const sub = (p.Subscription ?? {}) as Record<string, unknown>;
+  const prod = (p.Product ?? {}) as Record<string, unknown>;
+  const subPlan = (sub.plan ?? {}) as Record<string, unknown>;
+
   const candidates: unknown[] = [
     p.charge_amount,
     p.Commissions?.charge_amount,
     p.Commissions?.product_base_price,
+    sub.charge_amount,
+    sub.price,
+    sub.amount,
+    subPlan.price,
+    subPlan.amount,
+    subPlan.charge_amount,
+    prod.price,
+    prod.amount,
+    (p as Record<string, unknown>).plan_amount,
+    (p as Record<string, unknown>).total_amount,
+    (p as Record<string, unknown>).amount,
   ];
   for (const c of candidates) {
     const cents = parsePriceCents(c);
@@ -52,6 +67,23 @@ function detectBillingCycle(p: KiwifyPayload): 'monthly' | 'annual' | null {
     if (cents === 1990 || (cents >= 1900 && cents <= 2099)) return 'monthly';
     if (cents === 14700 || (cents >= 14000 && cents <= 15000)) return 'annual';
   }
+
+  // Fallback por frequência declarada no payload (ex.: "monthly" | "yearly")
+  const freqCandidates: unknown[] = [
+    subPlan.frequency,
+    subPlan.interval,
+    sub.frequency,
+    sub.interval,
+    (p as Record<string, unknown>).frequency,
+    (p as Record<string, unknown>).interval,
+  ];
+  for (const f of freqCandidates) {
+    if (typeof f !== 'string') continue;
+    const v = f.toLowerCase();
+    if (v.includes('year') || v.includes('annual') || v.includes('anual')) return 'annual';
+    if (v.includes('month') || v.includes('mens')) return 'monthly';
+  }
+
   return null;
 }
 
@@ -153,6 +185,27 @@ export async function POST(req: NextRequest) {
   }
 
   const event = getEvent(payload).toLowerCase();
+
+  // TEMP DEBUG — remover após inspecionar o formato real do payload da Kiwify
+  // (em especial os campos que carregam o preço/cycle do plano comprado).
+  // Habilitar com KIWIFY_DEBUG=1 no .env.local.
+  if (process.env.KIWIFY_DEBUG === '1') {
+    try {
+      console.log('[kiwify-webhook][DEBUG] event:', event);
+      console.log('[kiwify-webhook][DEBUG] payload keys:', Object.keys(payload));
+      console.log(
+        '[kiwify-webhook][DEBUG] payload:',
+        JSON.stringify(payload, null, 2),
+      );
+      console.log(
+        '[kiwify-webhook][DEBUG] detected cycle:',
+        detectBillingCycle(payload),
+      );
+    } catch {
+      // ignora falha de log
+    }
+  }
+
   const admin = createAdminClient();
 
   try {

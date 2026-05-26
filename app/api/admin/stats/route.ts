@@ -9,6 +9,42 @@ import type { Category } from '@/lib/types';
 const MONTHLY_PRICE = 19.9;
 const ANNUAL_PRICE = 147;
 
+// Taxa Kiwify (fixa) descontada por transação cobrada via Kiwify.
+const KIWIFY_FEE = 3.88;
+const kiwifyNet = (gross: number) => Math.max(0, gross - KIWIFY_FEE);
+
+// Aplicam-se à Kiwify (monthly / annual / NULL inferido como pago).
+// 'manual' / 'beta' / 'coupon' não passam por Kiwify — não recebem o desconto
+// (já entram com valor 0 no MRR, então isso só importa em listagens futuras).
+const MONTHLY_NET_PER_MONTH = kiwifyNet(MONTHLY_PRICE);          // 19.90 - 3.88 = 16.02
+const ANNUAL_NET_PER_MONTH  = kiwifyNet(ANNUAL_PRICE) / 12;      // (147 - 3.88)/12 ≈ 11.9266…
+
+type BillingCycle = 'monthly' | 'annual' | 'manual' | 'beta' | 'coupon';
+
+// Quando billing_cycle vier NULL (assinaturas antigas / webhook que não conseguiu
+// detectar o cycle), inferimos pelo intervalo created_at → current_period_end.
+// 'manual' / 'beta' / 'coupon' permanecem como estão (não-pagantes explícitos).
+function effectiveBillingCycle(s: {
+  billing_cycle: string | null;
+  created_at: string | null;
+  current_period_end: string | null;
+}): BillingCycle {
+  if (s.billing_cycle === 'monthly' || s.billing_cycle === 'annual'
+    || s.billing_cycle === 'manual' || s.billing_cycle === 'beta'
+    || s.billing_cycle === 'coupon') {
+    return s.billing_cycle;
+  }
+  if (s.created_at && s.current_period_end) {
+    const days = (Date.parse(s.current_period_end) - Date.parse(s.created_at))
+      / (1000 * 60 * 60 * 24);
+    if (Number.isFinite(days)) {
+      if (days >= 300) return 'annual';
+      if (days > 0) return 'monthly';
+    }
+  }
+  return 'monthly'; // fallback conservador para NULL sem datas confiáveis
+}
+
 export async function GET() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -142,15 +178,19 @@ export async function GET() {
 
   const subsArr = subs ?? [];
   const proActive = subsArr.filter(s => s.plan === 'pro' && s.status === 'active');
+  const proActiveWithCycle = proActive.map(s => ({
+    ...s,
+    effective_cycle: effectiveBillingCycle(s),
+  }));
 
-  const monthlyCount = proActive.filter(s => s.billing_cycle === 'monthly').length;
-  const annualCount = proActive.filter(s => s.billing_cycle === 'annual').length;
-  const manualCount = proActive.filter(s => s.billing_cycle === 'manual').length;
-  const betaCount = proActive.filter(s => s.billing_cycle === 'beta').length;
-  const couponCount = proActive.filter(s => s.billing_cycle === 'coupon').length;
+  const monthlyCount = proActiveWithCycle.filter(s => s.effective_cycle === 'monthly').length;
+  const annualCount = proActiveWithCycle.filter(s => s.effective_cycle === 'annual').length;
+  const manualCount = proActiveWithCycle.filter(s => s.effective_cycle === 'manual').length;
+  const betaCount = proActiveWithCycle.filter(s => s.effective_cycle === 'beta').length;
+  const couponCount = proActiveWithCycle.filter(s => s.effective_cycle === 'coupon').length;
 
-  const mrrMonthly = monthlyCount * MONTHLY_PRICE;
-  const mrrAnnual = annualCount * (ANNUAL_PRICE / 12);
+  const mrrMonthly = monthlyCount * MONTHLY_NET_PER_MONTH;
+  const mrrAnnual = annualCount * ANNUAL_NET_PER_MONTH;
   const mrr = mrrMonthly + mrrAnnual;
 
   const totalProActive = proActive.length;
@@ -178,19 +218,20 @@ export async function GET() {
     if (s.status === 'cancelled' && s.updated_at && new Date(s.updated_at) >= monthStart) return true;
     return false;
   });
+  const prevMonthWithCycle = proActivePrevMonth.map(s => effectiveBillingCycle(s));
   const mrrPrevMonth =
-    proActivePrevMonth.filter(s => s.billing_cycle === 'monthly').length * MONTHLY_PRICE +
-    proActivePrevMonth.filter(s => s.billing_cycle === 'annual').length * (ANNUAL_PRICE / 12);
+    prevMonthWithCycle.filter(c => c === 'monthly').length * MONTHLY_NET_PER_MONTH +
+    prevMonthWithCycle.filter(c => c === 'annual').length * ANNUAL_NET_PER_MONTH;
 
-  // Lista de Pro ativos (ordenada por valor mensal)
-  const proList = proActive.map(s => ({
+  // Lista de Pro ativos (ordenada por valor mensal líquido após taxa Kiwify)
+  const proList = proActiveWithCycle.map(s => ({
     user_id: s.user_id,
     email: userEmailMap.get(s.user_id) ?? '—',
-    billing_cycle: s.billing_cycle,
+    billing_cycle: s.billing_cycle, // mantém o valor cru (pode ser null)
     since: s.updated_at ?? s.created_at ?? null,
     monthlyValue:
-      s.billing_cycle === 'monthly' ? MONTHLY_PRICE :
-      s.billing_cycle === 'annual' ? Math.round((ANNUAL_PRICE / 12) * 100) / 100 :
+      s.effective_cycle === 'monthly' ? Math.round(MONTHLY_NET_PER_MONTH * 100) / 100 :
+      s.effective_cycle === 'annual' ? Math.round(ANNUAL_NET_PER_MONTH * 100) / 100 :
       0,
   })).sort((a, b) => b.monthlyValue - a.monthlyValue);
 
