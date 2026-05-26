@@ -28,19 +28,19 @@ export function AdminNotificacoes({
 }: Props) {
   return (
     <>
-      <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Notificações</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 24px', color: '#111827' }}>Notificações</h1>
 
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
         border: '1px solid var(--border)', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Enviar push manual</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', color: '#111827' }}>Enviar push manual</h2>
+        <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
           Envia um push instantâneo para os usuários selecionados que tenham notificações ativadas.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
-            Título * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushTitle.length}/50)</span>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+            Título * <span style={{ fontWeight: 500, color: '#6b7280' }}>({pushTitle.length}/50)</span>
             <input
               type="text" value={pushTitle} maxLength={50}
               onChange={e => setPushTitle(e.target.value)}
@@ -52,8 +52,8 @@ export function AdminNotificacoes({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
-            Mensagem * <span style={{ fontWeight: 500, color: 'var(--text-3)' }}>({pushMessage.length}/120)</span>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+            Mensagem * <span style={{ fontWeight: 500, color: '#6b7280' }}>({pushMessage.length}/120)</span>
             <textarea
               value={pushMessage} maxLength={120}
               onChange={e => setPushMessage(e.target.value)}
@@ -66,7 +66,7 @@ export function AdminNotificacoes({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             URL de destino (opcional)
             <input
               type="text" value={pushUrl}
@@ -79,7 +79,7 @@ export function AdminNotificacoes({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             Destinatários
             <select
               value={pushTarget}
@@ -118,7 +118,7 @@ export function AdminNotificacoes({
         </div>
       </div>
 
-      <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Histórico</h2>
+      <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', color: '#111827' }}>Histórico</h2>
       <div style={{
         overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
         border: '1px solid var(--border)',
@@ -129,29 +129,29 @@ export function AdminNotificacoes({
               {['Data', 'Título', 'Destinatários', 'Enviados', 'Falhas'].map(h => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '12px 14px', fontWeight: 700,
-                  color: 'var(--text-2)', whiteSpace: 'nowrap',
+                  color: '#374151', whiteSpace: 'nowrap',
                 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {pushHistoryLoading ? (
-              <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+              <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
             ) : pushHistory.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum push enviado ainda.</td></tr>
+              <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum push enviado ainda.</td></tr>
             ) : pushHistory.map(h => (
               <tr key={h.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                <td style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDateTime(h.created_at)}</td>
-                <td style={{ padding: '10px 14px', fontWeight: 700 }}>{h.title}</td>
-                <td style={{ padding: '10px 14px' }}>
-                  <code style={{ fontSize: 12, background: 'var(--bg)', padding: '2px 6px', borderRadius: 4 }}>
+                <td style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmtDateTime(h.created_at)}</td>
+                <td style={{ padding: '10px 14px', fontWeight: 700, color: '#111827' }}>{h.title}</td>
+                <td style={{ padding: '10px 14px', color: '#111827' }}>
+                  <code style={{ fontSize: 12, background: 'var(--bg)', padding: '2px 6px', borderRadius: 4, color: '#111827' }}>
                     {h.target}
                   </code>
                 </td>
                 <td style={{ padding: '10px 14px', color: 'var(--green)', fontWeight: 700 }}>{h.sent_count}</td>
                 <td style={{
                   padding: '10px 14px', fontWeight: 700,
-                  color: h.failed_count > 0 ? 'var(--red)' : 'var(--text-3)',
+                  color: h.failed_count > 0 ? 'var(--red)' : '#6b7280',
                 }}>{h.failed_count}</td>
               </tr>
             ))}

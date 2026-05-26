@@ -30,17 +30,17 @@ export function AdminCupons({
 }: Props) {
   return (
     <>
-      <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 24px' }}>Cupons</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 24px', color: '#111827' }}>Cupons</h1>
 
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--r)', padding: 20,
         border: '1px solid var(--border)', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Criar cupom</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', color: '#111827' }}>Criar cupom</h2>
         <div className="admin-form-grid" style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12,
         }}>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             Código (opcional)
             <input
               type="text" value={newCouponCode}
@@ -53,7 +53,7 @@ export function AdminCupons({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             Duração (dias)
             <input
               type="number" min={1} value={newCouponDays}
@@ -65,7 +65,7 @@ export function AdminCupons({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             Máx. usos (0 = ilimitado)
             <input
               type="number" min={0} value={newCouponMaxUses}
@@ -77,7 +77,7 @@ export function AdminCupons({
               }}
             />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 700 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
             Expira em (opcional)
             <input
               type="date" value={newCouponExpires}
@@ -109,7 +109,7 @@ export function AdminCupons({
         </div>
       </div>
 
-      <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px' }}>Cupons cadastrados</h2>
+      <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', color: '#111827' }}>Cupons cadastrados</h2>
       <div style={{
         overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r)',
         border: '1px solid var(--border)',
@@ -120,30 +120,30 @@ export function AdminCupons({
               {['Código', 'Dias', 'Usos', 'Validade', 'Status', 'Ações'].map(h => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '12px 14px', fontWeight: 700,
-                  color: 'var(--text-2)', whiteSpace: 'nowrap',
+                  color: '#374151', whiteSpace: 'nowrap',
                 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {couponsLoading ? (
-              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
             ) : coupons.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum cupom criado.</td></tr>
+              <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum cupom criado.</td></tr>
             ) : coupons.map(c => {
               const exhausted = c.max_uses > 0 && c.uses >= c.max_uses;
               const expired = c.expires_at != null && new Date(c.expires_at) < new Date();
               const showActive = c.active && !exhausted && !expired;
               return (
                 <tr key={c.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                  <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 800 }}>
+                  <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 800, color: '#111827' }}>
                     {c.code}
                   </td>
-                  <td style={{ padding: '10px 14px' }}>{c.days}</td>
-                  <td style={{ padding: '10px 14px' }}>
+                  <td style={{ padding: '10px 14px', color: '#111827' }}>{c.days}</td>
+                  <td style={{ padding: '10px 14px', color: '#111827' }}>
                     {c.uses}/{c.max_uses === 0 ? '∞' : c.max_uses}
                   </td>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-2)' }}>
+                  <td style={{ padding: '10px 14px', color: '#374151' }}>
                     {c.expires_at ? fmt(c.expires_at) : '—'}
                   </td>
                   <td style={{ padding: '10px 14px' }}>

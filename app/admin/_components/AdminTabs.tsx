@@ -14,7 +14,7 @@ export function AdminTabs({ tab, setTab, feedbackUnread }: Props) {
           padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
           fontFamily: 'inherit', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
           background: tab === t.key ? 'var(--accent)' : 'var(--surface)',
-          color: tab === t.key ? '#fff' : 'var(--text-2)',
+          color: tab === t.key ? '#fff' : '#374151',
           display: 'inline-flex', alignItems: 'center', gap: 6,
         }}>
           <span>{t.label}</span>

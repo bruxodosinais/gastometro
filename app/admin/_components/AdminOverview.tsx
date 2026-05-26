@@ -17,9 +17,9 @@ const C = {
   success: '#00C37A',
   danger: '#FF4757',
   warning: '#FFB800',
-  text: '#1A1A1A',
-  text2: '#6B6B6B',
-  text3: '#9CA3AF',
+  text: '#111827',
+  text2: '#374151',
+  text3: '#6b7280',
   border: '#E5E5E0',
   borderLight: '#F0F0EC',
 };
@@ -150,7 +150,7 @@ function FeaturedKpiCard({
         <div style={{ fontSize: 12, color: C.text3, marginTop: 6 }}>{sub}</div>
       )}
       {note && (
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{note}</div>
+        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{note}</div>
       )}
       {children}
     </div>
@@ -187,7 +187,7 @@ function MiniKpi({
         {value}
       </div>
       {sub && <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>{sub}</div>}
-      {note && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{note}</div>}
+      {note && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{note}</div>}
     </div>
   );
 }

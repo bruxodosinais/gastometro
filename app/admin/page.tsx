@@ -505,7 +505,7 @@ export default function AdminPage() {
       {/* ── Modal: Detalhes do usuário ── */}
       {detailUser && (
         <Modal onClose={() => setDetailUser(null)}>
-          <h2 style={{ margin: '0 0 16px', fontWeight: 900, fontSize: 18 }}>Detalhes do usuário</h2>
+          <h2 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: 18, color: '#111827' }}>Detalhes do usuário</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Row label="E-mail" value={detailUser.email} />
             <Row label="Cadastro" value={fmt(detailUser.created_at)} />
@@ -518,14 +518,14 @@ export default function AdminPage() {
           </div>
 
           {/* Plano e Assinatura */}
-          <h3 style={{ margin: '24px 0 12px', fontWeight: 800, fontSize: 15 }}>Plano e Assinatura</h3>
+          <h3 style={{ margin: '24px 0 12px', fontWeight: 800, fontSize: 15, color: '#111827' }}>Plano e Assinatura</h3>
           {subLoading ? (
-            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: 0 }}>Carregando assinatura…</p>
+            <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>Carregando assinatura…</p>
           ) : subscription ? (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border-2)', paddingBottom: 8 }}>
-                  <span style={{ color: 'var(--text-2)' }}>Plano atual</span>
+                  <span style={{ color: '#374151' }}>Plano atual</span>
                   <PlanBadge plan={subscription.plan} billingCycle={subscription.billing_cycle} />
                 </div>
                 <Row label="Status" value={subscription.status} />
@@ -560,7 +560,7 @@ export default function AdminPage() {
               </div>
             </>
           ) : (
-            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: 0 }}>Sem dados de assinatura.</p>
+            <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>Sem dados de assinatura.</p>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
@@ -576,7 +576,7 @@ export default function AdminPage() {
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Excluir conta</button>
             <button onClick={() => setDetailUser(null)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, marginLeft: 'auto',
             }}>Fechar</button>
           </div>
@@ -586,16 +586,16 @@ export default function AdminPage() {
       {/* ── Modal: Convidar usuário ── */}
       {inviteOpen && (
         <Modal onClose={() => { setInviteOpen(false); setInviteMsg(''); }}>
-          <h2 style={{ margin: '0 0 16px', fontWeight: 900, fontSize: 18 }}>Convidar usuário</h2>
+          <h2 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: 18, color: '#111827' }}>Convidar usuário</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <label style={{ fontSize: 13, fontWeight: 700 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
               E-mail *
               <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                 placeholder="usuario@exemplo.com"
                 style={{ display: 'block', marginTop: 4, width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: 14 }}
               />
             </label>
-            <label style={{ fontSize: 13, fontWeight: 700 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
               Nome (opcional)
               <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)}
                 placeholder="Nome do convidado"
@@ -614,7 +614,7 @@ export default function AdminPage() {
                 {inviteLoading ? 'Enviando…' : 'Enviar convite'}
               </button>
               <button onClick={() => { setInviteOpen(false); setInviteMsg(''); }} style={{
-                padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+                padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
                 borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
               }}>Cancelar</button>
             </div>
@@ -626,7 +626,7 @@ export default function AdminPage() {
       {confirmDelete && (
         <Modal onClose={() => setConfirmDelete(null)}>
           <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18, color: 'var(--red)' }}>Excluir usuário</h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 20px' }}>
+          <p style={{ color: '#374151', fontSize: 14, margin: '0 0 20px' }}>
             Tem certeza? Esta ação é irreversível. Todos os dados do usuário serão excluídos permanentemente.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -635,7 +635,7 @@ export default function AdminPage() {
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Sim, excluir</button>
             <button onClick={() => setConfirmDelete(null)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Cancelar</button>
           </div>
@@ -645,11 +645,11 @@ export default function AdminPage() {
       {/* ── Modal: Conceder Pro ── */}
       {grantOpen && detailUser && (
         <Modal onClose={() => setGrantOpen(false)}>
-          <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18 }}>Conceder Pro</h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 16px' }}>
+          <h2 style={{ margin: '0 0 12px', fontWeight: 800, fontSize: 18, color: '#111827' }}>Conceder Pro</h2>
+          <p style={{ color: '#374151', fontSize: 14, margin: '0 0 16px' }}>
             Conceder plano Pro manualmente para <strong>{detailUser.email}</strong>.
           </p>
-          <label style={{ fontSize: 13, fontWeight: 700, display: 'block' }}>
+          <label style={{ fontSize: 13, fontWeight: 700, display: 'block', color: '#374151' }}>
             Duração em dias
             <input
               type="number" min={1} value={grantDays}
@@ -666,7 +666,7 @@ export default function AdminPage() {
               {grantLoading ? 'Concedendo…' : 'Confirmar'}
             </button>
             <button onClick={() => setGrantOpen(false)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Cancelar</button>
           </div>
@@ -677,7 +677,7 @@ export default function AdminPage() {
       {confirmRevoke && detailUser && (
         <Modal onClose={() => setConfirmRevoke(false)}>
           <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18, color: 'var(--red)' }}>Revogar Pro</h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 20px' }}>
+          <p style={{ color: '#374151', fontSize: 14, margin: '0 0 20px' }}>
             Tem certeza que deseja revogar o plano Pro de <strong>{detailUser.email}</strong>?
             O usuário voltará para o plano Free imediatamente.
           </p>
@@ -688,7 +688,7 @@ export default function AdminPage() {
               opacity: revokeLoading ? 0.6 : 1,
             }}>{revokeLoading ? 'Revogando…' : 'Sim, revogar'}</button>
             <button onClick={() => setConfirmRevoke(false)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)',
+              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
               borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
             }}>Cancelar</button>
           </div>

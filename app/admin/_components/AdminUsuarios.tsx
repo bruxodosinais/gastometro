@@ -101,7 +101,7 @@ export function AdminUsuarios({
                 <th
                   key={h.label}
                   className={h.hideMobile ? 'admin-user-hide-mobile' : undefined}
-                  style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}
+                  style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}
                 >
                   {h.label}
                 </th>
@@ -110,9 +110,9 @@ export function AdminUsuarios({
           </thead>
           <tbody>
             {loadingUsers ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Carregando…</td></tr>
+              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum usuário encontrado.</td></tr>
+              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum usuário encontrado.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
                 <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#111827', fontWeight: 600, opacity: 1 }}>
@@ -148,7 +148,7 @@ export function AdminUsuarios({
       {/* Paginação */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, alignItems: 'center', fontSize: 14 }}>
         <button disabled={userPage <= 1} onClick={() => setUserPage(p => p - 1)} style={pageBtn}>← Anterior</button>
-        <span style={{ color: 'var(--text-2)' }}>
+        <span style={{ color: '#374151' }}>
           Página {userPage} de {Math.max(1, Math.ceil(usersTotal / 20))} ({usersTotal} usuários)
         </span>
         <button disabled={userPage >= Math.ceil(usersTotal / 20)} onClick={() => setUserPage(p => p + 1)} style={pageBtn}>Próxima →</button>

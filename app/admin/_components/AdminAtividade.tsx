@@ -17,18 +17,18 @@ export function AdminAtividade({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Atividade recente</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: '#111827' }}>Atividade recente</h1>
         <button onClick={onFetchActivity} style={{
           padding: '8px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
           borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13,
         }}>↻ Atualizar</button>
       </div>
       {activityLoading ? (
-        <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
+        <p style={{ color: '#6b7280' }}>Carregando…</p>
       ) : activityItems.length === 0 ? (
         <div style={{
           background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
-          color: 'var(--text-3)', border: '1px solid var(--border)',
+          color: '#6b7280', border: '1px solid var(--border)',
         }}>Nenhuma atividade nos últimos 30 dias.</div>
       ) : (
         <>
@@ -49,12 +49,12 @@ export function AdminAtividade({
                   <div style={{ fontSize: 22, lineHeight: 1 }}>{icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
-                      margin: 0, fontSize: 14, color: 'var(--text)', fontWeight: 600,
+                      margin: 0, fontSize: 14, color: '#111827', fontWeight: 600,
                       wordBreak: 'break-word',
                     }}>{item.description}</p>
                   </div>
                   <span style={{
-                    fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 600,
+                    fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', fontWeight: 600,
                   }}>{fmtRelative(item.created_at)}</span>
                 </div>
               );

@@ -12,9 +12,9 @@ const C = {
   primary: '#5B5BD6',
   success: '#00C37A',
   danger: '#FF4757',
-  text: '#1A1A1A',
-  text2: '#6B6B6B',
-  text3: '#9CA3AF',
+  text: '#111827',
+  text2: '#374151',
+  text3: '#6b7280',
   border: '#E5E5E0',
   borderLight: '#F0F0EC',
 };

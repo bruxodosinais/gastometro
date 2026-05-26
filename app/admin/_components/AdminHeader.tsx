@@ -26,7 +26,7 @@ export function AdminHeader({ tab, setTab, feedbackUnread }: Props) {
         <button key={t.key} onClick={() => handleSelect(t.key)} style={{
           textAlign: 'left', padding: '10px 20px', border: 'none', background: 'none',
           cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: tab === t.key ? 700 : 500,
-          color: tab === t.key ? 'var(--accent)' : 'var(--text-2)',
+          color: tab === t.key ? 'var(--accent)' : '#374151',
           borderLeft: tab === t.key ? '3px solid var(--accent)' : '3px solid transparent',
           transition: 'all 0.15s',
           display: 'flex', alignItems: 'center', gap: 8,
@@ -45,7 +45,7 @@ export function AdminHeader({ tab, setTab, feedbackUnread }: Props) {
       ))}
       <div style={{ flex: 1 }} />
       <a href="/app" style={{
-        padding: '10px 20px', color: 'var(--text-3)', fontSize: 13, textDecoration: 'none',
+        padding: '10px 20px', color: '#6b7280', fontSize: 13, textDecoration: 'none',
       }}>← Voltar ao app</a>
     </>
   );
@@ -82,7 +82,7 @@ export function AdminHeader({ tab, setTab, feedbackUnread }: Props) {
 
         <div style={{
           flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15,
-          color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           Admin · TôOrganizado
         </div>

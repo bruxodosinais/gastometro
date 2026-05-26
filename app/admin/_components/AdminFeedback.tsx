@@ -23,7 +23,7 @@ export function AdminFeedback({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: '#111827', display: 'flex', alignItems: 'center', gap: 10 }}>
           Feedback
           {feedbackUnread > 0 && (
             <span style={{
@@ -55,7 +55,7 @@ export function AdminFeedback({
               padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
               fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
               background: active ? 'var(--accent)' : 'var(--surface)',
-              color: active ? '#fff' : 'var(--text-2)',
+              color: active ? '#fff' : '#374151',
               border: active ? '1px solid transparent' : '1px solid var(--border)',
             }}>
               {f.label}
@@ -65,11 +65,11 @@ export function AdminFeedback({
       </div>
 
       {feedbackLoading ? (
-        <p style={{ color: 'var(--text-3)' }}>Carregando…</p>
+        <p style={{ color: '#6b7280' }}>Carregando…</p>
       ) : filteredFeedback.length === 0 ? (
         <div style={{
           background: 'var(--surface)', borderRadius: 'var(--r)', padding: 32, textAlign: 'center',
-          color: 'var(--text-3)', border: '1px solid var(--border)',
+          color: '#6b7280', border: '1px solid var(--border)',
         }}>
           Nenhum feedback {feedbackFilter !== 'all' ? 'nesta categoria' : 'ainda'}.
         </div>
@@ -97,22 +97,22 @@ export function AdminFeedback({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                     <Chip label={`${meta.emoji} ${meta.label}`} color={meta.color} bg={meta.bg} />
                     {isNew && <Chip label="NOVO" color="#fff" bg="var(--accent)" />}
-                    <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>
+                    <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>
                       {f.email ?? 'Usuário removido'}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 'auto' }}>
                       {fmtDateTime(f.created_at)}
                     </span>
                   </div>
                   <p style={{
-                    margin: '4px 0 6px', color: 'var(--text)', fontSize: 14,
+                    margin: '4px 0 6px', color: '#111827', fontSize: 14,
                     lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   }}>
                     {f.message}
                   </p>
                   {f.page && (
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
-                      <span style={{ fontWeight: 700 }}>Página:</span> {f.page}
+                    <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>
+                      <span style={{ fontWeight: 700, color: '#374151' }}>Página:</span> {f.page}
                     </p>
                   )}
                 </div>
