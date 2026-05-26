@@ -33,7 +33,7 @@ export function AdminUsuarios({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Usuários</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: '#111827', opacity: 1 }}>Usuários</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onOpenInvite} style={{
             padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
@@ -115,12 +115,12 @@ export function AdminUsuarios({
               <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Nenhum usuário encontrado.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#111827', fontWeight: 600, opacity: 1 }}>
                   {u.email}
                 </td>
-                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
-                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
-                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700 }}>{u.launches_count}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700, color: '#374151' }}>{u.launches_count}</td>
                 <td style={{ padding: '10px 14px' }}>
                   <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} />
                 </td>
