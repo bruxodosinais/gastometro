@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ALLOWED_CATEGORIES = new Set(['bug', 'sugestao', 'elogio', 'outro']);
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!rateLimit(ip, 'feedback', 5, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Limite de feedbacks atingido.' }, { status: 429 });
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

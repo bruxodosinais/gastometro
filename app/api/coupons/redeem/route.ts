@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!rateLimit(ip, 'coupons:redeem', 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ success: false, error: 'Muitas tentativas. Aguarde.' }, { status: 429 });
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: 'Não autenticado.' }, { status: 401 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 interface Body {
   endpoint?: string;
@@ -10,6 +11,11 @@ interface Body {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!rateLimit(ip, 'push:subscribe', 10, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Limite de registros atingido.' }, { status: 429 });
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });

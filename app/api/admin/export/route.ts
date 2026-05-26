@@ -1,8 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? '';
+  const referer = req.headers.get('referer') ?? '';
+  const allowed = ['https://toorganizado.com.br', 'http://localhost:3000', 'http://localhost:3001'];
+  const isAllowed = allowed.some(a => origin.startsWith(a) || referer.startsWith(a));
+  if (!isAllowed) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
@@ -20,6 +28,13 @@ export async function GET() {
   const recurringSet = new Set(recurringRows?.map(r => r.user_id) ?? []);
   const { data: cardRows } = await admin.from('credit_cards').select('user_id');
   const cardSet = new Set(cardRows?.map(r => r.user_id) ?? []);
+
+  console.log('[admin:export]', {
+    adminUserId: user.id,
+    exportedAt: new Date().toISOString(),
+    rowCount: allUsers.length,
+    ip: req.headers.get('x-forwarded-for') ?? 'unknown',
+  });
 
   const header = 'id,email,cadastro,confirmado,ultimo_acesso,lancamentos,tem_recorrente,tem_cartao,bloqueado\n';
   const rows = allUsers.map(u => [

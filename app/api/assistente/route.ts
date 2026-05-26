@@ -2,12 +2,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { calculateStreak } from '@/lib/streak';
 import { PLAN_LIMITS } from '@/lib/planLimits';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 const EXPENSE_CATEGORIES = ['Delivery', 'Alimentação', 'Transporte', 'Assinaturas', 'Saúde', 'Lazer', 'Outros'];
 const INCOME_CATEGORIES = ['Salário', 'Freela', 'Renda passiva', 'Outros'];
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    if (!rateLimit(ip, 'assistente', 20, 60 * 1000)) {
+      return Response.json({ error: 'Limite de requisições atingido.' }, { status: 429 });
+    }
+
     const { message, history, todayStr: clientTodayStr } = await request.json();
 
     const supabase = await createClient();
