@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CATEGORY_CONFIG } from './categoryConfig';
+import { getCategoryDisplay } from './categoryConfig';
 import { calcStreak, type MissionContribution } from './storage/missions';
-import type { Category } from './types';
+import type { CustomCategory } from './types';
 
 export type CategoryBreakdown = {
   category: string;
@@ -57,8 +57,29 @@ function fmtDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function getCategoryEmoji(cat: string): string {
-  return CATEGORY_CONFIG[cat as Category]?.icon ?? '📦';
+function getCategoryEmoji(cat: string, customs: CustomCategory[]): string {
+  return getCategoryDisplay(cat, customs).icon;
+}
+
+// Carrega as custom categories do usuário no contexto server-side. Usado
+// pelos reports semanal/mensal para pintar ícones de categorias custom
+// corretamente em vez de cair em fallback.
+async function loadUserCustomCategories(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<CustomCategory[]> {
+  const { data } = await supabase
+    .from('custom_categories')
+    .select('*')
+    .eq('user_id', userId);
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    icon: row.icon as string,
+    color: row.color as string,
+    type: row.type as 'expense' | 'income',
+    createdAt: row.created_at as string,
+  }));
 }
 
 // Bounds da semana ISO (segunda → domingo) que CONTÉM `ref`.
@@ -85,6 +106,7 @@ export function getPreviousWeekBounds(ref: Date): { start: Date; end: Date } {
 
 function computeBreakdown(
   expenses: Array<{ category: string; amount: number; type: string }>,
+  customs: CustomCategory[],
 ): { total: number; top: CategoryBreakdown[] } {
   const totals = new Map<string, number>();
   for (const e of expenses) {
@@ -99,7 +121,7 @@ function computeBreakdown(
       category,
       amount,
       percentage: total > 0 ? (amount / total) * 100 : 0,
-      emoji: getCategoryEmoji(category),
+      emoji: getCategoryEmoji(category, customs),
     }));
   return { total, top };
 }
@@ -117,8 +139,14 @@ export async function computeWeeklyReport(
   const monthStart = `${monthKey}-01`;
   const today = fmtDate(refDate);
 
-  const [{ data: prevExp }, { data: olderExp }, { data: monthExp }, { data: plan }, { data: pending }] =
-    await Promise.all([
+  const [
+    { data: prevExp },
+    { data: olderExp },
+    { data: monthExp },
+    { data: plan },
+    { data: pending },
+    customs,
+  ] = await Promise.all([
       supabase
         .from('expenses')
         .select('amount, category, type')
@@ -149,10 +177,12 @@ export async function computeWeeklyReport(
         .eq('user_id', userId)
         .eq('month', monthKey)
         .eq('status', 'pending'),
+      loadUserCustomCategories(supabase, userId),
     ]);
 
   const { total: totalSpent, top: topCategories } = computeBreakdown(
     (prevExp ?? []) as Array<{ category: string; amount: number; type: string }>,
+    customs,
   );
   const previousSpent = (olderExp ?? [])
     .filter((e) => e.type === 'expense')
@@ -272,7 +302,12 @@ export async function computeMonthlyReport(
     .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     .replace(/^\w/, (c) => c.toUpperCase());
 
-  const [{ data: monthExp }, { data: prevMonthExp }, { data: plan }] = await Promise.all([
+  const [
+    { data: monthExp },
+    { data: prevMonthExp },
+    { data: plan },
+    customs,
+  ] = await Promise.all([
     supabase
       .from('expenses')
       .select('amount, category, type')
@@ -291,10 +326,12 @@ export async function computeMonthlyReport(
       .eq('user_id', userId)
       .eq('month', monthKey)
       .maybeSingle(),
+    loadUserCustomCategories(supabase, userId),
   ]);
 
   const { total: totalSpent, top: topCategories } = computeBreakdown(
     (monthExp ?? []) as Array<{ category: string; amount: number; type: string }>,
+    customs,
   );
   const monthIncome = (monthExp ?? [])
     .filter((e) => e.type === 'income')
@@ -322,7 +359,7 @@ export async function computeMonthlyReport(
     const growth = ((cur - prev) / prev) * 100;
     if (growth > bestGrowth) {
       bestGrowth = growth;
-      fastestGrowingCategory = { category: cat, growthPercent: growth, emoji: getCategoryEmoji(cat) };
+      fastestGrowingCategory = { category: cat, growthPercent: growth, emoji: getCategoryEmoji(cat, customs) };
     }
   }
 

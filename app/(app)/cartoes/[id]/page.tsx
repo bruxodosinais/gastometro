@@ -11,8 +11,9 @@ import {
   getExpensesByCard,
 } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { CreditCard as CreditCardType, Expense } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { ToastContainer, useToast } from '@/components/Toast';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { getErrorMessage } from '@/lib/errors';
@@ -42,6 +43,7 @@ export default function CartaoDetailPage() {
   const params = useParams();
   const router = useRouter();
   const cardId = params.id as string;
+  const { categories: customs } = useCustomCategories();
 
   const [card, setCard] = useState<CreditCardType | null>(null);
   const [period, setPeriod] = useState(todayPeriod());
@@ -293,7 +295,7 @@ export default function CartaoDetailPage() {
                     </span>
                   </div>
                   {grouped[date].map((exp, i) => {
-                    const cfg = CATEGORY_CONFIG[exp.category];
+                    const cfg = getCategoryDisplay(exp.category, customs);
                     const isLast = i === grouped[date].length - 1 && di === sortedDates.length - 1;
                     return (
                       <div

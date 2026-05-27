@@ -5,7 +5,8 @@ import { ChevronDown } from 'lucide-react';
 import { anim, hidden } from './_anim';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { EXPENSE_CATEGORIES, type Expense } from '@/lib/types';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 
 type Props = {
   expenses: Expense[];
@@ -29,6 +30,7 @@ export default function InsightsCard({
   mounted,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const { categories: customs } = useCustomCategories();
 
   // ── Dates ────────────────────────────────────────────────────────────────
   const now = new Date();
@@ -270,7 +272,7 @@ export default function InsightsCard({
                     </h4>
                     {top3.map(({ cat, total }) => {
                       const pct = totalGasto > 0 ? (total / totalGasto) * 100 : 0;
-                      const icon = CATEGORY_CONFIG[cat]?.icon ?? '📦';
+                      const icon = getCategoryDisplay(cat, customs).icon;
                       return (
                         <div key={cat} style={{ marginBottom: 8 }}>
                           <div
@@ -336,7 +338,7 @@ export default function InsightsCard({
                       vs mês anterior
                     </h4>
                     {comparisons.map(({ cat, diff }) => {
-                      const icon = CATEGORY_CONFIG[cat]?.icon ?? '📦';
+                      const icon = getCategoryDisplay(cat, customs).icon;
                       const isUp = diff > 0;
                       const isFlat = Math.abs(diff) < 0.01;
                       return (

@@ -3,8 +3,11 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { calculateStreak } from '@/lib/streak';
 import { BADGE_DEFINITIONS } from '@/lib/badges';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import type { Category } from '@/lib/types';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+// Admin/stats roda em escopo global (todos os usuários). Não plumamos
+// custom categories aqui — categorias custom de qualquer usuário caem no
+// fallback 📦. Aceitável: o admin não precisa ver o ícone específico que
+// cada usuário escolheu.
 
 const MONTHLY_PRICE = 19.9;
 const ANNUAL_PRICE = 147;
@@ -112,7 +115,7 @@ export async function GET() {
     .slice(0, 5)
     .map(([category, count]) => ({
       category,
-      emoji: CATEGORY_CONFIG[category as Category]?.icon ?? '📦',
+      emoji: getCategoryDisplay(category).icon,
       count,
     }));
 

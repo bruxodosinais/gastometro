@@ -1,33 +1,56 @@
 export type EntryType = 'expense' | 'income';
 
 export type ExpenseCategory =
+  | 'Academia'
+  | 'Água'
   | 'Alimentação'
   | 'Assinaturas'
   | 'Beleza'
   | 'Cartão de Crédito'
   | 'Combustível'
+  | 'Compras online'
+  | 'Condomínio'
+  | 'Crianças'
+  | 'Cuidados pessoais'
   | 'Delivery'
+  | 'Dentista'
+  | 'Doação'
   | 'Educação'
   | 'Farmácia'
+  | 'Games'
+  | 'Gás'
+  | 'Imposto'
   | 'Internet'
   | 'Investimentos'
   | 'Lazer'
+  | 'Luz'
+  | 'Manutenção'
+  | 'Médico'
   | 'Moradia'
   | 'Outros'
   | 'Pet'
   | 'Presente'
+  | 'Psicólogo'
   | 'Saúde'
+  | 'Seguro'
+  | 'Streaming'
   | 'Telefone'
+  | 'Trabalho'
   | 'Transporte'
   | 'Vestuário'
   | 'Viagem';
 
 export type IncomeCategory =
-  | 'Salário'
+  | '13º salário'
+  | 'Aluguel recebido'
+  | 'Bônus'
+  | 'Dividendos'
   | 'Freela'
-  | 'Renda passiva'
   | 'Outros'
-  | 'Saldo inicial';
+  | 'Renda passiva'
+  | 'Saldo inicial'
+  | 'Salário'
+  | 'Venda';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
@@ -35,22 +58,40 @@ export type Category = ExpenseCategory | IncomeCategory;
 // sistema (usada só no pagamento de fatura). Fica fora desta lista de propósito,
 // para não aparecer nos seletores de categoria nem no detalhamento por categoria.
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Academia',
+  'Água',
   'Alimentação',
   'Assinaturas',
   'Beleza',
   'Combustível',
+  'Compras online',
+  'Condomínio',
+  'Crianças',
+  'Cuidados pessoais',
   'Delivery',
+  'Dentista',
+  'Doação',
   'Educação',
   'Farmácia',
+  'Games',
+  'Gás',
+  'Imposto',
   'Internet',
   'Investimentos',
   'Lazer',
+  'Luz',
+  'Manutenção',
+  'Médico',
   'Moradia',
   'Outros',
   'Pet',
   'Presente',
+  'Psicólogo',
   'Saúde',
+  'Seguro',
+  'Streaming',
   'Telefone',
+  'Trabalho',
   'Transporte',
   'Vestuário',
   'Viagem',
@@ -61,11 +102,28 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 // fora desta lista de propósito — mesmo padrão de 'Cartão de Crédito' acima —
 // para não aparecer nos seletores de receita nem nos detalhamentos por fonte.
 export const INCOME_CATEGORIES: IncomeCategory[] = [
-  'Salário',
+  '13º salário',
+  'Aluguel recebido',
+  'Bônus',
+  'Dividendos',
   'Freela',
-  'Renda passiva',
   'Outros',
+  'Renda passiva',
+  'Salário',
+  'Venda',
 ];
+
+// Categoria criada pelo usuário. Armazenada na tabela custom_categories.
+// O nome convive no mesmo namespace de string das categorias fixas
+// (EXPENSE_CATEGORIES / INCOME_CATEGORIES) — a unicidade é por usuário+tipo.
+export interface CustomCategory {
+  id: string;
+  name: string;
+  icon: string;
+  color: string; // hex; uma das 12 cores da CUSTOM_COLOR_PALETTE
+  type: EntryType;
+  createdAt: string;
+}
 
 export interface CreditCard {
   id: string;
@@ -83,7 +141,9 @@ export interface Expense {
   type: EntryType;
   amount: number;
   description: string;
-  category: Category;
+  // string livre: pode ser uma categoria fixa (Category) ou o nome de uma
+  // CustomCategory do usuário. Validação do conjunto válido vive no frontend.
+  category: string;
   date: string; // YYYY-MM-DD
   createdAt: string;
   recurringExpenseId?: string;
@@ -103,7 +163,7 @@ export interface RecurringExpense {
   id: string;
   description: string;
   amount: number;
-  category: Category;
+  category: string;
   type: EntryType;
   dayOfMonth?: number;
   dueDay?: number;
@@ -192,7 +252,7 @@ export interface MonthlyObligation {
   month: string; // YYYY-MM
   amount: number;
   description: string;
-  category: Category;
+  category: string;
   // dueDay pode ser undefined: recorrentes antigos ou cadastrados sem
   // due_day E sem day_of_month geram obrigação sem prazo definido.
   dueDay?: number;

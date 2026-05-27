@@ -5,13 +5,8 @@ import { Check, Loader2, Pencil, X } from 'lucide-react';
 import { upsertMonthlyPlan } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import { Budget, Expense, GoalContribution, INCOME_CATEGORIES, MonthlyPlan, RecurringExpense } from '@/lib/types';
-
-const INCOME_SOURCE_ICONS: Record<string, string> = {
-  'Salário': '💰',
-  'Freela': '💻',
-  'Renda passiva': '📊',
-  'Outros': '📦',
-};
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 
 interface Props {
   period: string;
@@ -71,7 +66,12 @@ export default function PlanningSection({
   const debitSpent = spent - creditSpent;
   const freeRemaining = freeAmount - debitSpent;
 
-  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
+  const { categories: customIncomeCats } = useCustomCategories('income');
+  const allIncomeSources = [
+    ...INCOME_CATEGORIES,
+    ...customIncomeCats.map((c) => c.name),
+  ];
+  const incomeBySource = allIncomeSources.map((cat) => ({
     cat,
     previsto: recurringExpenses
       .filter((r) => r.active && r.type === 'income' && r.category === cat)
@@ -313,7 +313,7 @@ export default function PlanningSection({
               <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
                 {incomeBySource.map(({ cat, realizado }) => (
                   <div key={cat} className="flex items-center gap-2 text-xs">
-                    <span className="flex-shrink-0 w-4 text-center">{INCOME_SOURCE_ICONS[cat]}</span>
+                    <span className="flex-shrink-0 w-4 text-center">{getCategoryDisplay(cat, customIncomeCats).icon}</span>
                     <span className="text-gray-600 flex-1 min-w-0 truncate">{cat}</span>
                     <span className="font-semibold text-mint-500 flex-shrink-0">{formatCurrency(realizado)}</span>
                   </div>

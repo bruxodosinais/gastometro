@@ -9,13 +9,15 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type {
   Budget,
+  CustomCategory,
   Expense,
   ExpenseCategory,
   RecurringExpense,
 } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { buildMonthlyBuckets } from './chartUtils';
 
 type Props = {
@@ -73,6 +75,7 @@ function ruleUnbudgetedRecurring(
   entries: Expense[],
   months: string[],
   budgets: Budget[],
+  customs: CustomCategory[],
 ): Tip | null {
   const budgeted = new Set(budgets.map((b) => b.category));
   // Conta, por categoria, em quantos meses distintos do período houve gasto.
@@ -92,7 +95,7 @@ function ruleUnbudgetedRecurring(
     .sort((a, b) => b[1].size - a[1].size);
   if (candidates.length === 0) return null;
   const [cat, set] = candidates[0];
-  const cfg = CATEGORY_CONFIG[cat];
+  const cfg = getCategoryDisplay(cat, customs);
   return {
     id: 'unbudgeted-recurring',
     variant: 'info',
@@ -112,6 +115,7 @@ function ruleNegativeMonths(
   entries: Expense[],
   months: string[],
   recurringExpenses: RecurringExpense[],
+  customs: CustomCategory[],
 ): Tip | null {
   const buckets = buildMonthlyBuckets(entries, months);
   const negatives = buckets.filter((b) => b.income > 0 && b.expense > b.income);
@@ -149,7 +153,7 @@ function ruleNegativeMonths(
             {top2.map(([cat, total], i) => (
               <span key={cat}>
                 {i > 0 ? ', ' : ''}
-                {CATEGORY_CONFIG[cat]?.icon} <strong>{cat}</strong> ({formatCurrency(total)})
+                {getCategoryDisplay(cat, customs).icon} <strong>{cat}</strong> ({formatCurrency(total)})
               </span>
             ))}
             .
@@ -186,7 +190,7 @@ function ruleLowSavings(entries: Expense[], months: string[]): Tip | null {
   };
 }
 
-function ruleRisingSpend(entries: Expense[], months: string[]): Tip | null {
+function ruleRisingSpend(entries: Expense[], months: string[], customs: CustomCategory[]): Tip | null {
   if (months.length < 3) return null;
   const buckets = buildMonthlyBuckets(entries, months);
   const last3 = buckets.slice(-3);
@@ -228,7 +232,7 @@ function ruleRisingSpend(entries: Expense[], months: string[]): Tip | null {
     title: 'Seus gastos cresceram 3 meses seguidos',
     description: topCat ? (
       <>
-        Maior crescimento foi em {CATEGORY_CONFIG[topCat]?.icon}{' '}
+        Maior crescimento foi em {getCategoryDisplay(topCat, customs).icon}{' '}
         <strong>{topCat}</strong>: +{Math.round(topPct)}% comparado a {getMonthLabel(m1.monthKey)}.
       </>
     ) : (
@@ -326,14 +330,15 @@ export default function TipsSection({
   budgets,
   recurringExpenses,
 }: Props) {
+  const { categories: customs } = useCustomCategories();
   const tips: Tip[] = [];
-  const t1 = ruleUnbudgetedRecurring(entries, months, budgets);
+  const t1 = ruleUnbudgetedRecurring(entries, months, budgets, customs);
   if (t1) tips.push(t1);
-  const t2 = ruleNegativeMonths(entries, months, recurringExpenses);
+  const t2 = ruleNegativeMonths(entries, months, recurringExpenses, customs);
   if (t2) tips.push(t2);
   const t3 = ruleLowSavings(entries, months);
   if (t3) tips.push(t3);
-  const t4 = ruleRisingSpend(entries, months);
+  const t4 = ruleRisingSpend(entries, months, customs);
   if (t4) tips.push(t4);
 
   if (tips.length === 0) return null;

@@ -4,15 +4,12 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { addExpense, getCreditCards, updateExpense } from '@/lib/storage';
 import LoadingButton from '@/components/ui/LoadingButton';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 import {
   CreditCard as CreditCardType,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  Category,
   EntryType,
   Expense,
 } from '@/lib/types';
+import { useCategorySelector } from '@/hooks/useCategorySelector';
 
 function todayStr() {
   const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -29,7 +26,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
   const [entryType, setEntryType] = useState<EntryType>(expense.type);
   const [amount, setAmount] = useState(String(expense.amount));
   const [description, setDescription] = useState(expense.description);
-  const [category, setCategory] = useState<Category>(expense.category);
+  const [category, setCategory] = useState<string>(expense.category);
   const [date, setDate] = useState(mode === 'duplicate' ? todayStr() : expense.date);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +50,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
     }
   }, [expense.type, expense.creditCardId]);
 
-  const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const { categories: categoryOptions } = useCategorySelector(entryType);
   const title = mode === 'duplicate' ? 'Duplicar lançamento' : 'Editar lançamento';
   const submitLabel = mode === 'duplicate' ? 'Criar cópia' : 'Salvar alterações';
 
@@ -88,7 +85,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
       setError('Informe uma descrição.');
       return;
     }
-    if (!category || !(categories as readonly Category[]).includes(category)) {
+    if (!category || !categoryOptions.some((o) => o.value === category)) {
       setError('Selecione uma categoria.');
       return;
     }
@@ -280,27 +277,46 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-2">
                   Categoria
                 </label>
-                <div className={`grid gap-2 max-h-48 overflow-y-auto ${entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2'}`}>
-                  {categories.map((cat) => {
-                    const cfg = CATEGORY_CONFIG[cat];
-                    const active = category === cat;
+                {(() => {
+                  const fixed = categoryOptions.filter((o) => !o.isCustom);
+                  const custom = categoryOptions.filter((o) => o.isCustom);
+                  const gridCols = entryType === 'expense' ? 'grid-cols-4' : 'grid-cols-2';
+                  const renderOpt = (opt: typeof categoryOptions[number]) => {
+                    const active = category === opt.value;
                     return (
                       <button
-                        key={cat}
+                        key={opt.value}
                         type="button"
-                        onClick={() => setCategory(cat)}
+                        onClick={() => setCategory(opt.value)}
                         className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all touch-manipulation ${
                           active
-                            ? `${cfg.bgClass} ${cfg.borderClass} ${cfg.textClass}`
+                            ? 'bg-mint-50 border-green-500/40 text-mint-500'
                             : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-slate-600'
                         }`}
                       >
-                        <span className="text-lg">{cfg.icon}</span>
-                        <span className="text-[10px] leading-tight text-center">{cat}</span>
+                        <span className="text-lg">{opt.icon}</span>
+                        <span className="text-[10px] leading-tight text-center">{opt.label}</span>
                       </button>
                     );
-                  })}
-                </div>
+                  };
+                  return (
+                    <div className="max-h-48 overflow-y-auto">
+                      <div className={`grid gap-2 ${gridCols}`}>
+                        {fixed.map(renderOpt)}
+                      </div>
+                      {custom.length > 0 && (
+                        <>
+                          <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider mt-3 mb-2">
+                            Minhas categorias
+                          </p>
+                          <div className={`grid gap-2 ${gridCols}`}>
+                            {custom.map(renderOpt)}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {error && (

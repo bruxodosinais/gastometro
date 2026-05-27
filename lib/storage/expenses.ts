@@ -1,6 +1,6 @@
 import { createClient } from '../supabase/client';
 import { cachedFetch, TTL, withCacheInvalidation } from '../dataCache';
-import { Category, EntryType, Expense } from '../types';
+import { EntryType, Expense } from '../types';
 
 export function toExpense(row: Record<string, unknown>): Expense {
   return {
@@ -8,7 +8,7 @@ export function toExpense(row: Record<string, unknown>): Expense {
     type: ((row.type as string) ?? 'expense') as EntryType,
     amount: row.amount as number,
     description: row.description as string,
-    category: row.category as Category,
+    category: row.category as string,
     date: row.date as string,
     createdAt: row.created_at as string,
     recurringExpenseId: (row.recurring_expense_id as string | null) ?? undefined,

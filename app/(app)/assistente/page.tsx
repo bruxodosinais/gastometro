@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, Loader2, Check, X, RotateCcw } from 'lucide-react';
 import { addExpense } from '@/lib/storage';
-import { Category, EntryType } from '@/lib/types';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { CustomCategory, EntryType } from '@/lib/types';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PLAN_LIMITS } from '@/lib/planLimits';
@@ -19,7 +20,7 @@ function localDateStr() {
 type ExpenseData = {
   description: string;
   amount: number;
-  category: Category;
+  category: string;
   type: EntryType;
   date: string;
 };
@@ -60,16 +61,14 @@ function formatDate(dateStr: string) {
   return `${d}/${m}/${y}`;
 }
 
-function getCategoryIcon(cat: string) {
-  return (CATEGORY_CONFIG as Record<string, { icon: string }>)[cat]?.icon ?? '📦';
-}
-
 function ExpenseCard({
   expense,
+  customs,
   onConfirm,
   onCancel,
 }: {
   expense: ExpenseData;
+  customs: CustomCategory[];
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -98,7 +97,7 @@ function ExpenseCard({
             {formatCurrency(expense.amount)}
           </span>
           <span>·</span>
-          <span>{getCategoryIcon(expense.category)} {expense.category}</span>
+          <span>{getCategoryDisplay(expense.category, customs).icon} {expense.category}</span>
           <span>·</span>
           <span>{formatDate(expense.date)}</span>
         </p>
@@ -183,6 +182,7 @@ const STORAGE_KEY = 'gastometro_chat_history';
 export default function AssistentePage() {
   const { toasts, addToast, removeToast } = useToast();
   const subscription = useSubscription();
+  const { categories: customs } = useCustomCategories();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -421,6 +421,7 @@ export default function AssistentePage() {
                   {msg.expense && msg.expenseStatus === 'pending' && (
                     <ExpenseCard
                       expense={msg.expense}
+                      customs={customs}
                       onConfirm={() => confirmExpense(msg.id, msg.expense!)}
                       onCancel={() => cancelExpense(msg.id)}
                     />

@@ -3,13 +3,14 @@
 import { Loader2, MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type {
   CreditCard as CreditCardType,
   Expense,
   MonthlyObligation,
   RecurringExpense,
 } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { menuItemStyle } from './_shared';
 
 export type RecorrenteCardSharedProps = {
@@ -64,7 +65,8 @@ export default function RecorrenteCard({
   onToggleActive,
   onDelete,
 }: Props) {
-  const cfg = CATEGORY_CONFIG[rec.category];
+  const { categories: customs } = useCustomCategories();
+  const cfg = getCategoryDisplay(rec.category, customs);
   const isIncome = rec.type === 'income';
   const obligation = obligations.find((o) => o.recurringExpenseId === rec.id);
   const isPaid = obligation?.status === 'paid';

@@ -23,15 +23,13 @@ import {
 } from '@/lib/storage';
 import { getMonthLabel } from '@/lib/calculations';
 import {
-  Category,
   CreditCard as CreditCardType,
   EntryType,
   Expense,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
   MonthlyObligation,
   RecurringExpense,
 } from '@/lib/types';
+import { useCategorySelector } from '@/hooks/useCategorySelector';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PLAN_LIMITS } from '@/lib/planLimits';
 import RecorrentesHeader, { RecorrentesTabs, type RecorrentesTab } from '../_components/recorrentes/RecorrentesHeader';
@@ -81,7 +79,7 @@ export default function RecorrentesPage() {
   const [entryType, setEntryType] = useState<EntryType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<Category>('Alimentação');
+  const [category, setCategory] = useState<string>('Alimentação');
   const [dayOfMonth, setDayOfMonth] = useState('');
   const [dueDay, setDueDay] = useState('');
   const [isVariable, setIsVariable] = useState(false);
@@ -120,7 +118,7 @@ export default function RecorrentesPage() {
   const [editIsVariable, setEditIsVariable] = useState(false);
   const [editHasDuration, setEditHasDuration] = useState(false);
   const [editTotalInstallments, setEditTotalInstallments] = useState('');
-  const [editCategory, setEditCategory] = useState<Category>('Alimentação');
+  const [editCategory, setEditCategory] = useState<string>('Alimentação');
   const [editSaving, setEditSaving] = useState(false);
 
   const isFirstLoad = useRef(true);
@@ -534,7 +532,7 @@ export default function RecorrentesPage() {
     setTabExpanded((prev) => ({ ...prev, [tab]: false }));
   }
 
-  const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const { categories: categoryOptions } = useCategorySelector(entryType);
 
   const selectedMonthLabel = getMonthLabel(selectedMonth);
   const selectedMonthLabelCap = selectedMonthLabel.charAt(0).toUpperCase() + selectedMonthLabel.slice(1);
@@ -816,7 +814,7 @@ export default function RecorrentesPage() {
       {/* ── CATEGORY PICKER ─────────────────────────────────────────────────── */}
       <CategoryPickerSheet
         open={showCategoryPicker}
-        categories={categories}
+        options={categoryOptions}
         selected={category}
         onSelect={setCategory}
         onClose={() => setShowCategoryPicker(false)}

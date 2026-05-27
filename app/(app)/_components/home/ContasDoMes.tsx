@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { Check, Loader2 } from 'lucide-react';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type {
-  Category,
   CreditCard as CreditCardType,
   MonthlyObligation,
   RecurringExpense,
 } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { anim, hidden } from './_anim';
 
 type Props = {
@@ -49,6 +49,7 @@ export default function ContasDoMes({
   onMarkObligationPaid,
   onOpenVariablePay,
 }: Props) {
+  const { categories: customs } = useCustomCategories();
   // Item só conta como "pendente" para Contas do mês quando o day_of_month
   // do recorrente já chegou (ou está em branco — nesse caso considera-se
   // pendente desde o início do mês).
@@ -139,7 +140,7 @@ export default function ContasDoMes({
 
             if (item.kind === 'income') {
               const { rec, received } = item;
-              const cfg = CATEGORY_CONFIG[rec.category as Category];
+              const cfg = getCategoryDisplay(rec.category, customs);
               const isReceiving = receivingIds.has(rec.id);
               return (
                 <div
@@ -257,7 +258,7 @@ export default function ContasDoMes({
             }
 
             const { ob } = item;
-            const cfg = CATEGORY_CONFIG[ob.category as Category];
+            const cfg = getCategoryDisplay(ob.category, customs);
             const isPaid = ob.status === 'paid';
             const isPaying = payingIds.has(ob.id);
             const hasDueDay =

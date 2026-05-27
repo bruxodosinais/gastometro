@@ -2,21 +2,20 @@
 
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { Category } from '@/lib/types';
+import { CategoryOption } from '@/hooks/useCategorySelector';
 
 interface Props {
   open: boolean;
-  categories: Category[];
-  selected: Category;
-  onSelect: (cat: Category) => void;
+  options: CategoryOption[];
+  selected: string;
+  onSelect: (value: string) => void;
   onClose: () => void;
   columns?: 2 | 4;
 }
 
 export default function CategoryPickerSheet({
   open,
-  categories,
+  options,
   selected,
   onSelect,
   onClose,
@@ -29,6 +28,33 @@ export default function CategoryPickerSheet({
   }, [open]);
 
   if (!open) return null;
+
+  // Separamos fixas/custom em dois blocos para renderizar um header "Minhas
+  // categorias" entre eles. Em CSS grid não dá pra inserir um header de uma
+  // linha só direto no fluxo sem duplicar grid-column: 1/-1, então duas grids
+  // empilhadas é o caminho mais simples.
+  const fixed = options.filter((o) => !o.isCustom);
+  const custom = options.filter((o) => o.isCustom);
+  const gridCols = columns === 2 ? 'grid-cols-2' : 'grid-cols-4';
+
+  function renderOption(opt: CategoryOption) {
+    const active = selected === opt.value;
+    return (
+      <button
+        key={opt.value}
+        type="button"
+        onClick={() => { onSelect(opt.value); onClose(); }}
+        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
+          active
+            ? 'bg-mint-50 border-green-500/40 text-mint-500'
+            : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-400'
+        }`}
+      >
+        <span className="text-lg leading-none">{opt.icon}</span>
+        <span className="text-[10px] leading-tight text-center">{opt.label}</span>
+      </button>
+    );
+  }
 
   return (
     <div
@@ -52,27 +78,20 @@ export default function CategoryPickerSheet({
             </button>
           </div>
 
-          <div className={`grid gap-2 ${columns === 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
-            {categories.map((cat) => {
-              const cfg = CATEGORY_CONFIG[cat];
-              const active = selected === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => { onSelect(cat); onClose(); }}
-                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${
-                    active
-                      ? 'bg-mint-50 border-green-500/40 text-mint-500'
-                      : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-400'
-                  }`}
-                >
-                  <span className="text-lg leading-none">{cfg.icon}</span>
-                  <span className="text-[10px] leading-tight text-center">{cat}</span>
-                </button>
-              );
-            })}
+          <div className={`grid gap-2 ${gridCols}`}>
+            {fixed.map(renderOption)}
           </div>
+
+          {custom.length > 0 && (
+            <>
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mt-5 mb-2">
+                Minhas categorias
+              </p>
+              <div className={`grid gap-2 ${gridCols}`}>
+                {custom.map(renderOption)}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

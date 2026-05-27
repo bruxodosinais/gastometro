@@ -100,7 +100,8 @@
       "Bash(lsof -ti:3000)",
       "Bash(ps *)",
       "Bash(open *)",
-      "Bash(lsof -i:3000 -sTCP:LISTEN)"
+      "Bash(lsof -i:3000 -sTCP:LISTEN)",
+      "Bash(xargs -I {} basename {})"
     ]
   }
 }

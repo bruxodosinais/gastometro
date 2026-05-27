@@ -1,9 +1,10 @@
 'use client';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { formatCurrency } from '@/lib/calculations';
-import type { Expense, ExpenseCategory } from '@/lib/types';
+import type { CustomCategory, Expense } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 
 type Props = {
   entries: Expense[];
@@ -14,13 +15,21 @@ type TooltipPayload = {
   value: number;
 };
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
+function CustomTooltip({
+  active,
+  payload,
+  customs,
+}: {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  customs: CustomCategory[];
+}) {
   if (!active || !payload?.length) return null;
   const { name, value } = payload[0];
-  const cfg = CATEGORY_CONFIG[name as ExpenseCategory];
+  const cfg = getCategoryDisplay(name, customs);
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-xl">
-      <span className="mr-1">{cfg?.icon}</span>
+      <span className="mr-1">{cfg.icon}</span>
       <span className="text-gray-900 font-medium">{name}</span>
       <span className="text-gray-700 ml-2">{formatCurrency(value)}</span>
     </div>
@@ -28,6 +37,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 }
 
 export default function SpendingDonut({ entries }: Props) {
+  const { categories: customs } = useCustomCategories();
   const byCategory: Record<string, number> = {};
   for (const e of entries) {
     if (e.type !== 'expense') continue;
@@ -67,11 +77,11 @@ export default function SpendingDonut({ entries }: Props) {
               {data.map((entry) => (
                 <Cell
                   key={entry.name}
-                  fill={CATEGORY_CONFIG[entry.name as ExpenseCategory]?.color ?? '#94a3b8'}
+                  fill={getCategoryDisplay(entry.name, customs).color}
                 />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip customs={customs} />} />
           </PieChart>
         </ResponsiveContainer>
         {/* total no centro */}
@@ -84,16 +94,16 @@ export default function SpendingDonut({ entries }: Props) {
       {/* legenda */}
       <div className="flex flex-col gap-1.5">
         {data.map((entry) => {
-          const cfg = CATEGORY_CONFIG[entry.name as ExpenseCategory];
+          const cfg = getCategoryDisplay(entry.name, customs);
           const pct = ((entry.value / total) * 100).toFixed(0);
           return (
             <div key={entry.name} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2 min-w-0">
                 <span
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cfg?.color ?? '#94a3b8' }}
+                  style={{ backgroundColor: cfg.color }}
                 />
-                <span className="text-gray-700 truncate">{cfg?.icon} {entry.name}</span>
+                <span className="text-gray-700 truncate">{cfg.icon} {entry.name}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className="text-gray-500 text-xs">{pct}%</span>

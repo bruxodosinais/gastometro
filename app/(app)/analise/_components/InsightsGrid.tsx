@@ -2,8 +2,9 @@
 
 import { CalendarDays, PiggyBank, TrendingDown, TrendingUp } from 'lucide-react';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type { Expense, ExpenseCategory } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { buildMonthlyBuckets } from './chartUtils';
 
 type Props = {
@@ -165,6 +166,7 @@ export default function InsightsGrid({
   months,
   prevMonths,
 }: Props) {
+  const { categories: customs } = useCustomCategories();
   // ─── 1 & 2: deltas de categorias ──────────────────────────────────────────
   const deltas = categoryDeltas(
     entries,
@@ -206,7 +208,7 @@ export default function InsightsGrid({
         value={
           grew ? (
             <span>
-              {CATEGORY_CONFIG[grew.category]?.icon} {grew.category}
+              {getCategoryDisplay(grew.category, customs).icon} {grew.category}
             </span>
           ) : (
             '—'
@@ -229,7 +231,7 @@ export default function InsightsGrid({
         value={
           fell ? (
             <span>
-              {CATEGORY_CONFIG[fell.category]?.icon} {fell.category}
+              {getCategoryDisplay(fell.category, customs).icon} {fell.category}
             </span>
           ) : (
             '—'

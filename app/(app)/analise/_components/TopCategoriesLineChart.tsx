@@ -10,8 +10,9 @@ import {
   YAxis,
 } from 'recharts';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import type { Expense, ExpenseCategory } from '@/lib/types';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import type { CustomCategory, Expense, ExpenseCategory } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { formatAxisCurrency, shortMonthLabel } from './chartUtils';
 import { useThemeColors } from './useThemeColors';
 
@@ -29,6 +30,7 @@ function TopTooltip({
   surface,
   border,
   text3,
+  customs,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
@@ -36,6 +38,7 @@ function TopTooltip({
   surface: string;
   border: string;
   text3: string;
+  customs: CustomCategory[];
 }) {
   if (!active || !payload?.length) return null;
   // Recharts manda todas as séries — filtra zeros pra não poluir.
@@ -54,10 +57,10 @@ function TopTooltip({
     >
       <p style={{ color: text3, fontSize: 11, marginBottom: 4 }}>{label}</p>
       {nonZero.map((p) => {
-        const cfg = CATEGORY_CONFIG[p.name as ExpenseCategory];
+        const cfg = getCategoryDisplay(p.name, customs);
         return (
           <p key={p.name} style={{ color: p.color, fontWeight: 700, margin: 0 }}>
-            {cfg?.icon} {p.name}: {formatCurrency(p.value)}
+            {cfg.icon} {p.name}: {formatCurrency(p.value)}
           </p>
         );
       })}
@@ -67,6 +70,7 @@ function TopTooltip({
 
 export default function TopCategoriesLineChart({ entries, months }: Props) {
   const colors = useThemeColors();
+  const { categories: customs } = useCustomCategories();
 
   // 1. Total por categoria no período inteiro pra definir o top 5.
   const totalByCat = new Map<string, number>();
@@ -136,6 +140,7 @@ export default function TopCategoriesLineChart({ entries, months }: Props) {
                   surface={colors.surface}
                   border={colors.border}
                   text3={colors.text3}
+                  customs={customs}
                 />
               }
             />
@@ -144,7 +149,7 @@ export default function TopCategoriesLineChart({ entries, months }: Props) {
                 key={cat}
                 type="monotone"
                 dataKey={cat}
-                stroke={CATEGORY_CONFIG[cat]?.color ?? colors.accent}
+                stroke={getCategoryDisplay(cat, customs).color}
                 strokeWidth={2}
                 dot={{ r: 2.5 }}
                 activeDot={{ r: 5 }}
@@ -157,7 +162,7 @@ export default function TopCategoriesLineChart({ entries, months }: Props) {
       {/* Legenda */}
       <div className="flex items-center gap-3 mt-3 justify-center flex-wrap">
         {top5.map((cat) => {
-          const cfg = CATEGORY_CONFIG[cat];
+          const cfg = getCategoryDisplay(cat, customs);
           return (
             <div key={cat} className="flex items-center gap-1.5">
               <div
@@ -165,11 +170,11 @@ export default function TopCategoriesLineChart({ entries, months }: Props) {
                   width: 10,
                   height: 10,
                   borderRadius: 3,
-                  background: cfg?.color ?? colors.accent,
+                  background: cfg.color,
                 }}
               />
               <span style={{ fontSize: 11, color: 'var(--text-2)' }}>
-                {cfg?.icon} {cat}
+                {cfg.icon} {cat}
               </span>
             </div>
           );

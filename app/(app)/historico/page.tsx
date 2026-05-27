@@ -16,11 +16,10 @@ import {
   getMonthKey,
   getMonthLabel,
 } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
 import {
-  Category,
   CreditCard as CreditCardType,
   EntryType,
   EXPENSE_CATEGORIES,
@@ -28,6 +27,7 @@ import {
   INCOME_CATEGORIES,
   RecurringExpense,
 } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 
 type QuickFilter = 'today' | '7d' | '30d' | 'thisMonth' | 'prevMonth' | null;
 type SortOrder = 'recent' | 'oldest' | 'highest' | 'lowest';
@@ -35,13 +35,10 @@ type KindFilter = 'all' | 'fixed' | 'debt' | 'variable';
 
 interface TopGasto { displayName: string; total: number; count: number }
 
-const INCOME_SOURCE_ICONS: Record<string, string> = {
-  'Salário': '💰',
-  'Freela': '💻',
-  'Renda passiva': '📊',
-  'Outros': '📦',
-};
-
+// Cores das fontes de receita no breakdown. Para custom income, caímos no
+// cinza neutro — a cor "real" da categoria custom escolhida pelo usuário não
+// vai aqui por simplicidade; o ícone (via getCategoryDisplay) já carrega o
+// hex correto.
 const INCOME_SOURCE_COLORS: Record<string, string> = {
   'Salário': '#00b87a',
   'Freela': '#3b9eff',
@@ -85,6 +82,7 @@ function patternContext(count: number): string {
 export default function HistoricoPage() {
   const { period, setPeriod } = usePeriod();
   const prevPeriodRef = useRef(period);
+  const { categories: customs } = useCustomCategories();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ready, setReady] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -92,7 +90,7 @@ export default function HistoricoPage() {
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | EntryType>('all');
-  const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('thisMonth');
   const [sortOrder, setSortOrder] = useState<SortOrder>('recent');
   const [minAmount, setMinAmount] = useState('');
@@ -328,7 +326,11 @@ export default function HistoricoPage() {
     (e) => !needle || e.description.toLowerCase().includes(needle)
   );
   const totalPeriodIncome = matchedIncomeEntries.reduce((s, e) => s + e.amount, 0);
-  const incomeBySource = INCOME_CATEGORIES.map((cat) => ({
+  const incomeSourceNames = [
+    ...INCOME_CATEGORIES,
+    ...customs.filter((c) => c.type === 'income').map((c) => c.name),
+  ];
+  const incomeBySource = incomeSourceNames.map((cat) => ({
     cat,
     total: matchedIncomeEntries
       .filter((e) => e.category === cat)
@@ -640,7 +642,7 @@ export default function HistoricoPage() {
               Todos
             </button>
             {activeCategories.map((cat) => {
-              const cfg = CATEGORY_CONFIG[cat];
+              const cfg = getCategoryDisplay(cat, customs);
               const active = categoryFilter === cat;
               return (
                 <button
@@ -800,7 +802,7 @@ export default function HistoricoPage() {
                 <div key={cat}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1.5" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>
-                      <span>{INCOME_SOURCE_ICONS[cat]}</span>
+                      <span>{getCategoryDisplay(cat, customs).icon}</span>
                       <span>{cat}</span>
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
@@ -809,7 +811,7 @@ export default function HistoricoPage() {
                     </span>
                   </div>
                   <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 4, background: INCOME_SOURCE_COLORS[cat], width: `${pct}%`, transition: 'all 0.3s' }} />
+                    <div style={{ height: '100%', borderRadius: 4, background: INCOME_SOURCE_COLORS[cat] ?? getCategoryDisplay(cat, customs).color, width: `${pct}%`, transition: 'all 0.3s' }} />
                   </div>
                 </div>
               );
@@ -864,7 +866,7 @@ export default function HistoricoPage() {
                 {/* Itens do dia */}
                 <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
                   {groupedByDay[day].map((exp, idx) => {
-                    const cfg = CATEGORY_CONFIG[exp.category];
+                    const cfg = getCategoryDisplay(exp.category, customs);
                     const isIncome = exp.type === 'income';
                     const isFuture = exp.date > todayIso;
                     const card = exp.isCredit && exp.creditCardId

@@ -1,6 +1,6 @@
 import { createClient } from '../supabase/client';
 import { cachedFetch, getCachedUser, TTL, withCacheInvalidation } from '../dataCache';
-import { Category, EntryType, RecurringExpense } from '../types';
+import { EntryType, RecurringExpense } from '../types';
 
 function toRecurring(row: Record<string, unknown>): RecurringExpense {
   // day_of_month e due_day podem ser NULL no banco (itens antigos criados antes
@@ -19,7 +19,7 @@ function toRecurring(row: Record<string, unknown>): RecurringExpense {
     id: row.id as string,
     description: row.description as string,
     amount: row.amount as number,
-    category: row.category as Category,
+    category: row.category as string,
     type: (row.type as string) as EntryType,
     dayOfMonth,
     dueDay,
@@ -116,7 +116,7 @@ export async function deleteRecurringExpense(id: string): Promise<void> {
 export type UpdateRecurringPayload = {
   description?: string;
   amount?: number;
-  category?: Category;
+  category?: string;
   type?: EntryType;
   // null limpa o campo no banco; undefined deixa intocado.
   dayOfMonth?: number | null;

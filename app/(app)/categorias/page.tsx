@@ -21,8 +21,12 @@ import {
   calculateByCategory,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+// CATEGORY_CONFIG aqui é OK: o ranking e o detalhamento iteram só
+// EXPENSE_CATEGORIES (categorias fixas), via getCategoryAlerts. Custom
+// categories vivem na seção "Minhas categorias" mais abaixo (V-02 #7).
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
+import MyCategoriesSection from './_components/MyCategoriesSection';
 import { Budget, CategorySummary, Expense, ExpenseCategory } from '@/lib/types';
 
 type InsightItem = { text: string; variant: 'above' | 'below' | 'neutral' };
@@ -778,6 +782,8 @@ export default function CategoriasPage() {
           </div>
         </div>
       )}
+
+      <MyCategoriesSection />
     </main>
   );
 }

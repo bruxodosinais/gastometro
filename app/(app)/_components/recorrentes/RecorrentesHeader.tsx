@@ -4,13 +4,13 @@ import { startTransition } from 'react';
 import { AlertCircle, ChevronDown, Loader2 } from 'lucide-react';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type {
-  Category,
   CreditCard as CreditCardType,
   EntryType,
   RecurringExpense,
 } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { fieldLabelStyle, fieldStyle, Switch } from './_shared';
 
 export type RecorrentesTab = 'all' | 'pendentes' | 'pagas';
@@ -27,7 +27,7 @@ type Props = {
   entryType: EntryType;
   amount: string;
   description: string;
-  category: Category;
+  category: string;
   dayOfMonth: string;
   dueDay: string;
   isVariable: boolean;
@@ -101,6 +101,7 @@ export default function RecorrentesHeader({
 }: Props) {
   const hasAmount = amount !== '' && amount !== '0';
   const typeColor = entryType === 'income' ? 'var(--green)' : 'var(--red)';
+  const { categories: customs } = useCustomCategories();
 
   return (
     <>
@@ -478,7 +479,7 @@ export default function RecorrentesHeader({
                 }}
               >
                 <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
-                  {CATEGORY_CONFIG[category].icon}
+                  {getCategoryDisplay(category, customs).icon}
                 </span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
                   {category}

@@ -5,3 +5,4 @@ export * from './plans';
 export * from './goals';
 export * from './assets';
 export * from './budgets';
+export * from './categories';

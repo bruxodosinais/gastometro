@@ -18,8 +18,10 @@ import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { Category, CreditCard as CreditCardType, EntryType, Expense, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { CreditCard as CreditCardType, EntryType, Expense } from '@/lib/types';
+import { useCategorySelector } from '@/hooks/useCategorySelector';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PLAN_LIMITS } from '@/lib/planLimits';
 import UpgradeBanner from '@/components/UpgradeBanner';
@@ -154,6 +156,7 @@ function ExpenseList({
   loading?: boolean;
 }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const { categories: allCustomCategories } = useCustomCategories();
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -201,7 +204,7 @@ function ExpenseList({
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {items.map((exp) => {
-              const cfg = CATEGORY_CONFIG[exp.category];
+              const cfg = getCategoryDisplay(exp.category, allCustomCategories);
               const isIncome = exp.type === 'income';
               const isNewest = exp.id === newestId;
               const isFlashing = exp.id === flashId;
@@ -366,7 +369,7 @@ export default function LancamentosPage() {
   const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [entryType, setEntryType] = useState<EntryType>('expense');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>('Alimentação');
+  const [category, setCategory] = useState<string>('Alimentação');
   const [date, setDate] = useState(todayStr);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -549,7 +552,11 @@ export default function LancamentosPage() {
     }
   }
 
-  const categories = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const { categories: categoryOptions } = useCategorySelector(entryType);
+  // Lista usada para renderizar ícones em qualquer lugar fora do seletor:
+  // usamos a lista de todas as custom (expense + income) para resolver tanto
+  // o lançamento em si quanto a UI atual.
+  const { categories: allCustomCategories } = useCustomCategories();
   const currentMonth = getMonthKey(new Date());
   const [filterTab, setFilterTab] = useState<'all' | 'expense' | 'income'>('all');
   const [isListExpanded, setIsListExpanded] = useState(false);
@@ -883,7 +890,7 @@ export default function LancamentosPage() {
                   }}
                 >
                   <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
-                    {CATEGORY_CONFIG[category].icon}
+                    {getCategoryDisplay(category, allCustomCategories).icon}
                   </span>
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
                     {category}
@@ -1308,7 +1315,7 @@ export default function LancamentosPage() {
 
       <CategoryPickerSheet
         open={showCategoryPicker}
-        categories={categories}
+        options={categoryOptions}
         selected={category}
         onSelect={setCategory}
         onClose={() => setShowCategoryPicker(false)}

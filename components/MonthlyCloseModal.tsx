@@ -2,14 +2,15 @@
 
 import { X } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
-import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
-import { ExpenseCategory, MonthlyPlan } from '@/lib/types';
+import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { MonthlyPlan } from '@/lib/types';
+import { useCustomCategories } from '@/hooks/useCustomCategories';
 
 interface Props {
   prevMonthLabel: string;
   income: number;
   spent: number;
-  topCategory: { cat: ExpenseCategory; total: number } | null;
+  topCategory: { cat: string; total: number } | null;
   monthlyPlan: MonthlyPlan | null;
   onClose: () => void;
   onViewHistory: () => void;
@@ -24,6 +25,7 @@ export default function MonthlyCloseModal({
   onClose,
   onViewHistory,
 }: Props) {
+  const { categories: customs } = useCustomCategories();
   const balance = income - spent;
   const savingsGoalMet = monthlyPlan != null && monthlyPlan.savingsGoal > 0 && balance >= monthlyPlan.savingsGoal;
   const motivational =
@@ -77,7 +79,7 @@ export default function MonthlyCloseModal({
             <div className="flex items-center justify-between">
               <span className="text-gray-500 text-sm">Top categoria</span>
               <span className="text-gray-700 text-sm font-medium flex items-center gap-1.5">
-                <span>{CATEGORY_CONFIG[topCategory.cat]?.icon}</span>
+                <span>{getCategoryDisplay(topCategory.cat, customs).icon}</span>
                 {topCategory.cat}
               </span>
             </div>
