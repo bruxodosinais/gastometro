@@ -150,13 +150,29 @@ export default function LandingPage() {
             <a href="#pricing">Planos</a>
             <a href="#faq">FAQ</a>
           </nav>
-          <Link
-            href="/auth/cadastro"
-            className="btn btn-primary"
-            style={{ padding: '11px 18px', fontSize: 14, borderRadius: 10 }}
-          >
-            Começar grátis
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Link
+              href="/auth/login"
+              className="btn"
+              style={{
+                padding: '11px 18px',
+                fontSize: 14,
+                borderRadius: 10,
+                border: '1.5px solid #5B5BD6',
+                color: '#5B5BD6',
+                background: 'transparent',
+              }}
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/auth/cadastro"
+              className="btn btn-primary"
+              style={{ padding: '11px 18px', fontSize: 14, borderRadius: 10 }}
+            >
+              Começar grátis
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -179,6 +195,12 @@ export default function LandingPage() {
               </Link>
               <span className="small"><a href="#solucao">Ver como funciona ↓</a></span>
             </div>
+            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 12, marginBottom: 0 }}>
+              Já tem conta?{' '}
+              <Link href="/auth/login" style={{ color: '#5B5BD6', fontWeight: 600 }}>
+                Entrar
+              </Link>
+            </p>
             <div className="hero-trust">
               <span><span className="check">✓</span> Grátis pra sempre</span>
               <span><span className="check">✓</span> Sem cartão</span>
