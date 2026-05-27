@@ -4,6 +4,8 @@ import './globals.css';
 import OfflineBanner from '@/components/OfflineBanner';
 import CookieBanner from '@/components/CookieBanner';
 import CouponCapture from '@/components/CouponCapture';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
+import IOSInstallBanner from '@/components/IOSInstallBanner';
 import { ThemeProvider } from '@/lib/themeContext';
 
 const nunito = Nunito({
@@ -59,6 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={`h-full ${nunito.className}`} suppressHydrationWarning>
       <body className="min-h-full" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
         <ThemeProvider>
+          <ServiceWorkerRegister />
+          <IOSInstallBanner />
           <OfflineBanner />
           <CouponCapture />
           {children}

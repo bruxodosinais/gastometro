@@ -29,7 +29,10 @@ export default async function middleware(request: NextRequest) {
   const isAuthRoute = pathname.startsWith('/auth');
   const isOnboarding = pathname === '/onboarding';
   const isPublicPage =
-    pathname === '/' || pathname === '/termos' || pathname === '/privacidade';
+    pathname === '/' ||
+    pathname === '/termos' ||
+    pathname === '/privacidade' ||
+    pathname === '/instalar';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isPublicWebhook = pathname.startsWith('/api/webhooks/');
   // Endpoints chamados pelo cron do Vercel: autenticados via Bearer CRON_SECRET na própria rota.

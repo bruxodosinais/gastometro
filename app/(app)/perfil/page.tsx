@@ -148,6 +148,16 @@ export default function PerfilPage() {
   // Export LGPD
   const [exporting, setExporting] = useState(false);
 
+  // PWA: esconde o link "Instalar no celular" quando o app já roda em standalone.
+  const [isStandalone, setIsStandalone] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsStandalone(standalone);
+  }, []);
+
   useEffect(() => {
     async function load() {
       try {
@@ -1232,6 +1242,34 @@ export default function PerfilPage() {
             </div>
           )}
         </div>
+
+        {/* Instalação */}
+        {!isStandalone && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
+              Instalação
+            </p>
+            <Link
+              href="/instalar"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--r-sm)',
+                padding: '12px 14px',
+                fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                textDecoration: 'none',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden>📲</span>
+                Instalar no celular
+              </span>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </Link>
+          </div>
+        )}
 
         {/* Suporte */}
         <div style={{ marginBottom: 12 }}>

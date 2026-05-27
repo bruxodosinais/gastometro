@@ -24,9 +24,15 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 }
 
 async function getActiveRegistration(): Promise<ServiceWorkerRegistration> {
+  // ServiceWorkerRegister (montado no app/layout.tsx) já registra /sw.js no
+  // boot do app. Aqui só esperamos a registration ficar pronta e reaproveitamos.
+  // Fallback: se por algum motivo nada foi registrado ainda, registramos sob demanda.
   const existing = await navigator.serviceWorker.getRegistration('/sw.js');
   if (existing) return existing;
-  return navigator.serviceWorker.register('/sw.js');
+  return navigator.serviceWorker.register('/sw.js', {
+    scope: '/',
+    updateViaCache: 'none',
+  });
 }
 
 export function usePushNotifications(): UsePushNotificationsResult {
