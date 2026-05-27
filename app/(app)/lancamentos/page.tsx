@@ -12,8 +12,10 @@ import {
   getExpenses,
 } from '@/lib/storage';
 import EditExpenseModal from '@/components/EditExpenseModal';
+import DuplicateWarningModal from '@/components/DuplicateWarningModal';
 import LoadingButton from '@/components/ui/LoadingButton';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { detectDuplicate, DuplicateCandidate } from '@/lib/utils/detectDuplicate';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
@@ -401,6 +403,8 @@ export default function LancamentosPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [duplicatingExpense, setDuplicatingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [duplicateCandidates, setDuplicateCandidates] = useState<DuplicateCandidate[]>([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   const amountRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -458,6 +462,28 @@ export default function LancamentosPage() {
     if (!hasAmount || !category) return;
 
     setDescricaoError(false);
+
+    // Pré-checagem de duplicata SOMENTE no fluxo "single". Installments cria
+    // série com descrições "(i/N)" distintas, e o "recurring" é setup
+    // deliberado de padrão — ambos fora do escopo do alerta.
+    if (launchMode === 'single') {
+      try {
+        const result = await detectDuplicate(description.trim(), numAmount, entryType, date);
+        if (result.isDuplicate) {
+          setDuplicateCandidates(result.candidates);
+          setShowDuplicateModal(true);
+          return;
+        }
+      } catch {
+        // Falha na detecção (ex.: getExpenses rejeitou) não deve impedir o
+        // salvamento — segue o fluxo normal.
+      }
+    }
+
+    await doSave();
+  }
+
+  async function doSave() {
     const savedAmount = numAmount;
     const savedType = entryType;
     const base = {
@@ -538,6 +564,18 @@ export default function LancamentosPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleConfirmDuplicate() {
+    setShowDuplicateModal(false);
+    setDuplicateCandidates([]);
+    doSave();
+  }
+
+  function handleCancelDuplicate() {
+    setShowDuplicateModal(false);
+    setDuplicateCandidates([]);
+    // Formulário permanece preenchido — usuário pode ajustar e tentar de novo.
   }
 
   async function handleDelete(id: string) {
@@ -1309,6 +1347,13 @@ export default function LancamentosPage() {
           description={`"${deletingExpense.description}" será removido permanentemente.`}
           onConfirm={() => handleDelete(deletingExpense.id)}
           onClose={() => setDeletingExpense(null)}
+        />
+      )}
+      {showDuplicateModal && (
+        <DuplicateWarningModal
+          candidates={duplicateCandidates}
+          onConfirm={handleConfirmDuplicate}
+          onCancel={handleCancelDuplicate}
         />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
