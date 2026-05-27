@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Check, ChevronDown, ChevronUp, Loader2, Pencil, Plus, Target, Trash2, Trophy, TrendingUp, X } from 'lucide-react';
 import {
   getGoals,
@@ -12,6 +13,7 @@ import {
   addGoalContribution,
 } from '@/lib/storage';
 import { calculateTotalByType, formatCurrency, getMonthKey } from '@/lib/calculations';
+import { getMonthlyBaseCost, type MonthlyBaseCost } from '@/lib/emergencyFund';
 import { Goal, GoalContribution, GoalTerm, GoalType } from '@/lib/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeBanner from '@/components/UpgradeBanner';
@@ -160,6 +162,29 @@ const EMPTY_FORM = {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+// ─── Reserva de Emergência ───────────────────────────────────────────────────
+
+type Multiplier = 3 | 6 | 12;
+const MULTIPLIERS: Multiplier[] = [3, 6, 12];
+// Tolerância de 5% pra detectar qual pill um targetAmount herdado da URL
+// corresponde. Ex.: monthlyBase=833.33 e sugestao=5000 → ratio=6.0006, dentro
+// de 5% de 6 → pre-seleciona pill 6x.
+const MULTIPLIER_TOLERANCE = 0.05;
+
+// Nomes considerados "genéricos" pra reserva — quando o usuário não nomeou a
+// meta com algo específico, exibimos o badge "🛡️ Reserva de Emergência" no
+// lugar pra deixar claro o propósito (vem geralmente da Home → URL prefill).
+const GENERIC_RESERVA_NAMES = new Set([
+  'reserva',
+  'reserva de emergência',
+  'reserva de emergencia',
+  'reserva emergência',
+  'reserva emergencia',
+]);
+function isGenericReservaName(name: string): boolean {
+  return GENERIC_RESERVA_NAMES.has(name.trim().toLowerCase());
+}
+
 export default function MetasPage() {
   const subscription = useSubscription();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -179,6 +204,11 @@ export default function MetasPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAllTypes, setShowAllTypes] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Reserva de Emergência — só carregam quando form.type === 'reserva'
+  const [monthlyBase, setMonthlyBase] = useState<MonthlyBaseCost | null>(null);
+  const [monthlyBaseLoading, setMonthlyBaseLoading] = useState(false);
+  const [selectedMultiplier, setSelectedMultiplier] = useState<Multiplier | null>(null);
 
   // Contribuição
   const [contributingGoal, setContributingGoal] = useState<Goal | null>(null);
@@ -216,6 +246,39 @@ export default function MetasPage() {
     });
   }, []);
 
+  // Lazy-fetch do custo mensal base na 1ª vez que o user seleciona 'reserva'.
+  // O resultado fica em state e é reaproveitado se o user trocar de tipo e
+  // voltar pra reserva no mesmo modal.
+  useEffect(() => {
+    if (form.type !== 'reserva') return;
+    if (monthlyBase !== null || monthlyBaseLoading) return;
+    setMonthlyBaseLoading(true);
+    getMonthlyBaseCost()
+      .then((r) => setMonthlyBase(r))
+      .catch((err) => console.error('getMonthlyBaseCost:', err))
+      .finally(() => setMonthlyBaseLoading(false));
+  }, [form.type, monthlyBase, monthlyBaseLoading]);
+
+  // Detecta qual pill (3/6/12) o targetAmount corrente corresponde — usado
+  // quando o user chega via URL com sugestao=X e o monthlyBase carrega depois,
+  // pra pre-selecionar a pill certa sem o user clicar.
+  useEffect(() => {
+    if (!monthlyBase || monthlyBase.monthlyBase <= 0) return;
+    if (selectedMultiplier !== null) return;
+    const target = parseFloat(form.targetAmount.replace(',', '.'));
+    if (!target || !Number.isFinite(target)) return;
+    const ratio = target / monthlyBase.monthlyBase;
+    const match = MULTIPLIERS.find((m) => Math.abs(ratio - m) <= m * MULTIPLIER_TOLERANCE);
+    if (match) setSelectedMultiplier(match);
+  }, [monthlyBase, form.targetAmount, selectedMultiplier]);
+
+  function pickMultiplier(m: Multiplier) {
+    if (!monthlyBase || monthlyBase.monthlyBase <= 0) return;
+    const value = monthlyBase.monthlyBase * m;
+    setForm((f) => ({ ...f, targetAmount: value.toFixed(2) }));
+    setSelectedMultiplier(m);
+  }
+
   // ── Form helpers ───────────────────────────────────────────────────────────
 
   function openCreate() {
@@ -251,6 +314,7 @@ export default function MetasPage() {
     setFormError(null);
     setShowAdvanced(false);
     setShowAllTypes(false);
+    setSelectedMultiplier(null);
   }
 
   function handleTypeChange(type: GoalType) {
@@ -571,6 +635,112 @@ export default function MetasPage() {
                       {showAllTypes ? '− Ver menos' : '+ Ver mais tipos'}
                     </button>
                   </div>
+                  {/* Calculador de Reserva + dica — só quando type='reserva'.
+                      Calculador some se source='none' (sem dados); dica sempre
+                      aparece pra apontar usuário pro fluxo Missão de Poupança. */}
+                  {form.type === 'reserva' && (
+                    <>
+                  {(monthlyBaseLoading || (monthlyBase && monthlyBase.source !== 'none')) && (
+                    <div
+                      style={{
+                        padding: 14,
+                        borderRadius: 'var(--r-sm)',
+                        background: 'rgba(91,91,214,0.06)',
+                        border: '1px solid rgba(91,91,214,0.20)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                        <span style={{ fontSize: 14 }}>🛡️</span>
+                        <p style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+                          Calcular valor sugerido
+                        </p>
+                        {monthlyBaseLoading && (
+                          <Loader2 size={12} className="animate-spin" color="var(--text-3)" />
+                        )}
+                      </div>
+
+                      {!monthlyBaseLoading && monthlyBase && (
+                        <>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {MULTIPLIERS.map((m) => {
+                              const value = monthlyBase.monthlyBase * m;
+                              const active = selectedMultiplier === m;
+                              return (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => pickMultiplier(m)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 6px',
+                                    borderRadius: 'var(--r-sm)',
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    border: active ? '1.5px solid #5B5BD6' : '1px solid var(--border)',
+                                    background: active ? 'rgba(91,91,214,0.10)' : 'var(--bg)',
+                                    color: active ? '#5B5BD6' : 'var(--text-2)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 2,
+                                    touchAction: 'manipulation',
+                                  }}
+                                >
+                                  <span style={{ fontSize: 11, fontWeight: 800 }}>
+                                    {m}x{active ? ' ✓' : ''}
+                                  </span>
+                                  <span style={{ fontSize: 11 }}>
+                                    {formatCurrency(value)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--text-3)',
+                              marginTop: 8,
+                              marginBottom: 0,
+                            }}
+                          >
+                            Baseado em {formatCurrency(monthlyBase.monthlyBase)}/mês em{' '}
+                            {monthlyBase.source === 'recurring'
+                              ? 'despesas recorrentes'
+                              : 'média dos últimos 3 meses'}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Dica: Missão de Poupança é o caminho recomendado pra
+                      reserva (gamificação + desafios). Não bloqueia o fluxo. */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      background: '#F5F3FF',
+                      border: '1px solid #DDD6FE',
+                      borderRadius: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 14, lineHeight: 1, marginTop: 1 }}>💡</span>
+                    <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+                      Para reserva de emergência, a Missão de Poupança oferece
+                      acompanhamento mensal com desafios e conquistas.{' '}
+                      <Link
+                        href="/missao"
+                        style={{ color: '#5B5BD6', fontWeight: 700, textDecoration: 'none' }}
+                      >
+                        Conhecer Missão →
+                      </Link>
+                    </p>
+                  </div>
+                    </>
+                  )}
                   {/* Emoji personalizado */}
                   <div>
                     <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
@@ -1088,6 +1258,9 @@ function GoalCard({
   const pct = goal.targetAmount > 0 ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
   const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
   const isCompleted = goal.status === 'completed';
+  const isReserva = goal.type === 'reserva';
+  const displayName =
+    isReserva && isGenericReservaName(goal.name) ? '🛡️ Reserva de Emergência' : goal.name;
 
   const avgContrib = avgMonthlyContributions(contributions);
   const statusKey = computeStatus(goal, avgContrib);
@@ -1128,6 +1301,7 @@ function GoalCard({
       borderRadius: 'var(--r)',
       padding: '16px 18px',
       boxShadow: 'var(--card-shadow)',
+      ...(isReserva && { borderLeft: '3px solid #5B5BD6' }),
     }}>
 
       {/* Cabeçalho */}
@@ -1137,7 +1311,7 @@ function GoalCard({
             {icon}
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.name}</p>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
             {!isCompleted && (
               <p style={{ fontSize: 11, fontWeight: 700, color: statusKey === 'atrasada' ? 'var(--red)' : statusKey === 'atencao' ? '#f59e0b' : 'var(--green)', marginTop: 2 }}>
                 {sc.label}

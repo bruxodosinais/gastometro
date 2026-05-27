@@ -53,6 +53,7 @@ import EntradaSaidaCards from '../_components/home/EntradaSaidaCards';
 import FaturaAlertCard from '../_components/home/FaturaAlertCard';
 import OrcamentoCard from '../_components/home/OrcamentoCard';
 import MissaoCard from '../_components/home/MissaoCard';
+import ReservaCard from '../_components/home/ReservaCard';
 import CompromissosCard from '../_components/home/CompromissosCard';
 import ContasDoMes from '../_components/home/ContasDoMes';
 import InsightsCard from '../_components/home/InsightsCard';
@@ -1054,6 +1055,11 @@ export default function HomePage() {
       {/* Self-fetch via getMission/getContributions (ambos cacheados).
           Renderiza convite ou progresso conforme estado da missão. */}
       <MissaoCard mounted={mounted} />
+
+      {/* ── 7C. RESERVA DE EMERGÊNCIA ──────────────────────────────────────────── */}
+      {/* Self-fetch via getMonthlyBaseCost + getGoals. Educativo para FREE
+          (Pro-gate só dispara no /metas). Não renderiza se source='none'. */}
+      <ReservaCard mounted={mounted} />
 
       {/* ── 7B. COMPROMISSOS DO MÊS ──────────────────────────────────────────── */}
       {showCompromissos && (
