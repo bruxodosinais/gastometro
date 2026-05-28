@@ -25,6 +25,7 @@ import { CreditCard as CreditCardType, EntryType, Expense } from '@/lib/types';
 import { useCategorySelector } from '@/hooks/useCategorySelector';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { useSubscription } from '@/hooks/useSubscription';
+import { updateStreakToday } from '@/lib/hooks/useStreak';
 import { PLAN_LIMITS } from '@/lib/planLimits';
 import UpgradeBanner from '@/components/UpgradeBanner';
 
@@ -534,6 +535,8 @@ export default function LancamentosPage() {
         setFlashId(newId);
         setTimeout(() => setFlashId(null), 500);
         setTimeout(() => setNewestId(null), 400);
+        // Contabiliza o dia no streak mesmo se o user lançar sem passar pela Home.
+        updateStreakToday();
       }
 
       setTimeout(() => {
