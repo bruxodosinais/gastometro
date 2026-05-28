@@ -101,7 +101,16 @@
       "Bash(ps *)",
       "Bash(open *)",
       "Bash(lsof -i:3000 -sTCP:LISTEN)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Bash(SERWIST_SUPPRESS_TURBOPACK_WARNING=1 npm run build)",
+      "Bash(tee /tmp/out.txt)",
+      "Bash(/bin/ls /Users/anderson/gastometro)",
+      "Bash(wc -l /tmp/x.log)",
+      "Bash(env)",
+      "Bash(date)",
+      "Bash(ls /Users/anderson/gastometro)",
+      "Bash(echo \"EOF\")",
+      "Bash(bash /tmp/test_echo.sh)"
     ]
   }
 }
