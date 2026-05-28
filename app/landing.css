@@ -532,6 +532,48 @@
 .landing-root .foot-links a:hover { color: var(--accent); }
 .landing-root .foot .made { font-size: 13px; }
 
+/* ============== APP TRABALHA POR VOCÊ ============== */
+.landing-root .alertas-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 40px;
+}
+@media (min-width: 640px) {
+  .landing-root .alertas-grid { grid-template-columns: 1fr 1fr; }
+}
+.landing-root .alerta-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-sm);
+}
+.landing-root .alerta-card .alerta-icon {
+  font-size: 36px;
+  width: 56px; height: 56px;
+  background: var(--accent-light);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.landing-root .alerta-card h3 {
+  font-size: 17px; font-weight: 800;
+  color: var(--ink); margin-bottom: 8px;
+}
+.landing-root .alerta-card p {
+  font-size: 14px; color: var(--ink-2); line-height: 1.6;
+}
+.landing-root .alerta-card.pro { border-color: var(--accent); }
+.landing-root .pro-badge {
+  position: absolute; top: 14px; right: 14px;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800;
+  padding: 3px 10px; border-radius: 20px;
+  letter-spacing: .04em;
+}
+
 /* ============== ANIMATIONS ============== */
 .landing-root .reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s ease, transform .7s ease; }
 .landing-root .reveal.in { opacity: 1; transform: none; }

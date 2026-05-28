@@ -15,7 +15,7 @@ const nunito = Nunito({
 });
 
 const description =
-  'Controle de gastos pessoais com alertas de desperdício por categoria';
+  'O app de finanças pessoais que transforma guardar dinheiro em uma conquista — com desafios, badges e metas que dão vontade de cumprir.';
 
 // Os assets de marca (favicon.ico, icon.svg, apple-icon.png, opengraph-image.png,
 // twitter-image.png e manifest.ts) ficam na raiz de `app/` como file conventions

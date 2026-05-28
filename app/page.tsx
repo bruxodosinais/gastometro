@@ -51,7 +51,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Qual a diferença pra outros apps?',
-    a: 'Gamificação real com Missão de Poupança, GastoBot com IA e foco total no contexto CLT brasileiro — linguagem, categorias e funcionalidades pensadas pra você.',
+    a: 'Gamificação real com Missão de Poupança, GastoBot com IA, alertas inteligentes e dados confiáveis — funcionalidades pensadas pra quem quer se organizar de verdade.',
   },
 ];
 
@@ -182,12 +182,12 @@ export default function LandingPage() {
         <div className="hero-blob b2" aria-hidden="true" />
         <div className="wrap hero-inner">
           <div className="reveal">
-            <span className="eyebrow"><span className="dot" /> Feito pro CLT brasileiro</span>
+            <span className="eyebrow"><span className="dot" /> Feito para você se organizar</span>
             <h1 className="headline">
               Seu dinheiro finalmente organizado. Sem planilha. Sem culpa. <em>Com missão.</em>
             </h1>
             <p className="sub">
-              O app de finanças pra CLT que transforma guardar dinheiro em uma conquista — com desafios, badges e metas que dão vontade de cumprir.
+              O app de finanças pessoais que transforma guardar dinheiro em uma conquista — com desafios, badges e metas que dão vontade de cumprir.
             </p>
             <div className="hero-cta">
               <Link href="/auth/cadastro" className="btn btn-primary lg">
@@ -205,6 +205,10 @@ export default function LandingPage() {
               <span><span className="check">✓</span> Grátis pra sempre</span>
               <span><span className="check">✓</span> Sem cartão</span>
               <span><span className="check">✓</span> Dados criptografados</span>
+            </div>
+            <div className="hero-trust">
+              <span><span className="check">✓</span> Funciona offline</span>
+              <span><span className="check">✓</span> Sem sync bancário — zero risco de duplicata</span>
             </div>
           </div>
           <div className="hero-phones reveal">
@@ -329,6 +333,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ============== APP TRABALHA POR VOCÊ ============== */}
+      <section id="alertas" data-screen-label="App trabalha por você">
+        <div className="wrap">
+          <div className="sec-head reveal">
+            <span className="sec-eyebrow">Sempre ativo</span>
+            <h2>O app trabalha por você.</h2>
+            <p className="sec-sub">Enquanto você vive, o TôOrganizado monitora, alerta e resume.</p>
+          </div>
+          <div className="alertas-grid reveal">
+            <div className="alerta-card">
+              <div className="alerta-icon">🔔</div>
+              <h3>Alertas inteligentes</h3>
+              <p>Orçamento estourado, conta vencida, cobrança duplicada — você é avisado antes de virar problema.</p>
+            </div>
+            <div className="alerta-card pro">
+              <span className="pro-badge">PRO</span>
+              <div className="alerta-icon">📧</div>
+              <h3>Relatório semanal por e-mail</h3>
+              <p>Todo domingo, um resumo do seu mês: o que entrou, saiu, onde estourou e o progresso da sua missão. Sem abrir o app.</p>
+            </div>
+            <div className="alerta-card">
+              <div className="alerta-icon">📊</div>
+              <h3>Insights automáticos</h3>
+              <p>O app identifica anomalias de gasto, projeta como você vai fechar o mês e mostra tendências por categoria — sem você calcular nada.</p>
+            </div>
+            <div className="alerta-card">
+              <div className="alerta-icon">📱</div>
+              <h3>Instale como app, use offline</h3>
+              <p>Adicione à tela inicial do celular e acesse mesmo sem internet. Seus dados ficam em cache — o app funciona onde você estiver.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ============== COMO FUNCIONA ============== */}
       <section id="como-funciona">
         <div className="wrap">
@@ -363,7 +401,7 @@ export default function LandingPage() {
           <div className="sec-head reveal">
             <span className="sec-eyebrow">Quem já está dentro</span>
             <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Quem já está organizando.</h2>
-            <p className="sec-sub">Beta fechado · primeiros usuários da comunidade</p>
+            <p className="sec-sub">Primeiros usuários · comunidade em crescimento</p>
           </div>
           <div className="testimonials reveal">
             <article className="testimonial">
@@ -373,7 +411,7 @@ export default function LandingPage() {
                 <div className="avatar a1">CF</div>
                 <div>
                   <b>Carla F.</b>
-                  <span>São Paulo, SP · CLT há 4 anos</span>
+                  <span>São Paulo, SP · Analista financeira</span>
                 </div>
               </div>
             </article>
@@ -407,7 +445,7 @@ export default function LandingPage() {
               <span className="a" style={{ background: 'linear-gradient(135deg,#00C37A,#00A664)' }} />
               <span className="a" style={{ background: 'linear-gradient(135deg,#FFB800,#FF8A00)' }} />
             </span>
-            <b>+ de 1.200 pessoas</b> já testando o beta fechado.
+            <b>+ de 1.200 pessoas</b> já organizando as finanças.
           </p>
         </div>
       </section>
@@ -557,7 +595,7 @@ export default function LandingPage() {
             <Link href="/termos">Termos de Uso</Link>
             <a href="mailto:contato@toorganizado.com.br">Contato</a>
           </div>
-          <span className="made">Feito com 💜 para o CLT brasileiro</span>
+          <span className="made">Feito com 💜 para quem quer se organizar de verdade</span>
         </div>
       </footer>
     </div>
