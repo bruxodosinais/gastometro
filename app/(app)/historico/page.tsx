@@ -106,7 +106,8 @@ export default function HistoricoPage() {
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
-    const f = new URLSearchParams(window.location.search).get('filter');
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get('filter');
     if (f === 'prevMonth') {
       const d = new Date();
       d.setDate(1);
@@ -116,6 +117,10 @@ export default function HistoricoPage() {
       setPeriod(p);
       setQuickFilter('prevMonth');
     }
+    // Filtro por categoria vindo de outros telas (ex.: AnomaliaCard na Home,
+    // insight da /categorias) — já abre o histórico com o chip ativo.
+    const cat = params.get('categoria');
+    if (cat) setCategoryFilter(cat);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

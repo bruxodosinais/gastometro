@@ -58,6 +58,7 @@ import ReservaCard from '../_components/home/ReservaCard';
 import CompromissosCard from '../_components/home/CompromissosCard';
 import ContasDoMes from '../_components/home/ContasDoMes';
 import InsightsCard from '../_components/home/InsightsCard';
+import AnomaliaCard from '../_components/home/AnomaliaCard';
 import HomeModals from '../_components/home/HomeModals';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1246,6 +1247,9 @@ export default function HomePage() {
           mounted={mounted}
         />
       )}
+
+      {/* ── FB3. ANOMALIA DE GASTO ──────────────────────────────────────────── */}
+      {isCurrentMonth && <AnomaliaCard mounted={mounted} />}
 
       {!subLoading && isFree && (
         <Link

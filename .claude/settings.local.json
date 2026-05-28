@@ -110,7 +110,8 @@
       "Bash(date)",
       "Bash(ls /Users/anderson/gastometro)",
       "Bash(echo \"EOF\")",
-      "Bash(bash /tmp/test_echo.sh)"
+      "Bash(bash /tmp/test_echo.sh)",
+      "Bash(echo \"---tsc-exit:$?---\")"
     ]
   }
 }
