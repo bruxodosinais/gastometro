@@ -82,11 +82,11 @@ export default function HomePage() {
     obligationId: string;
     estimatedAmount: number;
   } | null>(null);
-  const [variableAmount, setVariableAmount] = useState('');
+  const [variableAmount, setVariableAmount] = useState(0);
   // P5: modal inline para configurar renda/meta sem sair da tela inicial.
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
-  const [budgetIncomeInput, setBudgetIncomeInput] = useState('');
-  const [budgetGoalInput, setBudgetGoalInput] = useState('');
+  const [budgetIncomeInput, setBudgetIncomeInput] = useState(0);
+  const [budgetGoalInput, setBudgetGoalInput] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
   const [budgetError, setBudgetError] = useState('');
   const [ready, setReady] = useState(false);
@@ -370,19 +370,12 @@ export default function HomePage() {
   // P5: salva renda/meta do mês selecionado e atualiza o bloco em tempo real.
   async function handleSaveBudget() {
     setBudgetError('');
-    const incomeValue = parseFloat(budgetIncomeInput.replace(',', '.'));
-    if (!budgetIncomeInput.trim() || Number.isNaN(incomeValue) || incomeValue <= 0) {
+    const incomeValue = budgetIncomeInput;
+    if (!incomeValue || incomeValue <= 0) {
       setBudgetError('Informe uma renda mensal maior que zero.');
       return;
     }
-    let goalValue = 0;
-    if (budgetGoalInput.trim()) {
-      goalValue = parseFloat(budgetGoalInput.replace(',', '.'));
-      if (Number.isNaN(goalValue) || goalValue < 0) {
-        setBudgetError('A meta de poupança não pode ser negativa.');
-        return;
-      }
-    }
+    const goalValue = budgetGoalInput || 0;
     if (goalValue > incomeValue) {
       setBudgetError('A meta de poupança não pode ser maior que a renda.');
       return;
@@ -392,8 +385,8 @@ export default function HomePage() {
       const plan = await upsertMonthlyPlan(period, incomeValue, goalValue);
       setMonthlyPlan(plan);
       setBudgetModalOpen(false);
-      setBudgetIncomeInput('');
-      setBudgetGoalInput('');
+      setBudgetIncomeInput(0);
+      setBudgetGoalInput(0);
       addToast('Orçamento configurado!');
     } catch (err) {
       setBudgetError(getErrorMessage(err));
@@ -1087,12 +1080,8 @@ export default function HomePage() {
         mounted={mounted}
         onOpenBudgetModal={() => {
           setBudgetError('');
-          setBudgetIncomeInput(
-            monthlyPlan?.expectedIncome ? String(monthlyPlan.expectedIncome) : ''
-          );
-          setBudgetGoalInput(
-            monthlyPlan?.savingsGoal ? String(monthlyPlan.savingsGoal) : ''
-          );
+          setBudgetIncomeInput(monthlyPlan?.expectedIncome ?? 0);
+          setBudgetGoalInput(monthlyPlan?.savingsGoal ?? 0);
           setBudgetModalOpen(true);
         }}
       />
@@ -1140,7 +1129,7 @@ export default function HomePage() {
           onMarkObligationPaid={handleMarkObligationPaid}
           onOpenVariablePay={(obligationId, estimatedAmount) => {
             setVariablePayModal({ obligationId, estimatedAmount });
-            setVariableAmount(String(estimatedAmount));
+            setVariableAmount(estimatedAmount);
           }}
         />
       )}
@@ -1317,7 +1306,7 @@ export default function HomePage() {
         onCancelVariablePay={() => setVariablePayModal(null)}
         onConfirmVariablePay={() => {
           if (!variablePayModal) return;
-          const parsed = parseFloat(variableAmount.replace(',', '.'));
+          const parsed = variableAmount;
           if (!parsed || parsed <= 0) return;
           const id = variablePayModal.obligationId;
           setVariablePayModal(null);

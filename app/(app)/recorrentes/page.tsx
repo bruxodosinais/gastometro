@@ -77,7 +77,7 @@ export default function RecorrentesPage() {
 
   // form
   const [entryType, setEntryType] = useState<EntryType>('expense');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<string>('Alimentação');
   const [dayOfMonth, setDayOfMonth] = useState('');
@@ -92,7 +92,6 @@ export default function RecorrentesPage() {
   const [descricaoError, setDescricaoError] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
-  const [, setInputScale] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [activeTab, setActiveTab] = useState<RecorrentesTab>('all');
@@ -104,7 +103,7 @@ export default function RecorrentesPage() {
   });
   const [duplicateWarning, setDuplicateWarning] = useState<RecurringExpense | null>(null);
   const [variablePayModal, setVariablePayModal] = useState<VariablePayModalState>(null);
-  const [variableAmount, setVariableAmount] = useState('');
+  const [variableAmount, setVariableAmount] = useState(0);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => parseInt(todayMonthKey.split('-')[0]));
@@ -112,7 +111,7 @@ export default function RecorrentesPage() {
   // edit modal
   const [editingRec, setEditingRec] = useState<RecurringExpense | null>(null);
   const [editDesc, setEditDesc] = useState('');
-  const [editAmount, setEditAmount] = useState('');
+  const [editAmount, setEditAmount] = useState(0);
   const [editDayOfMonth, setEditDayOfMonth] = useState('');
   const [editDueDay, setEditDueDay] = useState('');
   const [editIsVariable, setEditIsVariable] = useState(false);
@@ -187,7 +186,7 @@ export default function RecorrentesPage() {
       return;
     }
 
-    const num = parseFloat(amount.replace(',', '.'));
+    const num = amount;
     const day = parseInt(dayOfMonth, 10);
     if (!num || num <= 0 || !day || day < 1 || day > 31) return;
     // dueDay é INDEPENDENTE de dayOfMonth: se vazio fica undefined (não herda).
@@ -237,7 +236,7 @@ export default function RecorrentesPage() {
           );
       }
 
-      setAmount('');
+      setAmount(0);
       setDescription('');
       setDayOfMonth('');
       setDueDay('');
@@ -256,7 +255,7 @@ export default function RecorrentesPage() {
   function openEditModal(rec: RecurringExpense) {
     setEditingRec(rec);
     setEditDesc(rec.description ?? '');
-    setEditAmount(String(rec.amount));
+    setEditAmount(rec.amount);
     setEditDayOfMonth(
       typeof rec.dayOfMonth === 'number' && rec.dayOfMonth >= 1 && rec.dayOfMonth <= 31
         ? String(rec.dayOfMonth)
@@ -277,7 +276,7 @@ export default function RecorrentesPage() {
 
   async function handleEditSave() {
     if (!editingRec) return;
-    const num = parseFloat(editAmount.replace(',', '.'));
+    const num = editAmount;
     if (!num || num <= 0) return;
 
     // dayOfMonth e dueDay são salvos de forma independente. Vazio → null
@@ -448,21 +447,6 @@ export default function RecorrentesPage() {
 
   // ── Form input handlers (extraídos de onChange inline) ────────────────────
 
-  function handleAmountChange(v: string) {
-    setAmount(v.replace(/[^0-9.,]/g, ''));
-    setInputScale(true);
-    setTimeout(() => setInputScale(false), 100);
-  }
-
-  function handleAmountFocus(currentValue: string) {
-    setInputFocused(true);
-    if (currentValue === '0') setAmount('');
-  }
-
-  function handleAmountBlur() {
-    setInputFocused(false);
-  }
-
   function handleDescriptionChange(val: string) {
     setDescription(val);
     if (descricaoError) setDescricaoError('');
@@ -492,7 +476,7 @@ export default function RecorrentesPage() {
     }
     if (rec.isVariable) {
       setVariablePayModal({ obligationId: ob.id, estimatedAmount: rec.amount });
-      setVariableAmount(String(rec.amount));
+      setVariableAmount(rec.amount);
     } else {
       handleMarkObligationPaid(ob.id);
     }
@@ -500,7 +484,7 @@ export default function RecorrentesPage() {
 
   function handleConfirmVariablePay() {
     if (!variablePayModal) return;
-    const parsed = parseFloat(variableAmount.replace(',', '.'));
+    const parsed = variableAmount;
     if (!parsed || parsed <= 0) return;
     const id = variablePayModal.obligationId;
     setVariablePayModal(null);
@@ -706,9 +690,9 @@ export default function RecorrentesPage() {
             inputFocused={inputFocused}
             duplicateWarning={duplicateWarning}
             onTypeChange={handleTypeChange}
-            onAmountChange={handleAmountChange}
-            onAmountFocus={handleAmountFocus}
-            onAmountBlur={handleAmountBlur}
+            onAmountChange={setAmount}
+            onAmountFocus={() => setInputFocused(true)}
+            onAmountBlur={() => setInputFocused(false)}
             onDescriptionChange={handleDescriptionChange}
             onDayOfMonthChange={setDayOfMonth}
             onDueDayChange={setDueDay}

@@ -17,6 +17,7 @@ import LoadingButton from '@/components/ui/LoadingButton';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { detectDuplicate, DuplicateCandidate } from '@/lib/utils/detectDuplicate';
 import CategoryPickerSheet from '@/components/CategoryPickerSheet';
+import CurrencyInput from '@/components/CurrencyInput';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
 import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
@@ -371,7 +372,7 @@ export default function LancamentosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [entryType, setEntryType] = useState<EntryType>('expense');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(0);
   const [category, setCategory] = useState<string>('Alimentação');
   const [date, setDate] = useState(todayStr);
   const [description, setDescription] = useState('');
@@ -449,8 +450,8 @@ export default function LancamentosPage() {
   }
 
   const [descricaoError, setDescricaoError] = useState(false);
-  const numAmount = parseFloat(amount.replace(',', '.'));
-  const hasAmount = numAmount > 0;
+  const numAmount = amount;
+  const hasAmount = amount > 0;
   const hasDescription = description.trim().length > 0;
   const isValid = hasAmount && !!category && hasDescription;
 
@@ -542,7 +543,7 @@ export default function LancamentosPage() {
       setTimeout(() => {
         setValueOpacity(0);
         setTimeout(() => {
-          setAmount('');
+          setAmount(0);
           setDescription('');
           setDate(todayStr());
           setRecurringDay('');
@@ -787,18 +788,11 @@ export default function LancamentosPage() {
                   R$
                 </span>
                 <div style={{ position: 'relative' }}>
-                  <input
-                    ref={amountRef}
-                    type="text"
-                    inputMode="decimal"
+                  <CurrencyInput
+                    inputRef={amountRef}
                     value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value.replace(/[^0-9.,]/g, ''));
-                    }}
-                    onFocus={(e) => {
-                      setInputFocused(true);
-                      if (e.target.value === '0') setAmount('');
-                    }}
+                    onChange={setAmount}
+                    onFocus={() => setInputFocused(true)}
                     onBlur={() => setInputFocused(false)}
                     placeholder="0"
                     style={{
@@ -1075,7 +1069,7 @@ export default function LancamentosPage() {
                           style={{ ...fieldStyle }}
                         />
                         <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                          {installments}x de {amount ? `R$ ${parseFloat(amount.replace(',', '.')).toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
+                          {installments}x de {numAmount > 0 ? `R$ ${numAmount.toFixed(2)}` : 'R$ –'} · {installments} meses consecutivos
                         </p>
                       </div>
                     )}

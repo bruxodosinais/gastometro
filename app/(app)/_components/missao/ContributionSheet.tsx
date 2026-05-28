@@ -5,6 +5,7 @@ import { Loader2, X } from 'lucide-react';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getExpenses } from '@/lib/storage';
 import { addContribution, checkAndUnlockBadges } from '@/lib/storage/missions';
+import CurrencyInput from '@/components/CurrencyInput';
 
 type Props = {
   open: boolean;
@@ -163,17 +164,10 @@ export default function ContributionSheet({
           >
             {formatCurrency(amount)}
           </span>
-          <input
-            ref={inputRef}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={10}
-            value={amount || ''}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              setAmount(Number.isFinite(n) && n > 0 ? n : 0);
-            }}
+          <CurrencyInput
+            inputRef={inputRef}
+            value={amount}
+            onChange={setAmount}
             placeholder="0"
             aria-label="Valor do depósito"
             className="sr-only"

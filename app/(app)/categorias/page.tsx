@@ -26,6 +26,7 @@ import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 // categories vivem na seção "Minhas categorias" mais abaixo (V-02 #7).
 import { usePeriod } from '@/lib/periodContext';
 import PeriodSelector from '@/components/PeriodSelector';
+import CurrencyInput from '@/components/CurrencyInput';
 import MyCategoriesSection from './_components/MyCategoriesSection';
 import { Budget, CategorySummary, Expense, ExpenseCategory } from '@/lib/types';
 
@@ -96,7 +97,7 @@ export default function CategoriasPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [ready, setReady] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
-  const [editAmount, setEditAmount] = useState('');
+  const [editAmount, setEditAmount] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<ExpenseCategory | null>(null);
 
@@ -114,16 +115,16 @@ export default function CategoriasPage() {
 
   function openEdit(category: ExpenseCategory) {
     setEditingCategory(category);
-    setEditAmount(budgetMap[category] != null ? String(budgetMap[category]) : '');
+    setEditAmount(budgetMap[category] ?? 0);
   }
 
   function cancelEdit() {
     setEditingCategory(null);
-    setEditAmount('');
+    setEditAmount(0);
   }
 
   async function saveEdit(category: ExpenseCategory) {
-    const num = parseFloat(editAmount.replace(',', '.'));
+    const num = editAmount;
     if (!num || num <= 0) return;
     setSavingBudget(true);
     try {
@@ -134,7 +135,7 @@ export default function CategoriasPage() {
         return [...prev, { id: crypto.randomUUID(), category, amount: num }];
       });
       setEditingCategory(null);
-      setEditAmount('');
+      setEditAmount(0);
     } finally {
       setSavingBudget(false);
     }
@@ -146,7 +147,7 @@ export default function CategoriasPage() {
       await deleteBudget(category);
       setBudgets((prev) => prev.filter((b) => b.category !== category));
       setEditingCategory(null);
-      setEditAmount('');
+      setEditAmount(0);
     } finally {
       setSavingBudget(false);
     }
@@ -581,13 +582,9 @@ export default function CategoriasPage() {
                           <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-3)', fontSize: 13 }}>
                             R$
                           </span>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min="1"
+                          <CurrencyInput
                             value={editAmount}
-                            onChange={(e) => setEditAmount(e.target.value)}
+                            onChange={setEditAmount}
                             placeholder="0,00"
                             autoFocus
                             className="w-full focus:outline-none"

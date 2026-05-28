@@ -18,6 +18,7 @@ import { Goal, GoalContribution, GoalTerm, GoalType } from '@/lib/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import LoadingButton from '@/components/ui/LoadingButton';
+import CurrencyInput from '@/components/CurrencyInput';
 
 // ─── Configurações de tipo e cor ─────────────────────────────────────────────
 
@@ -152,8 +153,8 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; cls: string; btnLabel: s
 const EMPTY_FORM = {
   name: '',
   type: 'personalizada' as GoalType,
-  targetAmount: '',
-  currentAmount: '',
+  targetAmount: 0,
+  currentAmount: 0,
   deadline: '',
   color: 'slate' as ColorKey,
   term: '' as '' | GoalTerm,
@@ -212,7 +213,7 @@ export default function MetasPage() {
 
   // Contribuição
   const [contributingGoal, setContributingGoal] = useState<Goal | null>(null);
-  const [contribAmount, setContribAmount] = useState('');
+  const [contribAmount, setContribAmount] = useState(0);
   const [contribDate, setContribDate] = useState(TODAY);
   const [contribNote, setContribNote] = useState('');
   const [contribSaving, setContribSaving] = useState(false);
@@ -265,7 +266,7 @@ export default function MetasPage() {
   useEffect(() => {
     if (!monthlyBase || monthlyBase.monthlyBase <= 0) return;
     if (selectedMultiplier !== null) return;
-    const target = parseFloat(form.targetAmount.replace(',', '.'));
+    const target = form.targetAmount;
     if (!target || !Number.isFinite(target)) return;
     const ratio = target / monthlyBase.monthlyBase;
     const match = MULTIPLIERS.find((m) => Math.abs(ratio - m) <= m * MULTIPLIER_TOLERANCE);
@@ -275,7 +276,7 @@ export default function MetasPage() {
   function pickMultiplier(m: Multiplier) {
     if (!monthlyBase || monthlyBase.monthlyBase <= 0) return;
     const value = monthlyBase.monthlyBase * m;
-    setForm((f) => ({ ...f, targetAmount: value.toFixed(2) }));
+    setForm((f) => ({ ...f, targetAmount: value }));
     setSelectedMultiplier(m);
   }
 
@@ -294,8 +295,8 @@ export default function MetasPage() {
     setForm({
       name: goal.name,
       type: goal.type,
-      targetAmount: String(goal.targetAmount),
-      currentAmount: String(goal.currentAmount),
+      targetAmount: goal.targetAmount,
+      currentAmount: goal.currentAmount,
       deadline: goal.deadline ?? '',
       color: (goal.color as ColorKey) in COLOR_CONFIG ? (goal.color as ColorKey) : 'slate',
       term: goal.term ?? '',
@@ -323,8 +324,8 @@ export default function MetasPage() {
 
   async function handleSave() {
     setFormError(null);
-    const target = parseFloat(form.targetAmount.replace(',', '.'));
-    const current = parseFloat(form.currentAmount.replace(',', '.')) || 0;
+    const target = form.targetAmount;
+    const current = form.currentAmount || 0;
 
     if (!form.name.trim()) { setFormError('Informe o nome da meta.'); return; }
     if (!target || target <= 0) { setFormError('O valor alvo deve ser maior que zero.'); return; }
@@ -375,7 +376,7 @@ export default function MetasPage() {
 
   function openContrib(goal: Goal) {
     setContributingGoal(goal);
-    setContribAmount('');
+    setContribAmount(0);
     setContribDate(TODAY);
     setContribNote('');
     setContribError(null);
@@ -384,7 +385,7 @@ export default function MetasPage() {
   async function handleContrib() {
     if (!contributingGoal) return;
     setContribError(null);
-    const amount = parseFloat(contribAmount.replace(',', '.'));
+    const amount = contribAmount;
     if (!amount || amount <= 0) { setContribError('Informe um valor maior que zero.'); return; }
 
     const wasActive = contributingGoal.status === 'active';
@@ -575,8 +576,8 @@ export default function MetasPage() {
                   <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor alvo (R$)</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
-                    <input type="number" inputMode="decimal" step="0.01" min="0" value={form.targetAmount}
-                      onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))}
+                    <CurrencyInput value={form.targetAmount}
+                      onChange={(v) => setForm((f) => ({ ...f, targetAmount: v }))}
                       placeholder="0,00"
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                     />
@@ -586,8 +587,8 @@ export default function MetasPage() {
                   <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Já tenho (R$)</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
-                    <input type="number" inputMode="decimal" step="0.01" min="0" value={form.currentAmount}
-                      onChange={(e) => setForm((f) => ({ ...f, currentAmount: e.target.value }))}
+                    <CurrencyInput value={form.currentAmount}
+                      onChange={(v) => setForm((f) => ({ ...f, currentAmount: v }))}
                       placeholder="0,00"
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
                     />
@@ -934,8 +935,8 @@ export default function MetasPage() {
                 <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Valor (R$)</label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--text-3)' }}>R$</span>
-                  <input type="number" inputMode="decimal" step="0.01" min="0.01" value={contribAmount}
-                    onChange={(e) => setContribAmount(e.target.value)}
+                  <CurrencyInput value={contribAmount}
+                    onChange={setContribAmount}
                     placeholder="0,00" autoFocus
                     style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px 12px 42px', fontSize: 16, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
                   />
@@ -1252,7 +1253,7 @@ function GoalCard({
   onEdit: (g: Goal) => void;
   onContrib: (g: Goal) => void;
 }) {
-  const [simInput, setSimInput] = useState('');
+  const [simInput, setSimInput] = useState(0);
 
   const cfg = colorCfg(goal.color);
   const pct = goal.targetAmount > 0 ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
@@ -1266,7 +1267,7 @@ function GoalCard({
   const statusKey = computeStatus(goal, avgContrib);
   const sc = STATUS_CONFIG[statusKey];
 
-  const simMonthly = parseFloat(simInput.replace(',', '.'));
+  const simMonthly = simInput;
   const simValid = simMonthly > 0 && remaining > 0;
   const simMonths = simValid ? Math.ceil(remaining / simMonthly) : null;
 
@@ -1352,18 +1353,14 @@ function GoalCard({
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-2)' }}>
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-3)' }}>R$</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={simInput}
-              onChange={(e) => setSimInput(e.target.value)}
+              onChange={setSimInput}
               placeholder="Quanto deseja aportar por mês?"
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', paddingLeft: 32, paddingRight: 12, paddingTop: 12, paddingBottom: 12, fontSize: 16, color: 'var(--text)', outline: 'none' }}
             />
           </div>
-          {simInput !== '' && simMonths !== null && (
+          {simInput > 0 && simMonths !== null && (
             <p style={{ fontSize: 12, fontWeight: 500, color: getSimulatorMessage(simMonths).cls === 'text-mint-500' ? 'var(--green)' : getSimulatorMessage(simMonths).cls === 'text-red-400' ? 'var(--red)' : '#f59e0b', marginTop: 8 }}>
               {getSimulatorMessage(simMonths).text}
             </p>

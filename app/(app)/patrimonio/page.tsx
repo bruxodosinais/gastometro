@@ -18,6 +18,7 @@ import { Asset, AssetType, Expense, Liability } from '@/lib/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import LoadingButton from '@/components/ui/LoadingButton';
+import CurrencyInput from '@/components/CurrencyInput';
 
 // ─── Configurações de bolso ──────────────────────────────────────────────────
 
@@ -103,10 +104,10 @@ type FormMode = 'asset' | 'liability';
 interface FormState {
   name: string;
   type: string;
-  value: string;
+  value: number;
 }
 
-const EMPTY_FORM: FormState = { name: '', type: '', value: '' };
+const EMPTY_FORM: FormState = { name: '', type: '', value: 0 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ export default function PatrimonioPage() {
   function openEditAsset(a: Asset) {
     setEditingLiability(null);
     setEditingAsset(a);
-    setForm({ name: a.name, type: a.type, value: String(a.value) });
+    setForm({ name: a.name, type: a.type, value: a.value });
     setFormError(null);
     setModalMode('asset');
   }
@@ -210,7 +211,7 @@ export default function PatrimonioPage() {
   function openEditLiability(l: Liability) {
     setEditingAsset(null);
     setEditingLiability(l);
-    setForm({ name: l.name, type: l.type, value: String(l.value) });
+    setForm({ name: l.name, type: l.type, value: l.value });
     setFormError(null);
     setModalMode('liability');
   }
@@ -225,7 +226,7 @@ export default function PatrimonioPage() {
 
   async function handleSave() {
     setFormError(null);
-    const value = parseFloat(form.value.replace(',', '.'));
+    const value = form.value;
     if (!form.name.trim()) { setFormError('Informe um nome.'); return; }
     if (!form.type) { setFormError('Selecione o tipo.'); return; }
     if (!value || value <= 0) { setFormError('O valor deve ser maior que zero.'); return; }
@@ -621,13 +622,9 @@ export default function PatrimonioPage() {
                 </label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--text-3)' }}>R$</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0.01"
+                  <CurrencyInput
                     value={form.value}
-                    onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, value: v }))}
                     placeholder="0,00"
                     style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px 12px 42px', fontSize: 16, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
                   />

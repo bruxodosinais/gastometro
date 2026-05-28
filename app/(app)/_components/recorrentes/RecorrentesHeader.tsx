@@ -3,6 +3,7 @@
 import { startTransition } from 'react';
 import { AlertCircle, ChevronDown, Loader2 } from 'lucide-react';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import CurrencyInput from '@/components/CurrencyInput';
 import { formatCurrency } from '@/lib/calculations';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import type {
@@ -25,7 +26,7 @@ type Props = {
 
   // Form values
   entryType: EntryType;
-  amount: string;
+  amount: number;
   description: string;
   category: string;
   dayOfMonth: string;
@@ -44,8 +45,8 @@ type Props = {
 
   // Form callbacks
   onTypeChange: (type: EntryType) => void;
-  onAmountChange: (v: string) => void;
-  onAmountFocus: (current: string) => void;
+  onAmountChange: (v: number) => void;
+  onAmountFocus: () => void;
   onAmountBlur: () => void;
   onDescriptionChange: (v: string) => void;
   onDayOfMonthChange: (v: string) => void;
@@ -99,7 +100,7 @@ export default function RecorrentesHeader({
   onDismissDuplicate,
   onSubmit,
 }: Props) {
-  const hasAmount = amount !== '' && amount !== '0';
+  const hasAmount = amount > 0;
   const typeColor = entryType === 'income' ? 'var(--green)' : 'var(--red)';
   const { categories: customs } = useCustomCategories();
 
@@ -249,15 +250,12 @@ export default function RecorrentesHeader({
                 R$
               </span>
               <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <CurrencyInput
                   value={amount}
-                  onChange={(e) => onAmountChange(e.target.value)}
-                  onFocus={(e) => onAmountFocus(e.target.value)}
+                  onChange={onAmountChange}
+                  onFocus={onAmountFocus}
                   onBlur={onAmountBlur}
                   placeholder="0"
-                  required
                   style={{
                     fontSize: 40,
                     fontWeight: 900,

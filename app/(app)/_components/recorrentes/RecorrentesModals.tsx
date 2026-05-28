@@ -1,6 +1,7 @@
 'use client';
 
 import LoadingButton from '@/components/ui/LoadingButton';
+import CurrencyInput from '@/components/CurrencyInput';
 import { formatCurrency } from '@/lib/calculations';
 import type { RecurringExpense } from '@/lib/types';
 import { fieldLabelStyle, fieldStyle, Switch } from './_shared';
@@ -10,8 +11,8 @@ export type VariablePayModalState = { obligationId: string; estimatedAmount: num
 type Props = {
   // Variable pay modal
   variablePayModal: VariablePayModalState;
-  variableAmount: string;
-  onVariableAmountChange: (v: string) => void;
+  variableAmount: number;
+  onVariableAmountChange: (v: number) => void;
   onCancelVariablePay: () => void;
   onConfirmVariablePay: () => void;
 
@@ -19,8 +20,8 @@ type Props = {
   editingRec: RecurringExpense | null;
   editDesc: string;
   onEditDescChange: (v: string) => void;
-  editAmount: string;
-  onEditAmountChange: (v: string) => void;
+  editAmount: number;
+  onEditAmountChange: (v: number) => void;
   editDayOfMonth: string;
   onEditDayOfMonthChange: (v: string) => void;
   editDueDay: string;
@@ -87,14 +88,10 @@ export default function RecorrentesModals({
               Valor estimado: {formatCurrency(variablePayModal.estimatedAmount)} — informe o valor real pago
             </p>
             <label style={fieldLabelStyle}>Valor pago (R$)</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               autoFocus
               value={variableAmount}
-              onChange={(e) => onVariableAmountChange(e.target.value)}
+              onChange={onVariableAmountChange}
               style={{ ...fieldStyle, fontSize: 18, marginBottom: 16 }}
             />
             <div style={{ display: 'flex', gap: 8 }}>
@@ -173,13 +170,9 @@ export default function RecorrentesModals({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                   <label style={fieldLabelStyle}>Valor (R$)</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
+                  <CurrencyInput
                     value={editAmount}
-                    onChange={(e) => onEditAmountChange(e.target.value)}
+                    onChange={onEditAmountChange}
                     style={{ ...fieldStyle }}
                   />
                 </div>

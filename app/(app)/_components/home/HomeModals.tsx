@@ -1,6 +1,7 @@
 'use client';
 
 import LoadingButton from '@/components/ui/LoadingButton';
+import CurrencyInput from '@/components/CurrencyInput';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import type { CreditCard as CreditCardType } from '@/lib/types';
 
@@ -10,17 +11,17 @@ type CardVencimentoAlertState = { card: CreditCardType; fatura: number } | null;
 type Props = {
   // Variable-pay modal
   variablePayModal: VariablePayModalState;
-  variableAmount: string;
-  onVariableAmountChange: (v: string) => void;
+  variableAmount: number;
+  onVariableAmountChange: (v: number) => void;
   onCancelVariablePay: () => void;
   onConfirmVariablePay: () => void;
 
   // Budget modal
   budgetModalOpen: boolean;
-  budgetIncomeInput: string;
-  budgetGoalInput: string;
-  onBudgetIncomeChange: (v: string) => void;
-  onBudgetGoalChange: (v: string) => void;
+  budgetIncomeInput: number;
+  budgetGoalInput: number;
+  onBudgetIncomeChange: (v: number) => void;
+  onBudgetGoalChange: (v: number) => void;
   budgetError: string;
   savingBudget: boolean;
   onCancelBudget: () => void;
@@ -97,14 +98,10 @@ export default function HomeModals({
             >
               Valor pago (R$)
             </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               autoFocus
               value={variableAmount}
-              onChange={(e) => onVariableAmountChange(e.target.value)}
+              onChange={onVariableAmountChange}
               style={{
                 width: '100%',
                 background: 'var(--bg)',
@@ -191,14 +188,10 @@ export default function HomeModals({
             >
               Renda esperada (R$)
             </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               autoFocus
               value={budgetIncomeInput}
-              onChange={(e) => onBudgetIncomeChange(e.target.value)}
+              onChange={onBudgetIncomeChange}
               placeholder="0,00"
               style={{
                 width: '100%',
@@ -227,13 +220,9 @@ export default function HomeModals({
               Meta de poupança (R$){' '}
               <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· opcional</span>
             </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
+            <CurrencyInput
               value={budgetGoalInput}
-              onChange={(e) => onBudgetGoalChange(e.target.value)}
+              onChange={onBudgetGoalChange}
               placeholder="0,00"
               style={{
                 width: '100%',
