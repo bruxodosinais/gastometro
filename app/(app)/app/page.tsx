@@ -671,6 +671,34 @@ export default function HomePage() {
     ? 'future'
     : 'past';
 
+  // ── Streak badge ───────────────────────────────────────────────────────────
+  // Renderizado em dois lugares: no navegador de mês (mobile) e num wrapper
+  // próprio em desktop (onde o navegador vive na TopbarDesktop). Mesmo elemento
+  // reaproveitado para não duplicar estilos.
+  const showStreakBadge = isCurrentMonth && currentStreak >= 2;
+  const streakBadge = showStreakBadge ? (
+    <div
+      className={currentStreak >= 7 && currentStreak < 30 ? 'home-streak-pulse' : undefined}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        background: currentStreak >= 30 ? '#EDE9FE' : '#FFF3E0',
+        border: `1px solid ${currentStreak >= 30 ? '#A78BFA' : '#FFB74D'}`,
+        borderRadius: 20,
+        padding: '4px 12px',
+        fontSize: 12,
+        fontWeight: 700,
+        color: currentStreak >= 30 ? '#5B5BD6' : '#E65100',
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span aria-hidden="true">{currentStreak >= 30 ? '⚡' : '🔥'}</span>
+      <span>{currentStreak} dias seguidos</span>
+    </div>
+  ) : null;
+
   // ── Hint ──────────────────────────────────────────────────────────────────
   const hintText = (() => {
     if (!isCurrentMonth) return null;
@@ -940,97 +968,82 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── 3. MONTH NAVIGATOR + STREAK BADGE ──────────────────────────────── */}
-      {(() => {
-        const showStreak = isCurrentMonth && currentStreak >= 2;
-        return (
-          <div
-            className="mobile-only"
+      {/* ── 3. MONTH NAVIGATOR + STREAK BADGE (mobile) ─────────────────────── */}
+      <div
+        className="mobile-only"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: showStreakBadge ? 'space-between' : 'center',
+          gap: 12,
+          padding: '20px 16px 0',
+          marginBottom: 12,
+          ...(mounted ? anim(100) : hidden),
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={goPrevMonth}
             style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: showStreak ? 'space-between' : 'center',
-              gap: 12,
-              padding: '20px 16px 0',
-              marginBottom: 12,
-              ...(mounted ? anim(100) : hidden),
+              justifyContent: 'center',
+              cursor: 'pointer',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <button
-                onClick={goPrevMonth}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <ChevronLeft size={14} color="var(--text-2)" />
-              </button>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>
-                {navigatorLabel}
-              </span>
-              <button
-                onClick={goNextMonth}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <ChevronRight size={14} color="var(--text-2)" />
-              </button>
-            </div>
+            <ChevronLeft size={14} color="var(--text-2)" />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>
+            {navigatorLabel}
+          </span>
+          <button
+            onClick={goNextMonth}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <ChevronRight size={14} color="var(--text-2)" />
+          </button>
+        </div>
 
-            {showStreak && (
-              <div
-                className={
-                  currentStreak >= 7 && currentStreak < 30 ? 'home-streak-pulse' : undefined
-                }
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: currentStreak >= 30 ? '#EDE9FE' : '#FFF3E0',
-                  border: `1px solid ${currentStreak >= 30 ? '#A78BFA' : '#FFB74D'}`,
-                  borderRadius: 20,
-                  padding: '4px 12px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: currentStreak >= 30 ? '#5B5BD6' : '#E65100',
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span aria-hidden="true">{currentStreak >= 30 ? '⚡' : '🔥'}</span>
-                <span>{currentStreak} dias seguidos</span>
-              </div>
-            )}
+        {streakBadge}
+      </div>
 
-            <style>{`
-              @keyframes homeStreakPulse {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.05); }
-              }
-              .home-streak-pulse {
-                animation: homeStreakPulse 1.8s ease-in-out infinite;
-              }
-            `}</style>
-          </div>
-        );
-      })()}
+      {/* ── 3B. STREAK BADGE (desktop) ─────────────────────────────────────── */}
+      {/* Em desktop (≥1024px) o navegador de mês vive na TopbarDesktop e o
+          wrapper acima fica oculto (mobile-only); aqui o badge aparece alinhado
+          à direita, acima do conteúdo de 2 colunas. */}
+      {streakBadge && (
+        <div
+          className="hidden lg:flex"
+          style={{ justifyContent: 'flex-end', marginBottom: 12 }}
+        >
+          {streakBadge}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes homeStreakPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        .home-streak-pulse {
+          animation: homeStreakPulse 1.8s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* ── DESKTOP 2-COL WRAPPER (no-op em mobile) ───────────────────────── */}
       <div className="home-content-wrap">

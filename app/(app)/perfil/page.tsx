@@ -554,7 +554,7 @@ export default function PerfilPage() {
 
   if (loading) {
     return (
-      <main style={{ maxWidth: 440, margin: '0 auto', padding: '32px 16px 120px' }}>
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
         <div className="skeleton h-8 w-32 rounded-lg mb-6" />
         <div className="skeleton h-48 rounded-2xl" />
       </main>
@@ -563,7 +563,7 @@ export default function PerfilPage() {
 
   return (
     <>
-      <main style={{ maxWidth: 440, margin: '0 auto', padding: '24px 16px 120px' }}>
+      <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-6">
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <button
@@ -580,6 +580,12 @@ export default function PerfilPage() {
           </button>
           <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Perfil</h1>
         </div>
+
+        {/* ── Em desktop, as seções se dividem em 2 colunas; em mobile, empilham
+            na mesma ordem (cada seção mantém seu marginBottom). ─────────────── */}
+        <div className="md:grid md:grid-cols-2 md:gap-x-4 md:items-start">
+        {/* Coluna esquerda */}
+        <div>
 
         {/* Card principal */}
         <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18, marginBottom: 12 }}>
@@ -978,6 +984,10 @@ export default function PerfilPage() {
           </div>
         )}
 
+        </div>{/* /coluna esquerda */}
+        {/* Coluna direita */}
+        <div>
+
         {/* Notificações por e-mail */}
         <div style={{ marginBottom: 12 }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, padding: '0 2px' }}>
@@ -1373,6 +1383,8 @@ export default function PerfilPage() {
             </button>
           </div>
         </div>
+        </div>{/* /coluna direita */}
+        </div>{/* /grid desktop */}
       </main>
 
       {/* Toast */}
