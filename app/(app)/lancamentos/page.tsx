@@ -1127,7 +1127,7 @@ export default function LancamentosPage() {
                   padding: 14,
                   borderRadius: 'var(--r-sm)',
                   border: 'none',
-                  background: typeColor,
+                  background: 'var(--accent)',
                   color: 'white',
                   fontSize: 14,
                   fontWeight: 800,

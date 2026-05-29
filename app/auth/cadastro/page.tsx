@@ -103,8 +103,8 @@ function CadastroContent() {
       setError('As senhas não coincidem.');
       return;
     }
-    if (password.length < 6) {
-      setError('A senha deve ter no mínimo 6 caracteres.');
+    if (password.length < 8) {
+      setError('A senha deve ter no mínimo 8 caracteres.');
       return;
     }
     if (!termsAccepted) {
@@ -259,7 +259,7 @@ function CadastroContent() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 required
                 autoComplete="new-password"
                 className="auth-input"

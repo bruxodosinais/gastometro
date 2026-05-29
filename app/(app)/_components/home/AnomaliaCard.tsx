@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatCurrency, getCategoryAlerts, getMonthKey } from '@/lib/calculations';
+import {
+  formatCurrency,
+  getCategoryAlerts,
+  getMonthKey,
+  CATEGORY_ANOMALY_THRESHOLD,
+} from '@/lib/calculations';
 import { getExpenses } from '@/lib/storage';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
@@ -15,8 +20,7 @@ const YELLOW = '#FFB800';
 const RED = '#FF4757';
 
 // Limiar mais alto que /categorias (>5%) e que isAlert (>20%): só anomalias
-// reais de gasto entram no card proativo da Home.
-const ANOMALY_THRESHOLD = 30;
+// reais de gasto entram no card proativo da Home. Centralizado em lib/calculations.
 
 export default function AnomaliaCard({ mounted }: Props) {
   const { categories: customs } = useCustomCategories();
@@ -30,7 +34,7 @@ export default function AnomaliaCard({ mounted }: Props) {
         const expenses = await getExpenses();
         if (cancelled) return;
         const top = getCategoryAlerts(expenses, getMonthKey(new Date()))
-          .filter((a) => a.isAlert && a.percentChange > ANOMALY_THRESHOLD)
+          .filter((a) => a.isAlert && a.percentChange > CATEGORY_ANOMALY_THRESHOLD)
           .sort((a, b) => b.percentChange - a.percentChange)[0];
         setAnomaly(top ?? null);
       } catch (err) {

@@ -90,7 +90,7 @@ export function CartaoAddEditModal({
                 onClick={onSave}
                 loading={saving}
                 loadingText="Salvando..."
-                style={{ width: '100%', padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--green)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ width: '100%', padding: '14px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 14, fontWeight: 800, color: 'white', cursor: 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 {editingCard ? 'Salvar alterações' : 'Adicionar cartão'}
               </LoadingButton>

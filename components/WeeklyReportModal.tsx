@@ -57,9 +57,8 @@ export default function WeeklyReportModal() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       const now = new Date();
-      // TEMP TESTE: condição desabilitada para o popup aparecer qualquer dia.
-      // Restaurar após validação visual com Anderson.
-      // if (now.getDay() !== 1) return;
+      // Só exibe às segundas-feiras (getDay() === 1).
+      if (now.getDay() !== 1) return;
 
       const currentWeek = getISOWeekKey(now);
       try {

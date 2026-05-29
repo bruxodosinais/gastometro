@@ -214,7 +214,7 @@ export default function PlanningSection({
               onClick={handleSave}
               disabled={saving}
               className="flex-1 py-3 rounded-xl disabled:opacity-70 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
-              style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+              style={{ background: 'var(--accent)' }}
             >
               {saving ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -247,7 +247,7 @@ export default function PlanningSection({
           <button
             onClick={openEdit}
             className="px-5 py-2.5 rounded-xl active:scale-95 text-white text-sm font-semibold transition-all"
-            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+            style={{ background: 'var(--accent)' }}
           >
             Configurar agora
           </button>

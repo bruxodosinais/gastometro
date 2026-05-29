@@ -104,14 +104,14 @@ function NewCardInlineForm({
           onClick={onCreateAndLink}
           disabled={!newCardName.trim() || creatingNewCard}
           className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-          style={{ background: buttonGradient ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--green)' }}
+          style={{ background: 'var(--accent)' }}
         >
           {creatingNewCard && <Loader2 size={13} className="animate-spin" />}
           Criar e vincular
         </button>
         <button
           onClick={onCancel}
-          className="text-sm text-gray-400 hover:text-gray-600 transition-colors py-2.5"
+          className="text-sm text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors py-2.5"
         >
           Cancelar
         </button>
@@ -164,7 +164,7 @@ export function CartaoCardPickerSheet(props: CardPickerSheetProps) {
         </div>
 
         <div className="px-5 py-5">
-          <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+          <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
             Vincular ao cartão
           </label>
           {props.showNewCardInline ? (
@@ -191,7 +191,7 @@ export function CartaoCardPickerSheet(props: CardPickerSheetProps) {
                   props.onCardPickerSelectedIdChange(e.target.value);
                 }
               }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors"
+              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors"
             >
               <option value="" disabled>Selecionar cartão...</option>
               {props.cards.map((card) => (
@@ -212,7 +212,7 @@ export function CartaoCardPickerSheet(props: CardPickerSheetProps) {
           <button
             onClick={props.onConfirm}
             disabled={!props.cardPickerSelectedId || props.showNewCardInline}
-            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', opacity: (!props.cardPickerSelectedId || props.showNewCardInline) ? 0.6 : 1 }}
+            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--accent)', border: 'none', cursor: 'pointer', opacity: (!props.cardPickerSelectedId || props.showNewCardInline) ? 0.6 : 1 }}
           >
             Continuar →
           </button>
@@ -259,7 +259,7 @@ export function CartaoRawPreviewModal({ show, csvRawData, onWrongFile, onConfirm
                   {csvRawData.headers.map((h) => (
                     <th
                       key={h}
-                      className="text-left text-gray-500 font-semibold px-2 py-1.5 bg-gray-50 border-b border-gray-100 whitespace-nowrap"
+                      className="text-left text-[var(--text-2)] font-semibold px-2 py-1.5 bg-[var(--bg)] border-b border-[var(--border)] whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -268,11 +268,11 @@ export function CartaoRawPreviewModal({ show, csvRawData, onWrongFile, onConfirm
               </thead>
               <tbody>
                 {csvRawData.rows.slice(0, 5).map((row, ri) => (
-                  <tr key={ri} className="border-b border-gray-50">
+                  <tr key={ri} className="border-b border-[var(--border)]">
                     {row.map((cell, ci) => (
                       <td
                         key={ci}
-                        className="px-2 py-1.5 text-gray-700 whitespace-nowrap"
+                        className="px-2 py-1.5 text-[var(--text-2)] whitespace-nowrap"
                         style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}
                       >
                         {cell}
@@ -294,7 +294,7 @@ export function CartaoRawPreviewModal({ show, csvRawData, onWrongFile, onConfirm
           </button>
           <button
             onClick={onConfirm}
-            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer' }}
+            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--accent)', border: 'none', cursor: 'pointer' }}
           >
             Está correto, continuar →
           </button>
@@ -363,7 +363,7 @@ export function CartaoMappingModal(props: MappingModalProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {/* Card selection */}
           <div>
-            <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+            <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
               Vincular ao cartão
             </label>
             {props.showNewCardInline ? (
@@ -391,7 +391,7 @@ export function CartaoMappingModal(props: MappingModalProps) {
                     onMappingFormChange({ ...mappingForm, selectedCardId: e.target.value });
                   }
                 }}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors"
               >
                 <option value="" disabled>Selecionar cartão...</option>
                 {props.cards.map((card) => (
@@ -404,7 +404,7 @@ export function CartaoMappingModal(props: MappingModalProps) {
 
           {/* Bank name */}
           <div>
-            <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+            <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
               Nome do banco
             </label>
             <input
@@ -413,20 +413,20 @@ export function CartaoMappingModal(props: MappingModalProps) {
               onChange={(e) => onMappingFormChange({ ...mappingForm, bankName: e.target.value })}
               placeholder="Ex: Inter, C6, Itaú..."
               maxLength={40}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-green-400 transition-colors"
+              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm placeholder:text-[var(--text-3)] focus:outline-none focus:border-green-400 transition-colors"
             />
           </div>
 
           {/* Detected columns chips */}
           <div>
-            <p className="text-gray-700 text-xs font-semibold mb-2">
+            <p className="text-[var(--text-2)] text-xs font-semibold mb-2">
               Identificamos {csvRawData.headers.length} colunas no seu arquivo:
             </p>
             <div className="flex flex-wrap gap-1.5">
               {csvRawData.headers.map((col) => (
                 <span
                   key={col}
-                  className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg font-mono"
+                  className="px-2.5 py-1 bg-[var(--bg)] text-[var(--text-2)] text-xs rounded-lg font-mono"
                 >
                   {col}
                 </span>
@@ -437,27 +437,27 @@ export function CartaoMappingModal(props: MappingModalProps) {
           {/* Column mapping with examples */}
           <div className="space-y-4">
             <div>
-              <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+              <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
                 Coluna da Data
               </label>
               <select
                 value={mappingForm.dateColumn}
                 onChange={(e) => onMappingFormChange({ ...mappingForm, dateColumn: e.target.value })}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors"
               >
                 {csvRawData.headers.map((col) => (
                   <option key={col} value={col}>{col}</option>
                 ))}
               </select>
               {mappingForm.dateColumn && props.getColExample(mappingForm.dateColumn) && (
-                <p className="text-gray-400 text-xs mt-1 ml-1">
+                <p className="text-[var(--text-3)] text-xs mt-1 ml-1">
                   ex: {props.getColExample(mappingForm.dateColumn)}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+              <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
                 Coluna da Descrição
               </label>
               <select
@@ -465,21 +465,21 @@ export function CartaoMappingModal(props: MappingModalProps) {
                 onChange={(e) =>
                   onMappingFormChange({ ...mappingForm, descriptionColumn: e.target.value })
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors"
               >
                 {csvRawData.headers.map((col) => (
                   <option key={col} value={col}>{col}</option>
                 ))}
               </select>
               {mappingForm.descriptionColumn && props.getColExample(mappingForm.descriptionColumn) && (
-                <p className="text-gray-400 text-xs mt-1 ml-1">
+                <p className="text-[var(--text-3)] text-xs mt-1 ml-1">
                   ex: {props.getColExample(mappingForm.descriptionColumn)}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="text-gray-700 text-xs font-semibold block mb-1.5">
+              <label className="text-[var(--text-2)] text-xs font-semibold block mb-1.5">
                 Coluna do Valor
               </label>
               <select
@@ -487,14 +487,14 @@ export function CartaoMappingModal(props: MappingModalProps) {
                 onChange={(e) =>
                   onMappingFormChange({ ...mappingForm, amountColumn: e.target.value })
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors"
               >
                 {csvRawData.headers.map((col) => (
                   <option key={col} value={col}>{col}</option>
                 ))}
               </select>
               {mappingForm.amountColumn && props.getColExample(mappingForm.amountColumn) && (
-                <p className="text-gray-400 text-xs mt-1 ml-1">
+                <p className="text-[var(--text-3)] text-xs mt-1 ml-1">
                   ex: {props.getColExample(mappingForm.amountColumn)}
                 </p>
               )}
@@ -508,9 +508,9 @@ export function CartaoMappingModal(props: MappingModalProps) {
           </div>
 
           {/* Negative toggle */}
-          <div className="bg-gray-50 rounded-xl p-4">
+          <div className="bg-[var(--bg)] rounded-xl p-4">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-gray-700 text-sm font-medium">
+              <span className="text-[var(--text-2)] text-sm font-medium">
                 Os gastos vêm como valores negativos?
               </span>
               <button
@@ -519,19 +519,19 @@ export function CartaoMappingModal(props: MappingModalProps) {
                   onMappingFormChange({ ...mappingForm, negativeIsExpense: !mappingForm.negativeIsExpense })
                 }
                 className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-                  mappingForm.negativeIsExpense ? 'bg-green-500' : 'bg-gray-300'
+                  mappingForm.negativeIsExpense ? 'bg-green-500' : 'bg-[var(--border)]'
                 }`}
                 aria-checked={mappingForm.negativeIsExpense}
                 role="switch"
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--surface)] rounded-full shadow-sm transition-transform ${
                     mappingForm.negativeIsExpense ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
             </div>
-            <p className="text-gray-400 text-xs">
+            <p className="text-[var(--text-3)] text-xs">
               {mappingForm.negativeIsExpense
                 ? 'Valores negativos (ex: -50,00) serão tratados como gastos'
                 : 'Valores positivos (ex: 50,00) serão tratados como gastos'}
@@ -549,7 +549,7 @@ export function CartaoMappingModal(props: MappingModalProps) {
           <button
             onClick={props.onConfirm}
             disabled={!props.isMappingValid}
-            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: !props.isMappingValid ? 0.6 : 1 }}
+            style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--accent)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: !props.isMappingValid ? 0.6 : 1 }}
           >
             Continuar →
           </button>
@@ -608,14 +608,14 @@ export function CartaoPreviewImportModal({
 
           {/* Billing month selector */}
           <div className="mt-3">
-            <label className="text-gray-500 text-xs font-medium block mb-1.5">
+            <label className="text-[var(--text-2)] text-xs font-medium block mb-1.5">
               Mês de referência da fatura
             </label>
             <select
               value={importBillingMonth}
               onChange={(e) => onImportBillingMonthChange(e.target.value)}
               disabled={importFlow === 'inserting'}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-gray-900 text-sm focus:outline-none focus:border-green-400 transition-colors disabled:opacity-60"
+              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-[var(--text)] text-sm focus:outline-none focus:border-green-400 transition-colors disabled:opacity-60"
             >
               {getBillingMonthOptions().map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -624,19 +624,19 @@ export function CartaoPreviewImportModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+        <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
           {nonDupsWithIdx.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-3xl mb-2">✅</p>
-              <p className="text-gray-500 text-sm">Todas as transações já existem.</p>
+              <p className="text-[var(--text-2)] text-sm">Todas as transações já existem.</p>
             </div>
           ) : (
             nonDupsWithIdx.map(({ item, i }) => (
               <div key={i} className="px-4 py-3 flex items-center gap-2">
-                <span className="text-xs text-gray-400 w-10 flex-shrink-0 font-mono tabular-nums">
+                <span className="text-xs text-[var(--text-3)] w-10 flex-shrink-0 font-mono tabular-nums">
                   {item.date.slice(8)}/{item.date.slice(5, 7)}
                 </span>
-                <span className="flex-1 text-sm text-gray-900 truncate min-w-0">
+                <span className="flex-1 text-sm text-[var(--text)] truncate min-w-0">
                   {item.description.charAt(0).toUpperCase() + item.description.slice(1)}
                 </span>
                 <select
@@ -645,7 +645,7 @@ export function CartaoPreviewImportModal({
                     onUpdatePreviewCategory(i, e.target.value as ExpenseCategory)
                   }
                   disabled={importFlow === 'inserting'}
-                  className="text-xs border border-gray-200 rounded-lg px-1.5 py-1 text-gray-700 bg-white flex-shrink-0 max-w-[108px] disabled:opacity-60"
+                  className="text-xs border border-[var(--border)] rounded-lg px-1.5 py-1 text-[var(--text-2)] bg-[var(--surface)] flex-shrink-0 max-w-[108px] disabled:opacity-60"
                 >
                   {EXPENSE_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -683,7 +683,7 @@ export function CartaoPreviewImportModal({
             <button
               onClick={onConfirm}
               disabled={importFlow === 'inserting' || nonDupsWithIdx.length === 0}
-              style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--green)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (importFlow === 'inserting' || nonDupsWithIdx.length === 0) ? 0.6 : 1 }}
+              style={{ flex: 2, padding: '13px 0', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'white', background: 'var(--accent)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (importFlow === 'inserting' || nonDupsWithIdx.length === 0) ? 0.6 : 1 }}
             >
               {importFlow === 'inserting' ? (
                 <>

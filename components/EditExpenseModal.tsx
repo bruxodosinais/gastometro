@@ -103,19 +103,13 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
           ? { isCredit: true, creditCardId: selectedCardId }
           : { isCredit: false, creditCardId: undefined }),
       };
-      // Diagnóstico: confirma que o valor parseado chega correto na camada de
-      // persistência (Bug "valor não muda na lista").
-      console.log('[EditExpenseModal] salvando', {
-        id: expense.id,
-        mode,
-        valorParseado: num,
-        payload,
-      });
+      // Diagnóstico sem PII: só id + modo (sem valor, descrição ou payload).
+      console.log('[EditExpenseModal] salvando', { id: expense.id, mode });
       const saved =
         mode === 'duplicate'
           ? await addExpense(payload)
           : await updateExpense(expense.id, payload);
-      console.log('[EditExpenseModal] persistido (retorno do storage):', saved);
+      console.log('[EditExpenseModal] persistido', { id: saved.id });
       onSave(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
@@ -329,7 +323,7 @@ export default function EditExpenseModal({ expense, mode = 'edit', onSave, onClo
                 type="submit"
                 loading={saving}
                 className="w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:active:scale-100 touch-manipulation"
-                style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                style={{ background: 'var(--accent)' }}
               >
                 {submitLabel}
               </LoadingButton>

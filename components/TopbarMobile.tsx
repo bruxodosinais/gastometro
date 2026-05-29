@@ -1,15 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/themeContext';
-import {
-  checkAndGenerateObligations,
-  getExpenses,
-  getMonthlyObligations,
-  getRecurringExpenses,
-} from '@/lib/storage';
+import { useMonthlyPending } from '@/lib/hooks/useMonthlyPending';
 
 // Mantemos o drawer de notificações vivendo na home, mas o sino agora mora
 // na topbar global. Quando o usuário já está em /app, evitamos o noop do
@@ -30,7 +24,7 @@ export default function TopbarMobile() {
   const router = useRouter();
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
-  const [hasPending, setHasPending] = useState(false);
+  const hasPending = useMonthlyPending() > 0;
 
   function handleBellClick() {
     if (pathname === '/app') {
@@ -39,50 +33,6 @@ export default function TopbarMobile() {
       router.push('/app');
     }
   }
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await checkAndGenerateObligations();
-        const monthKey = new Date().toISOString().slice(0, 7);
-        const [obs, recs, exp] = await Promise.all([
-          getMonthlyObligations(monthKey),
-          getRecurringExpenses(),
-          getExpenses(),
-        ]);
-        if (!mounted) return;
-        const today = new Date().getDate();
-        const isDayReached = (dom?: number) => dom == null || dom <= today;
-        const pendingObs = obs
-          .filter((o) => o.status === 'pending')
-          .filter((o) => {
-            const rec = recs.find((r) => r.id === o.recurringExpenseId);
-            return rec ? isDayReached(rec.dayOfMonth) : true;
-          }).length;
-        const receivedIds = new Set(
-          exp
-            .filter(
-              (e) =>
-                e.date.slice(0, 7) === monthKey &&
-                e.type === 'income' &&
-                e.recurringExpenseId,
-            )
-            .map((e) => e.recurringExpenseId as string),
-        );
-        const pendingIncome = recs
-          .filter((r) => r.active && r.type === 'income')
-          .filter((r) => !receivedIds.has(r.id) && isDayReached(r.dayOfMonth))
-          .length;
-        setHasPending(pendingObs + pendingIncome > 0);
-      } catch {
-        setHasPending(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   return (
     <header

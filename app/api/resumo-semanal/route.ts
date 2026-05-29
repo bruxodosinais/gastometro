@@ -1,13 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { calculateStreak } from '@/lib/streak';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 function fmtDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ip = getClientIp(request);
+    if (!rateLimit(ip, 'resumo-semanal', 20, 60 * 1000)) {
+      return Response.json({ error: 'Limite de requisições atingido.' }, { status: 429 });
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -129,7 +135,7 @@ export async function GET() {
       ? `Renda esperada: ${fmt(plan.expected_income)}, Meta de economia: ${fmt(plan.savings_goal)}`
       : 'Sem planejamento';
 
-    const prompt = `Gere um resumo semanal financeiro para o usuário do app GastôMetro.
+    const prompt = `Gere um resumo semanal financeiro para o usuário do app TôOrganizado.
 
 DADOS DA SEMANA (${weekStartStr} a ${weekEndStr}):
 - Gasto: ${fmt(weekSpent)}

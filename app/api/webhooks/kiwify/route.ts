@@ -143,6 +143,32 @@ function periodEndFromCycle(cycle: 'monthly' | 'annual' | null): string {
   return d.toISOString();
 }
 
+// Em renovações, "agora + 30/365 dias" recalculado a cada retry pode esticar o
+// período. Se o payload trouxer a data real da próxima cobrança/expiração,
+// usamos ela (campos candidatos: next_payment / next_payment_date /
+// next_billing_date, no nível raiz ou dentro de Subscription). Só aceita data
+// válida e futura; senão cai no cálculo por ciclo.
+function resolvePeriodEnd(p: KiwifyPayload, cycle: 'monthly' | 'annual' | null): string {
+  const sub = (p.Subscription ?? {}) as Record<string, unknown>;
+  const root = p as Record<string, unknown>;
+  const candidates: unknown[] = [
+    sub.next_payment,
+    sub.next_payment_date,
+    sub.next_billing_date,
+    root.next_payment,
+    root.next_payment_date,
+    root.next_billing_date,
+  ];
+  for (const c of candidates) {
+    if (typeof c !== 'string' && typeof c !== 'number') continue;
+    const d = new Date(c);
+    if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now()) {
+      return d.toISOString();
+    }
+  }
+  return periodEndFromCycle(cycle);
+}
+
 async function findUserIdByEmail(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
@@ -264,27 +290,45 @@ export async function POST(req: NextRequest) {
 
   const event = getEvent(payload).toLowerCase();
 
-  // TEMP DEBUG — remover após inspecionar o formato real do payload da Kiwify
-  // (em especial os campos que carregam o preço/cycle do plano comprado).
-  // Habilitar com KIWIFY_DEBUG=1 no .env.local.
+  // Debug opcional (KIWIFY_DEBUG=1). Só campos NÃO sensíveis: sem nome completo,
+  // endereço, dados de cartão ou payload bruto. order_id + cycle ajudam a
+  // diagnosticar a detecção de ciclo sem vazar PII.
   if (process.env.KIWIFY_DEBUG === '1') {
-    try {
-      console.log('[kiwify-webhook][DEBUG] event:', event);
-      console.log('[kiwify-webhook][DEBUG] payload keys:', Object.keys(payload));
-      console.log(
-        '[kiwify-webhook][DEBUG] payload:',
-        JSON.stringify(payload, null, 2),
-      );
-      console.log(
-        '[kiwify-webhook][DEBUG] detected cycle:',
-        detectBillingCycle(payload),
-      );
-    } catch {
-      // ignora falha de log
-    }
+    console.log('[kiwify-debug]', {
+      event,
+      order_id: payload.order_id ?? null,
+      email: payload.Customer?.email ?? null,
+      cycle: detectBillingCycle(payload),
+    });
   }
 
   const admin = createAdminClient();
+
+  // ── Idempotência ─────────────────────────────────────────────────────────
+  // A Kiwify reenvia o mesmo evento em retries. Registramos cada evento em
+  // webhook_events ANTES de qualquer processamento de negócio; se já existe
+  // (unique violation 23505), é reentrega → ignora. event_id usa order_id
+  // (fallback: subscription_id); o event_type entra na chave única no banco,
+  // então aprovação/estorno do mesmo pedido NÃO colidem entre si.
+  {
+    const orderId = payload.order_id ?? null;
+    const subId = payload.Subscription?.id ?? null;
+    const eventId = orderId ?? subId ?? null;
+    if (eventId) {
+      const { error: dedupError } = await admin
+        .from('webhook_events')
+        .insert({ provider: 'kiwify', event_id: eventId, event_type: event });
+      if (dedupError) {
+        if (dedupError.code === '23505') {
+          console.log('[kiwify] evento duplicado ignorado:', eventId, event);
+          return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
+        }
+        // Outro erro na tabela de dedup: loga e segue. Melhor processar um
+        // possível duplicado do que perder um evento real por falha na dedup.
+        console.error('[kiwify] falha ao registrar evento de dedup:', dedupError);
+      }
+    }
+  }
 
   try {
     if (
@@ -307,7 +351,8 @@ export async function POST(req: NextRequest) {
       }
 
       const cycle = detectBillingCycle(payload);
-      const periodEnd = periodEndFromCycle(cycle);
+      // Usa a data real do payload quando disponível; senão, agora + ciclo.
+      const periodEnd = resolvePeriodEnd(payload, cycle);
 
       const { error } = await admin
         .from('subscriptions')
@@ -325,7 +370,10 @@ export async function POST(req: NextRequest) {
         );
       if (error) {
         console.error('[kiwify-webhook] upsert error', error);
-      } else {
+      } else if (event === 'order_approved') {
+        // E-mail de boas-vindas só na primeira ativação (order_approved).
+        // Renovações (subscription_renewed) e demais eventos de ativação não
+        // disparam onboarding — o usuário já é Pro.
         const customerName =
           payload.Customer?.first_name ?? payload.Customer?.full_name?.split(' ')[0];
         await sendWelcomeProEmail(email, customerName);

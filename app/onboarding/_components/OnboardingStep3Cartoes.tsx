@@ -1,5 +1,6 @@
 'use client';
 
+import { InlineCurrencyInput } from './CurrencyInput';
 import { OnboardingNav } from './OnboardingNav';
 import { OnboardingProgress } from './OnboardingProgress';
 
@@ -132,16 +133,10 @@ export function OnboardingStep3Cartoes({
               />
               <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-lg px-3 py-2">
                 <span className="text-xs text-gray-400 font-medium flex-shrink-0">Limite R$</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <InlineCurrencyInput
                   value={card.limite}
-                  onChange={(e) =>
-                    updateCard(idx, {
-                      limite: e.target.value.replace(/[^0-9.,]/g, ''),
-                    })
-                  }
-                  placeholder="0,00"
+                  onChange={(v) => updateCard(idx, { limite: v })}
+                  aria-label={`Limite do cartão ${idx + 1}`}
                   className="min-w-0 flex-1 text-sm bg-transparent outline-none text-right text-gray-900 placeholder:text-gray-300"
                 />
               </div>

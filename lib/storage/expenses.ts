@@ -59,7 +59,14 @@ export async function addExpense(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('PLAN_LIMIT_EXCEEDED')) {
+        throw new Error(
+          'Você atingiu o limite de 20 lançamentos no plano gratuito. Faça upgrade para continuar.',
+        );
+      }
+      throw error;
+    }
     return toExpense(row);
   });
 }
@@ -96,7 +103,14 @@ export async function addExpenseInstallments(
     });
 
     const { data, error } = await supabase.from('expenses').insert(rows).select();
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('PLAN_LIMIT_EXCEEDED')) {
+        throw new Error(
+          'Você atingiu o limite de 20 lançamentos no plano gratuito. Faça upgrade para continuar.',
+        );
+      }
+      throw error;
+    }
     return (data ?? []).map(toExpense);
   });
 }
@@ -174,6 +188,10 @@ export async function updateExpense(
 export async function deleteExpense(id: string): Promise<void> {
   return withCacheInvalidation('expenses', async () => {
     const supabase = createClient();
-    await supabase.from('expenses').delete().eq('id', id);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    await supabase.from('expenses').delete().eq('id', id).eq('user_id', user.id);
   });
 }

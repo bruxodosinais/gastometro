@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const maxDuration = 30;
+
+const MAX_RECENT_EXPENSES = 50;
 
 type Body = {
   missionId: string;
@@ -18,6 +21,11 @@ function jsonFenced(s: string): string {
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    if (!rateLimit(ip, 'gerar-desafio', 20, 60 * 1000)) {
+      return Response.json({ error: 'Limite de requisições atingido.' }, { status: 429 });
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -70,7 +78,18 @@ export async function POST(request: Request) {
       totalSaved = (contribs ?? []).reduce((s, c) => s + Number((c as { amount: number }).amount), 0);
     }
 
-    const recentExpenses = body.recentExpenses ?? [];
+    // Sanitiza recentExpenses (input do cliente): limita a quantidade e aceita
+    // somente { category: string, amount: number } — evita inflar o prompt.
+    const recentExpenses = (Array.isArray(body.recentExpenses) ? body.recentExpenses : [])
+      .slice(0, MAX_RECENT_EXPENSES)
+      .filter(
+        (e): e is { category: string; amount: number } =>
+          !!e &&
+          typeof e === 'object' &&
+          typeof (e as { category?: unknown }).category === 'string' &&
+          typeof (e as { amount?: unknown }).amount === 'number',
+      )
+      .map((e) => ({ category: e.category.slice(0, 60), amount: e.amount }));
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {

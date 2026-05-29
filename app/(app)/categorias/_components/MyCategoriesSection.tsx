@@ -265,13 +265,13 @@ function CategoryFormModal({
     <>
       <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
       <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2">
-        <div className="bg-white border border-gray-100 rounded-2xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-h-[90vh] overflow-y-auto">
           <div className="px-5 pb-6 pt-5">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-gray-900 font-semibold text-base">
+              <h2 className="text-[var(--text)] font-semibold text-base">
                 {isEdit ? 'Editar categoria' : 'Nova categoria'}
               </h2>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1" aria-label="Fechar">
+              <button onClick={onClose} className="text-[var(--text-2)] hover:text-[var(--text)] transition-colors p-1" aria-label="Fechar">
                 <X size={20} />
               </button>
             </div>
@@ -279,7 +279,7 @@ function CategoryFormModal({
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nome */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Nome
                 </label>
                 <input
@@ -290,23 +290,23 @@ function CategoryFormModal({
                   maxLength={30}
                   required
                   style={{ fontSize: '16px' }}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-mint-500 transition-colors"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">{name.length}/30</p>
+                <p className="text-[10px] text-[var(--text-3)] mt-1">{name.length}/30</p>
               </div>
 
               {/* Tipo — só visível ao criar; edição mantém o tipo original */}
               {!isEdit && (
                 <div>
-                  <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                  <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
                     Tipo
                   </label>
-                  <div className="flex p-1 bg-gray-50 rounded-xl">
+                  <div className="flex p-1 bg-[var(--bg)] rounded-xl">
                     <button
                       type="button"
                       onClick={() => setType('expense')}
                       className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                        type === 'expense' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'
+                        type === 'expense' ? 'bg-[var(--surface)] text-[var(--text)] shadow' : 'text-[var(--text-2)] hover:text-[var(--text-2)]'
                       }`}
                     >
                       Despesa
@@ -315,7 +315,7 @@ function CategoryFormModal({
                       type="button"
                       onClick={() => setType('income')}
                       className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                        type === 'income' ? 'bg-white text-mint-500 shadow' : 'text-gray-500 hover:text-gray-700'
+                        type === 'income' ? 'bg-[var(--surface)] text-mint-500 shadow' : 'text-[var(--text-2)] hover:text-[var(--text-2)]'
                       }`}
                     >
                       Receita
@@ -326,7 +326,7 @@ function CategoryFormModal({
 
               {/* Ícone */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Ícone
                 </label>
                 <div className="grid grid-cols-8 gap-1.5 max-h-32 overflow-y-auto">
@@ -336,7 +336,7 @@ function CategoryFormModal({
                       type="button"
                       onClick={() => setIcon(emoji)}
                       className={`flex items-center justify-center rounded-lg border transition-all ${
-                        icon === emoji ? 'bg-mint-50 border-green-500/40' : 'bg-gray-50/50 border-gray-200 hover:border-gray-400'
+                        icon === emoji ? 'bg-mint-50 border-green-500/40' : 'bg-[var(--bg)]/50 border-[var(--border)] hover:border-[var(--border)]'
                       }`}
                       style={{ width: '100%', aspectRatio: '1', fontSize: 18 }}
                     >
@@ -348,7 +348,7 @@ function CategoryFormModal({
 
               {/* Cor */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
                   Cor
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -382,7 +382,7 @@ function CategoryFormModal({
                 type="submit"
                 loading={saving}
                 className="w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
-                style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+                style={{ background: 'var(--accent)' }}
               >
                 {isEdit ? 'Salvar alterações' : 'Criar categoria'}
               </LoadingButton>
@@ -430,12 +430,12 @@ function DeleteConfirmModal({
     <>
       <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
       <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2">
-        <div className="bg-white border border-gray-100 rounded-2xl">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl">
           <div className="px-5 pb-5 pt-5">
-            <h2 className="text-gray-900 font-semibold text-base mb-3">
+            <h2 className="text-[var(--text)] font-semibold text-base mb-3">
               Excluir &quot;{category.name}&quot;?
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-[var(--text-2)] mb-4">
               Esta ação não pode ser desfeita.
             </p>
             {error && (
@@ -446,7 +446,7 @@ function DeleteConfirmModal({
                 type="button"
                 onClick={onClose}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors disabled:opacity-60"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-[var(--border)] text-[var(--text-2)] bg-[var(--bg)] hover:bg-[var(--bg)] transition-colors disabled:opacity-60"
               >
                 Cancelar
               </button>
@@ -484,17 +484,17 @@ function DeleteBlockedModal({
     <>
       <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
       <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2">
-        <div className="bg-white border border-gray-100 rounded-2xl">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl">
           <div className="px-5 pb-5 pt-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-gray-900 font-semibold text-base">
+              <h2 className="text-[var(--text)] font-semibold text-base">
                 Não é possível excluir
               </h2>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors p-1" aria-label="Fechar">
+              <button onClick={onClose} className="text-[var(--text-2)] hover:text-[var(--text)] transition-colors p-1" aria-label="Fechar">
                 <X size={18} />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mb-5">
+            <p className="text-sm text-[var(--text-2)] mb-5">
               Existem {count} {plural} com a categoria &quot;{name}&quot;.
               Reatribua-os para outra categoria antes de excluir.
             </p>

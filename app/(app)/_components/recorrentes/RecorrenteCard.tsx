@@ -482,7 +482,7 @@ export default function RecorrenteCard({
                   gap: 4,
                   padding: '6px 16px',
                   borderRadius: 8,
-                  background: 'var(--green)',
+                  background: 'var(--accent)',
                   border: 'none',
                   color: '#fff',
                   fontSize: 12,
@@ -491,7 +491,7 @@ export default function RecorrenteCard({
                   whiteSpace: 'nowrap',
                   cursor: isPaying ? 'not-allowed' : 'pointer',
                   opacity: isPaying ? 0.6 : 1,
-                  boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
+                  boxShadow: '0 1px 3px rgba(91,91,214,0.25)',
                 }}
               >
                 Marcar pago
@@ -534,7 +534,7 @@ export default function RecorrenteCard({
                   gap: 4,
                   padding: '6px 16px',
                   borderRadius: 8,
-                  background: 'var(--green)',
+                  background: 'var(--accent)',
                   border: 'none',
                   color: '#fff',
                   fontSize: 12,
@@ -543,7 +543,7 @@ export default function RecorrenteCard({
                   whiteSpace: 'nowrap',
                   cursor: receivingIds.has(rec.id) ? 'not-allowed' : 'pointer',
                   opacity: receivingIds.has(rec.id) ? 0.6 : 1,
-                  boxShadow: '0 1px 3px rgba(0,195,122,0.25)',
+                  boxShadow: '0 1px 3px rgba(91,91,214,0.25)',
                 }}
               >
                 Marcar recebido

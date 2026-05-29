@@ -3,7 +3,7 @@
 import { Info } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { MonthlyObligation, RecurringExpense } from '@/lib/types';
-import { BigCurrencyInput } from './CurrencyInput';
+import { BigCurrencyInput, InlineCurrencyInput } from './CurrencyInput';
 import { OnboardingNav } from './OnboardingNav';
 import { OnboardingProgress } from './OnboardingProgress';
 
@@ -84,14 +84,10 @@ export function OnboardingStep5Financeiro({
         </p>
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
           <span className="text-sm text-gray-400 font-medium flex-shrink-0">R$</span>
-          <input
-            type="text"
-            inputMode="decimal"
+          <InlineCurrencyInput
             value={emergency}
-            onChange={(e) =>
-              setEmergency(e.target.value.replace(/[^0-9.,]/g, ''))
-            }
-            placeholder="0,00"
+            onChange={setEmergency}
+            aria-label="Reserva de emergência"
             className="min-w-0 flex-1 text-sm bg-transparent outline-none text-gray-900 placeholder:text-gray-300"
             style={{ caretColor: 'var(--accent)' }}
           />

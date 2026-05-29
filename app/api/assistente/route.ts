@@ -16,6 +16,19 @@ export async function POST(request: Request) {
 
     const { message, history, todayStr: clientTodayStr } = await request.json();
 
+    if (typeof message !== 'string' || message.trim().length === 0 || message.length > 2000) {
+      return Response.json(
+        { error: 'Mensagem inválida (máximo 2000 caracteres).' },
+        { status: 400 },
+      );
+    }
+    if (history != null && (!Array.isArray(history) || history.length > 20)) {
+      return Response.json(
+        { error: 'Histórico inválido (máximo 20 mensagens).' },
+        { status: 400 },
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -24,7 +37,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Plano e limites do GastôBot
+    // Plano e limites do GastoBot
     const { data: subRow } = await supabase
       .from('subscriptions')
       .select('plan, status')
@@ -47,7 +60,7 @@ export async function POST(request: Request) {
           {
             error: 'limit_reached',
             type: 'upgrade_required',
-            message: `Você usou sua ${limit === 1 ? '1 consulta gratuita' : `${limit} consultas gratuitas`} do GastôBot este mês. Assine o Pro para acesso ilimitado.`,
+            message: `Você usou sua ${limit === 1 ? '1 consulta gratuita' : `${limit} consultas gratuitas`} do GastoBot este mês. Assine o Pro para acesso ilimitado.`,
             used,
             limit,
           },
@@ -187,7 +200,7 @@ export async function POST(request: Request) {
       })
       .join('\n');
 
-    const systemPrompt = `Você é o GastôBot, assistente financeiro do app GastôMetro. Responda SEMPRE em JSON válido, sem markdown.
+    const systemPrompt = `Você é o GastoBot, assistente financeiro do app TôOrganizado. Responda SEMPRE em JSON válido, sem markdown.
 
 DATA DE HOJE: ${todayStr}
 MÊS ATUAL: ${currentMonth}

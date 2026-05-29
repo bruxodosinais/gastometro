@@ -46,7 +46,7 @@ const COLOR_CONFIG: Record<ColorKey, { bar: string; text: string; bg: string; bo
   cyan:    { bar: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20',    dot: 'bg-cyan-500' },
   emerald: { bar: 'bg-mint', text: 'text-mint-500', bg: 'bg-mint-50', border: 'border-emerald-500/20', dot: 'bg-mint' },
   rose:    { bar: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/20',    dot: 'bg-rose-500' },
-  slate:   { bar: 'bg-slate-500',   text: 'text-gray-500',   bg: 'bg-gray-50',      border: 'border-gray-200',      dot: 'bg-slate-500' },
+  slate:   { bar: 'bg-slate-500',   text: 'text-[var(--text-2)]',   bg: 'bg-[var(--bg)]',      border: 'border-[var(--border)]',      dot: 'bg-slate-500' },
 };
 
 function colorCfg(color: string) {
@@ -145,7 +145,7 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; cls: string; btnLabel: s
   'no-prazo':  { label: '🟢 No prazo',  cls: 'text-mint-500',   btnLabel: 'Manter plano' },
   'atencao':   { label: '🟡 Atenção',   cls: 'text-yellow-400', btnLabel: 'Aumentar aporte' },
   'atrasada':  { label: '🔴 Atrasada',  cls: 'text-red-400',    btnLabel: 'Aportar agora' },
-  'sem-prazo': { label: '⚪ Sem prazo', cls: 'text-gray-400',   btnLabel: 'Aportar' },
+  'sem-prazo': { label: '⚪ Sem prazo', cls: 'text-[var(--text-3)]',   btnLabel: 'Aportar' },
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -559,7 +559,7 @@ export default function MetasPage() {
             <div className="space-y-4">
               {/* Nome */}
               <div>
-                <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Nome da meta</label>
+                <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Nome da meta</label>
                 <input
                   type="text"
                   value={form.name}
@@ -567,30 +567,30 @@ export default function MetasPage() {
                   placeholder="Ex: Viagem Europa, Reserva de emergência…"
                   autoFocus
                   style={{ fontSize: '16px' }}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm placeholder:text-[var(--text-3)] focus:outline-none focus:border-mint-500 transition-colors"
                 />
               </div>
               {/* Valores */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Valor alvo (R$)</label>
+                  <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Valor alvo (R$)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-2)] text-sm">R$</span>
                     <CurrencyInput value={form.targetAmount}
                       onChange={(v) => setForm((f) => ({ ...f, targetAmount: v }))}
                       placeholder="0,00"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                      className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-base font-semibold placeholder:text-[var(--text-3)] focus:outline-none focus:border-mint-500 transition-colors"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Já tenho (R$)</label>
+                  <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Já tenho (R$)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-2)] text-sm">R$</span>
                     <CurrencyInput value={form.currentAmount}
                       onChange={(v) => setForm((f) => ({ ...f, currentAmount: v }))}
                       placeholder="0,00"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base font-semibold placeholder:text-gray-400 focus:outline-none focus:border-mint-500 transition-colors"
+                      className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-base font-semibold placeholder:text-[var(--text-3)] focus:outline-none focus:border-mint-500 transition-colors"
                     />
                   </div>
                 </div>
@@ -599,7 +599,7 @@ export default function MetasPage() {
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-xs font-medium transition-colors"
+                className="flex items-center gap-1 text-[var(--text-2)] hover:text-[var(--text-2)] text-xs font-medium transition-colors"
               >
                 {showAdvanced ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 Configurações avançadas
@@ -608,7 +608,7 @@ export default function MetasPage() {
                 <>
                   {/* Tipo */}
                   <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
+                    <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Tipo</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {(Object.keys(GOAL_TYPES) as GoalType[])
                         .filter((_, i) => showAllTypes || i < 3)
@@ -618,8 +618,8 @@ export default function MetasPage() {
                           return (
                             <button key={t} type="button" onClick={() => handleTypeChange(t)}
                               className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
-                                active ? 'bg-mint-50 border-mint-500/40 text-gray-900'
-                                       : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
+                                active ? 'bg-mint-50 border-mint-500/40 text-[var(--text)]'
+                                       : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-2)] hover:border-slate-600 hover:text-[var(--text-2)]'
                               }`}
                             >
                               <span>{cfg.icon}</span>
@@ -631,7 +631,7 @@ export default function MetasPage() {
                     <button
                       type="button"
                       onClick={() => setShowAllTypes((v) => !v)}
-                      className="mt-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                      className="mt-2 text-xs text-[var(--text-2)] hover:text-[var(--text-2)] transition-colors"
                     >
                       {showAllTypes ? '− Ver menos' : '+ Ver mais tipos'}
                     </button>
@@ -729,7 +729,7 @@ export default function MetasPage() {
                     }}
                   >
                     <span style={{ fontSize: 14, lineHeight: 1, marginTop: 1 }}>💡</span>
-                    <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
                       Para reserva de emergência, a Missão de Poupança oferece
                       acompanhamento mensal com desafios e conquistas.{' '}
                       <Link
@@ -744,27 +744,27 @@ export default function MetasPage() {
                   )}
                   {/* Emoji personalizado */}
                   <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
+                    <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
                       Emoji da meta{' '}
-                      <span className="normal-case text-gray-500">(opcional — substitui o ícone de categoria)</span>
+                      <span className="normal-case text-[var(--text-2)]">(opcional — substitui o ícone de categoria)</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => setShowEmojiPicker(true)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-sm"
+                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--bg)] transition-colors text-sm"
                       >
                         {form.emoji ? (
                           <span className="text-2xl leading-none">{form.emoji}</span>
                         ) : (
-                          <span className="text-gray-500">Escolher emoji</span>
+                          <span className="text-[var(--text-2)]">Escolher emoji</span>
                         )}
                       </button>
                       {form.emoji && (
                         <button
                           type="button"
                           onClick={() => setForm((f) => ({ ...f, emoji: '' }))}
-                          className="text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
+                          className="text-[11px] text-[var(--text-2)] hover:text-[var(--text-2)] transition-colors"
                         >
                           ✕ Remover
                         </button>
@@ -774,15 +774,15 @@ export default function MetasPage() {
                   {/* Prazo e cor */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
+                      <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Prazo (opcional)</label>
                       <input type="date" value={form.deadline}
                         onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
                         style={{ fontSize: '16px' }}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
+                        className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:border-mint-500 transition-colors [color-scheme:dark]"
                       />
                     </div>
                     <div>
-                      <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
+                      <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">Cor</label>
                       <div className="flex flex-wrap gap-2 pt-1">
                         {COLORS.map((c) => (
                           <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
@@ -796,8 +796,8 @@ export default function MetasPage() {
                   </div>
                   {/* Classificação de prazo */}
                   <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">
-                      Classificação de prazo <span className="normal-case text-gray-500">(opcional)</span>
+                    <label className="text-[var(--text-2)] text-xs font-medium uppercase tracking-wider block mb-1.5">
+                      Classificação de prazo <span className="normal-case text-[var(--text-2)]">(opcional)</span>
                     </label>
                     <div className="flex gap-2 flex-wrap">
                       {TERM_OPTIONS.map((opt) => {
@@ -810,7 +810,7 @@ export default function MetasPage() {
                             className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
                               active
                                 ? opt.badge
-                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-slate-600 hover:text-gray-700'
+                                : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-2)] hover:border-slate-600 hover:text-[var(--text-2)]'
                             }`}
                           >
                             {opt.label}
@@ -866,7 +866,7 @@ export default function MetasPage() {
         {activeGoals.length > 0 && (
           <>
             {completedGoals.length > 0 && (
-              <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">Ativas</h2>
+              <h2 className="text-[var(--text-2)] text-xs font-semibold uppercase tracking-wider mb-3">Ativas</h2>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {sortedActiveGoals.map((goal, i) => (
@@ -1035,7 +1035,7 @@ export default function MetasPage() {
 
 const CONFETTI_COLORS = [
   'bg-emerald-400', 'bg-green-300', 'bg-violet-400',
-  'bg-yellow-300', 'bg-white', 'bg-cyan-400', 'bg-rose-400', 'bg-amber-300',
+  'bg-yellow-300', 'bg-[var(--surface)]', 'bg-cyan-400', 'bg-rose-400', 'bg-amber-300',
 ];
 
 function CelebrationOverlay({

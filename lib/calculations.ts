@@ -1,5 +1,13 @@
 import { EntryType, ExpenseCategory, EXPENSE_CATEGORIES, CategorySummary, Expense } from './types';
 
+// Thresholds de variação de categoria vs média dos meses anteriores.
+// IMPORTANTE: valores em UNIDADE PERCENTUAL (ex.: 20 = 20%), pois `percentChange`
+// já é calculado em pontos percentuais. Os valores diferentes são intencionais —
+// cada contexto tem sua sensibilidade.
+export const CATEGORY_ALERT_THRESHOLD = 20;   // getCategoryAlerts — uso geral (isAlert)
+export const CATEGORY_PAGE_THRESHOLD = 5;     // /categorias — alta/baixa vs média
+export const CATEGORY_ANOMALY_THRESHOLD = 30; // AnomaliaCard — só anomalias severas
+
 export function getMonthKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -91,7 +99,7 @@ export function getCategoryAlerts(
     }
 
     const percentChange = average > 0 ? ((total - average) / average) * 100 : 0;
-    const isAlert = average > 0 && percentChange > 20;
+    const isAlert = average > 0 && percentChange > CATEGORY_ALERT_THRESHOLD;
 
     return { category, total, average, percentChange, isAlert };
   });

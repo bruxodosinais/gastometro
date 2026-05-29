@@ -8,19 +8,14 @@ import { getCachedUser } from '@/lib/dataCache';
 import { usePeriod } from '@/lib/periodContext';
 import { useTheme } from '@/lib/themeContext';
 import { getMonthKey } from '@/lib/calculations';
-import {
-  getMonthlyObligations,
-  getRecurringExpenses,
-  getExpenses,
-  checkAndGenerateObligations,
-} from '@/lib/storage';
+import { useMonthlyPending } from '@/lib/hooks/useMonthlyPending';
 
 export default function TopbarDesktop() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
   const { resolvedTheme, setTheme } = useTheme();
   const [userName, setUserName] = useState('');
-  const [hasPending, setHasPending] = useState(false);
+  const hasPending = useMonthlyPending() > 0;
 
   useEffect(() => {
     let mounted = true;
@@ -35,39 +30,6 @@ export default function TopbarDesktop() {
         user.email?.split('@')[0] ||
         '';
       setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await checkAndGenerateObligations();
-        const monthKey = new Date().toISOString().slice(0, 7);
-        const [obs, recs, exp] = await Promise.all([
-          getMonthlyObligations(monthKey),
-          getRecurringExpenses(),
-          getExpenses(),
-        ]);
-        if (!mounted) return;
-        const today = new Date().getDate();
-        const isDayReached = (dom?: number) => dom == null || dom <= today;
-        const pendingObs = obs.filter(o => o.status === 'pending').filter(o => {
-          const rec = recs.find(r => r.id === o.recurringExpenseId);
-          return rec ? isDayReached(rec.dayOfMonth) : true;
-        }).length;
-        const receivedIds = new Set(
-          exp.filter(e => e.date.slice(0, 7) === monthKey && e.type === 'income' && e.recurringExpenseId)
-             .map(e => e.recurringExpenseId as string)
-        );
-        const pendingIncome = recs
-          .filter(r => r.active && r.type === 'income')
-          .filter(r => !receivedIds.has(r.id) && isDayReached(r.dayOfMonth)).length;
-        setHasPending(pendingObs + pendingIncome > 0);
-      } catch {
-        setHasPending(false);
-      }
     })();
     return () => { mounted = false; };
   }, []);

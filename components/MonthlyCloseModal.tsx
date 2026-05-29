@@ -98,7 +98,7 @@ export default function MonthlyCloseModal({
           <button
             onClick={onClose}
             className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+            style={{ background: 'var(--accent)' }}
           >
             Continuar
           </button>

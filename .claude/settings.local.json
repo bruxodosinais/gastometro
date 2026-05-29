@@ -111,7 +111,24 @@
       "Bash(ls /Users/anderson/gastometro)",
       "Bash(echo \"EOF\")",
       "Bash(bash /tmp/test_echo.sh)",
-      "Bash(echo \"---tsc-exit:$?---\")"
+      "Bash(echo \"---tsc-exit:$?---\")",
+      "Bash(sed -n '170,195p' components/Sidebar.tsx)",
+      "Bash(sed -n '205,225p' components/Navigation.tsx)",
+      "Bash(sed -n '815,826p' \"app/\\(app\\)/lancamentos/page.tsx\")",
+      "Bash(sed -n '1118,1134p' \"app/\\(app\\)/lancamentos/page.tsx\")",
+      "Bash(sed -n '276,292p' \"app/\\(app\\)/_components/recorrentes/RecorrentesHeader.tsx\")",
+      "Bash(sed -n '478,540p' \"app/\\(app\\)/_components/recorrentes/RecorrenteCard.tsx\")",
+      "Bash(sed -n '1078,1090p' \"app/\\(app\\)/missao/dashboard/page.tsx\")",
+      "Bash(sed -n '320,330p' \"app/\\(app\\)/missao/badges/page.tsx\")",
+      "Bash(sed -n '10,24p' \"app/\\(app\\)/_components/cartoes/CartaoHeader.tsx\")",
+      "Bash(sed -n '303p' \"app/\\(app\\)/cartoes/[id]/page.tsx\")",
+      "Bash(sed -n '218,221p' \"app/\\(app\\)/cartoes/[id]/page.tsx\")",
+      "Bash(sed -n '337,341p' \"app/\\(app\\)/categorias/_components/MyCategoriesSection.tsx\")",
+      "Bash(sed -n '271p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")",
+      "Bash(sed -n '520,523p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")",
+      "Bash(sed -n '165p;173p;292p;303p' \"app/\\(app\\)/cartoes/[id]/page.tsx\")",
+      "Bash(sed -n '781p' \"app/\\(app\\)/metas/page.tsx\")",
+      "Bash(sed -n '271p;522p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")"
     ]
   }
 }

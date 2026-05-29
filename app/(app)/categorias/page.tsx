@@ -19,6 +19,7 @@ import {
   getMonthLabel,
   groupByMonth,
   calculateByCategory,
+  CATEGORY_PAGE_THRESHOLD,
 } from '@/lib/calculations';
 import { CATEGORY_CONFIG } from '@/lib/categoryConfig';
 // CATEGORY_CONFIG aqui é OK: o ranking e o detalhamento iteram só
@@ -194,7 +195,7 @@ export default function CategoriasPage() {
   }
 
   const mostAbove = [...summaries]
-    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange > 5)
+    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange > CATEGORY_PAGE_THRESHOLD)
     .sort((a, b) => b.percentChange - a.percentChange)[0];
 
   const topByShare = [...summaries]
@@ -202,7 +203,7 @@ export default function CategoriasPage() {
     .sort((a, b) => b.total - a.total)[0];
 
   const mostBelow = [...summaries]
-    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange < -5)
+    .filter((s) => s.total > 0 && s.average > 0 && s.percentChange < -CATEGORY_PAGE_THRESHOLD)
     .sort((a, b) => a.percentChange - b.percentChange)[0];
 
   const currentInsight: InsightItem | null = mostAbove
@@ -391,7 +392,7 @@ export default function CategoriasPage() {
               // histórica não vai mais na linha collapsed — lá mostramos % do
               // limite. A linha "Atual vs Média" do expandido segue exibindo a
               // média; nada do bloco trend aparece na linha principal.
-              const trendUp = summary.average > 0 && summary.percentChange > 5;
+              const trendUp = summary.average > 0 && summary.percentChange > CATEGORY_PAGE_THRESHOLD;
 
               // Cor do valor é orientada ao orçamento, não à média histórica:
               // sem limite definido (ou limite zero), exibe neutro — a média é

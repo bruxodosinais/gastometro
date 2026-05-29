@@ -104,7 +104,7 @@ export interface UserRow {
   billing_cycle: string | null;
 }
 
-export interface UserDetail extends UserRow { /* same shape */ }
+export type UserDetail = UserRow;
 
 export interface Subscription {
   plan: string;

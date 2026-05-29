@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 import { createAdminClient } from './lib/supabase/admin';
 
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -43,7 +43,8 @@ export default async function middleware(request: NextRequest) {
     pathname === '/api/reports/monthly' ||
     pathname === '/api/push/cron/due-tomorrow' ||
     pathname === '/api/push/cron/budget-exceeded' ||
-    pathname === '/api/push/cron/weekly-summary';
+    pathname === '/api/push/cron/weekly-summary' ||
+    pathname === '/api/cron/missao-lembrete';
 
   if (isPublicWebhook || isCronEndpoint) {
     return supabaseResponse;

@@ -15,7 +15,7 @@ export default function CartaoHeader({ onAdd }: Props) {
         onClick={onAdd}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          background: 'var(--green)', color: 'white',
+          background: 'var(--accent)', color: 'white',
           fontSize: 12, fontWeight: 700,
           borderRadius: 20, border: 'none',
           padding: '6px 14px', cursor: 'pointer',

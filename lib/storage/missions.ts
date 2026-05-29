@@ -185,10 +185,15 @@ export async function createMission(userId: string, data: NewMissionInput): Prom
 export async function pauseMission(missionId: string): Promise<void> {
   return withCacheInvalidation('savings_missions', async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
     const { error } = await supabase
       .from('savings_missions')
       .update({ status: 'paused' })
-      .eq('id', missionId);
+      .eq('id', missionId)
+      .eq('user_id', user.id);
     if (error) {
       console.error('pauseMission:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
       throw new Error(error.message || 'Erro ao pausar missão');
@@ -201,10 +206,15 @@ export async function pauseMission(missionId: string): Promise<void> {
 export async function completeMission(missionId: string): Promise<void> {
   return withCacheInvalidation('savings_missions', async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
     const { error } = await supabase
       .from('savings_missions')
       .update({ status: 'completed' })
-      .eq('id', missionId);
+      .eq('id', missionId)
+      .eq('user_id', user.id);
     if (error) {
       console.error('completeMission:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
       throw new Error(error.message || 'Erro ao concluir missão');
@@ -233,11 +243,18 @@ export async function addContribution(
 ): Promise<MissionContribution> {
   return withCacheInvalidation('mission_contributions', async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+    // Defesa em profundidade: o aporte só pode ser registrado para o próprio
+    // usuário autenticado, nunca para o userId arbitrário recebido por parâmetro.
+    if (user.id !== userId) throw new Error('Usuário não autorizado');
     const { data, error } = await supabase
       .from('mission_contributions')
       .insert({
         mission_id: missionId,
-        user_id: userId,
+        user_id: user.id,
         month,
         amount,
       })
@@ -291,10 +308,15 @@ export async function getChallenges(missionId: string, month: string): Promise<M
 export async function acceptChallenge(id: string): Promise<void> {
   return withCacheInvalidation('mission_challenges', async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
     const { error } = await supabase
       .from('mission_challenges')
       .update({ accepted: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
     if (error) {
       console.error('acceptChallenge:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
       throw new Error(error.message || 'Erro ao aceitar desafio');
@@ -305,10 +327,15 @@ export async function acceptChallenge(id: string): Promise<void> {
 export async function dismissChallenge(id: string): Promise<void> {
   return withCacheInvalidation('mission_challenges', async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
     const { error } = await supabase
       .from('mission_challenges')
       .update({ dismissed: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
     if (error) {
       console.error('dismissChallenge:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
       throw new Error(error.message || 'Erro ao descartar desafio');

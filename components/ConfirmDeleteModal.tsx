@@ -54,7 +54,7 @@ export default function ConfirmDeleteModal({
           <button
             onClick={handleConfirm}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 text-gray-900 text-sm font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 text-white text-sm font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : 'Excluir'}
           </button>

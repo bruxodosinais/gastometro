@@ -114,7 +114,7 @@ export default function NovaSenhaPage() {
             loading={loading}
             loadingText="Salvando..."
             className="w-full py-3.5 disabled:opacity-60 rounded-xl font-semibold text-white transition-colors flex items-center justify-center gap-2"
-            style={{ background: 'linear-gradient(135deg, #00b87a, #00d68f)' }}
+            style={{ background: 'var(--accent)' }}
           >
             Salvar nova senha
           </LoadingButton>

@@ -19,23 +19,8 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: coupon, error } = await admin
-    .from('coupons')
-    .select('id, code, days, max_uses, uses, active, expires_at')
-    .eq('code', code)
-    .maybeSingle();
-
-  if (error) return NextResponse.json({ success: false, error: 'Erro ao validar cupom.' }, { status: 500 });
-  if (!coupon) return NextResponse.json({ success: false, error: 'Cupom não encontrado.' }, { status: 404 });
-  if (!coupon.active) return NextResponse.json({ success: false, error: 'Cupom inativo.' }, { status: 400 });
-  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return NextResponse.json({ success: false, error: 'Cupom expirado.' }, { status: 400 });
-  }
-  if (coupon.max_uses > 0 && coupon.uses >= coupon.max_uses) {
-    return NextResponse.json({ success: false, error: 'Cupom esgotado.' }, { status: 400 });
-  }
-
-  // Já é Pro ativo? Não aplica.
+  // Já é Pro ativo? Não consome o cupom (checado ANTES do resgate atômico,
+  // que incrementa uses — não dá pra consumir um uso pra quem já é Pro).
   const { data: existing } = await admin
     .from('subscriptions')
     .select('plan, status')
@@ -45,6 +30,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Você já é Pro ativo.' }, { status: 400 });
   }
 
+  // Validação (ativo/expirado/esgotado) + incremento de uses na MESMA função,
+  // de forma atômica — impede resgates concorrentes de estourarem max_uses.
+  const { data: result, error: rpcErr } = await admin.rpc('redeem_coupon', {
+    p_code: code,
+    p_user_id: user.id,
+  });
+  if (rpcErr) {
+    return NextResponse.json({ success: false, error: 'Erro ao validar cupom.' }, { status: 500 });
+  }
+  const redeem = result as {
+    ok: boolean;
+    error?: string;
+    coupon?: { id: string; days: number; uses: number };
+  } | null;
+  if (!redeem?.ok || !redeem.coupon) {
+    return NextResponse.json(
+      { success: false, error: redeem?.error ?? 'Cupom inválido.' },
+      { status: 400 },
+    );
+  }
+
+  const coupon = redeem.coupon;
   const periodEnd = new Date(Date.now() + coupon.days * 24 * 60 * 60 * 1000).toISOString();
 
   const { error: upsertErr } = await admin
@@ -60,12 +67,15 @@ export async function POST(req: NextRequest) {
       { onConflict: 'user_id' },
     );
 
-  if (upsertErr) return NextResponse.json({ success: false, error: 'Erro ao aplicar Pro.' }, { status: 500 });
-
-  await admin
-    .from('coupons')
-    .update({ uses: coupon.uses + 1 })
-    .eq('id', coupon.id);
+  if (upsertErr) {
+    // O uso já foi consumido pela função atômica, mas o Pro não foi aplicado:
+    // compensa devolvendo o uso (best-effort) pra não "queimar" o cupom à toa.
+    await admin
+      .from('coupons')
+      .update({ uses: Math.max(0, coupon.uses - 1) })
+      .eq('id', coupon.id);
+    return NextResponse.json({ success: false, error: 'Erro ao aplicar Pro.' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, days: coupon.days, current_period_end: periodEnd });
 }

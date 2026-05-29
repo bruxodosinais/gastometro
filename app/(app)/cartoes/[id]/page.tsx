@@ -148,7 +148,7 @@ export default function CartaoDetailPage() {
     <main className="max-w-lg md:max-w-[600px] mx-auto px-4 pt-8 pb-28">
       <button
         onClick={() => router.push('/cartoes')}
-        className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 text-sm mb-5 transition-colors"
+        className="flex items-center gap-1.5 text-[var(--text-2)] hover:text-[var(--text)] text-sm mb-5 transition-colors"
       >
         <ArrowLeft size={16} />
         Cartões
@@ -156,13 +156,13 @@ export default function CartaoDetailPage() {
 
       {!card ? (
         <div className="flex justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-gray-400" />
+          <Loader2 size={24} className="animate-spin text-[var(--text-3)]" />
         </div>
       ) : (
         <>
           {/* Card header */}
           <div
-            className="bg-white border border-gray-100 rounded-2xl p-5 mb-4"
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 mb-4"
             style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -170,13 +170,13 @@ export default function CartaoDetailPage() {
                 <span className="text-xl">💳</span>
               </div>
               <div>
-                <h1 className="text-gray-900 font-bold text-lg leading-tight">{card.nome}</h1>
-                <p className="text-gray-500 text-sm">Limite {formatCurrency(card.limite)}</p>
+                <h1 className="text-[var(--text)] font-bold text-lg leading-tight">{card.nome}</h1>
+                <p className="text-[var(--text-2)] text-sm">Limite {formatCurrency(card.limite)}</p>
               </div>
             </div>
 
             {(card.diaFechamento || card.diaVencimento) && (
-              <div className="flex gap-4 text-xs text-gray-500 mb-4">
+              <div className="flex gap-4 text-xs text-[var(--text-2)] mb-4">
                 {card.diaFechamento && <span>Fecha dia {card.diaFechamento}</span>}
                 {card.diaVencimento && <span>Vence dia {card.diaVencimento}</span>}
               </div>
@@ -186,17 +186,17 @@ export default function CartaoDetailPage() {
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => setPeriod((p) => shiftPeriod(p, -1))}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-2)] hover:bg-[var(--bg)] transition-colors"
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-[var(--text-2)]">
                 {getMonthLabel(period)}
               </span>
               <button
                 onClick={() => setPeriod((p) => shiftPeriod(p, 1))}
                 disabled={isCurrentPeriod}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-30"
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-2)] hover:bg-[var(--bg)] transition-colors disabled:opacity-30"
               >
                 <ChevronRight size={18} />
               </button>
@@ -204,7 +204,7 @@ export default function CartaoDetailPage() {
 
             {/* Fatura total + progress */}
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-[var(--text-2)]">
                 Fatura {period.slice(5, 7)}/{period.slice(0, 4)}
               </span>
               {isPaid ? (
@@ -217,13 +217,13 @@ export default function CartaoDetailPage() {
               ) : (
                 <span
                   className="text-base font-bold"
-                  style={{ color: fatura > 0 ? '#f04e5e' : '#9ca3af' }}
+                  style={{ color: fatura > 0 ? '#f04e5e' : 'var(--text-3)' }}
                 >
                   {formatCurrency(fatura)}
                 </span>
               )}
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
+            <div className="h-2 bg-[var(--bg)] rounded-full overflow-hidden mb-1">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -232,7 +232,7 @@ export default function CartaoDetailPage() {
                 }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 text-right mb-4">
+            <p className="text-[10px] text-[var(--text-3)] text-right mb-4">
               {Math.round(fatPct)}% do limite utilizado
             </p>
 
@@ -255,7 +255,7 @@ export default function CartaoDetailPage() {
                 className="flex items-center justify-between rounded-xl px-4 py-3"
                 style={{ background: 'var(--green-bg)', border: '1px solid rgba(0,195,122,0.18)' }}
               >
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-[var(--text-2)]">
                   Pago em {formatDateBR(payment.lastDate)}
                 </span>
                 <span className="text-sm font-bold" style={{ color: 'var(--green-text)' }}>
@@ -266,31 +266,31 @@ export default function CartaoDetailPage() {
           </div>
 
           {/* Expense list */}
-          <h2 className="text-gray-800 font-semibold text-sm mb-3">
+          <h2 className="text-[var(--text)] font-semibold text-sm mb-3">
             Lançamentos na fatura
           </h2>
 
           {!ready ? (
             <div className="flex justify-center py-8">
-              <Loader2 size={20} className="animate-spin text-gray-400" />
+              <Loader2 size={20} className="animate-spin text-[var(--text-3)]" />
             </div>
           ) : expenses.length === 0 ? (
             <div
-              className="bg-white border border-gray-100 rounded-2xl py-10 text-center"
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-10 text-center"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
             >
               <p className="text-3xl mb-2">📭</p>
-              <p className="text-gray-500 text-sm">Nenhum lançamento neste período</p>
+              <p className="text-[var(--text-2)] text-sm">Nenhum lançamento neste período</p>
             </div>
           ) : (
             <div
-              className="bg-white border border-gray-100 rounded-2xl overflow-hidden"
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
             >
               {sortedDates.map((date, di) => (
                 <div key={date}>
-                  <div className={`px-4 py-2 bg-gray-50 border-b border-gray-100 ${di === 0 ? '' : 'border-t'}`}>
-                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <div className={`px-4 py-2 bg-[var(--bg)] border-b border-[var(--border)] ${di === 0 ? '' : 'border-t'}`}>
+                    <span className="text-[11px] font-semibold text-[var(--text-3)] uppercase tracking-wide">
                       {date.slice(8, 10)}/{date.slice(5, 7)}
                     </span>
                   </div>
@@ -300,16 +300,16 @@ export default function CartaoDetailPage() {
                     return (
                       <div
                         key={exp.id}
-                        className={`px-4 py-3 flex items-center gap-3 ${!isLast ? 'border-b border-gray-50' : ''}`}
+                        className={`px-4 py-3 flex items-center gap-3 ${!isLast ? 'border-b border-[var(--border)]' : ''}`}
                       >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-gray-50'}`}>
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${cfg?.bgClass ?? 'bg-[var(--bg)]'}`}>
                           {cfg?.icon ?? '💸'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-sm font-medium text-[var(--text)] truncate">
                             {exp.description.charAt(0).toUpperCase() + exp.description.slice(1)}
                           </p>
-                          <p className="text-xs text-gray-500">{exp.category}</p>
+                          <p className="text-xs text-[var(--text-2)]">{exp.category}</p>
                         </div>
                         <span className="font-semibold text-sm text-red-500 whitespace-nowrap flex-shrink-0">
                           −{formatCurrency(exp.amount)}
@@ -319,8 +319,8 @@ export default function CartaoDetailPage() {
                   })}
                 </div>
               ))}
-              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="px-4 py-3 border-t border-[var(--border)] flex items-center justify-between bg-[var(--bg)]">
+                <span className="text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide">
                   Total
                 </span>
                 <span className="font-bold text-sm text-red-500">

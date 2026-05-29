@@ -595,7 +595,7 @@ export default function CartoesPage() {
           <p style={{ color: 'var(--text-2)', fontWeight: 600 }}>{loadError}</p>
           <button
             onClick={loadAll}
-            style={{ background: 'var(--green)', color: 'white', fontSize: 14, fontWeight: 700, padding: '10px 20px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
+            style={{ background: 'var(--accent)', color: 'white', fontSize: 14, fontWeight: 700, padding: '10px 20px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
           >
             Tentar novamente
           </button>

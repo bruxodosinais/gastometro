@@ -11,12 +11,7 @@ import {
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
 import { openSupport } from '@/components/SupportButton';
-import {
-  getMonthlyObligations,
-  getRecurringExpenses,
-  getExpenses,
-  checkAndGenerateObligations,
-} from '@/lib/storage';
+import { useMonthlyPending } from '@/lib/hooks/useMonthlyPending';
 import { useSubscription } from '@/hooks/useSubscription';
 import { MISSAO_FEATURE_KEY, markFeatureSeen, shouldShowNewBadge } from '@/lib/featureFlags';
 
@@ -63,7 +58,7 @@ const SECTIONS: Section[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [userName, setUserName] = useState('');
-  const [recurringPending, setRecurringPending] = useState(0);
+  const recurringPending = useMonthlyPending();
   const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
   const { isPro, loading: subLoading } = useSubscription();
 
@@ -94,39 +89,6 @@ export default function Sidebar() {
     })();
     return () => { mounted = false; };
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await checkAndGenerateObligations();
-        const monthKey = new Date().toISOString().slice(0, 7);
-        const [obs, recs, exp] = await Promise.all([
-          getMonthlyObligations(monthKey),
-          getRecurringExpenses(),
-          getExpenses(),
-        ]);
-        if (!mounted) return;
-        const today = new Date().getDate();
-        const isDayReached = (dom?: number) => dom == null || dom <= today;
-        const pendingObs = obs.filter(o => o.status === 'pending').filter(o => {
-          const rec = recs.find(r => r.id === o.recurringExpenseId);
-          return rec ? isDayReached(rec.dayOfMonth) : true;
-        }).length;
-        const receivedIds = new Set(
-          exp.filter(e => e.date.slice(0, 7) === monthKey && e.type === 'income' && e.recurringExpenseId)
-             .map(e => e.recurringExpenseId as string)
-        );
-        const pendingIncome = recs
-          .filter(r => r.active && r.type === 'income')
-          .filter(r => !receivedIds.has(r.id) && isDayReached(r.dayOfMonth)).length;
-        setRecurringPending(pendingObs + pendingIncome);
-      } catch {
-        // sem dados ainda — não exibe badge
-      }
-    })();
-    return () => { mounted = false; };
-  }, [pathname]);
 
   const initial = userName ? userName.charAt(0).toUpperCase() : '?';
 

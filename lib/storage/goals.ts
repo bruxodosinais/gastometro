@@ -148,33 +148,53 @@ export async function addGoalContribution(
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
-    await supabase.from('goal_contributions').insert({
+    const { error: insertError } = await supabase.from('goal_contributions').insert({
       user_id: user.id,
       goal_id: goalId,
       amount,
       note: note ?? null,
       date: date ?? new Date().toISOString().slice(0, 10),
     });
+    if (insertError) {
+      console.error('addGoalContribution (insert):', { message: insertError.message, details: insertError.details, hint: insertError.hint, code: insertError.code });
+      throw new Error(insertError.message || 'Erro ao registrar aporte');
+    }
 
-    const { data: current } = await supabase
+    // Incremento atômico no banco (RPC) — evita lost update em aportes concorrentes.
+    const { error: rpcError } = await supabase.rpc('increment_goal_amount', {
+      p_goal_id: goalId,
+      p_delta: amount,
+    });
+    if (rpcError) {
+      console.error('addGoalContribution (rpc):', { message: rpcError.message, details: rpcError.details, hint: rpcError.hint, code: rpcError.code });
+      throw new Error(rpcError.message || 'Erro ao atualizar meta');
+    }
+
+    // Recarrega a meta já com o novo current_amount e marca como concluída se
+    // bateu o alvo. O status é derivado (monotônico active→completed), não está
+    // sujeito ao lost update que o incremento atômico resolveu.
+    const { data: row, error: fetchError } = await supabase
       .from('goals')
-      .select('current_amount, target_amount')
-      .eq('id', goalId)
-      .single();
-
-    const newAmount = (current?.current_amount ?? 0) + amount;
-    const newStatus = newAmount >= (current?.target_amount ?? Infinity) ? 'completed' : 'active';
-
-    const { data: row, error } = await supabase
-      .from('goals')
-      .update({ current_amount: newAmount, status: newStatus })
+      .select('*')
       .eq('id', goalId)
       .eq('user_id', user.id)
-      .select()
       .single();
-    if (error) {
-      console.error('addGoalContribution:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
-      throw new Error(error.message || 'Erro ao registrar aporte');
+    if (fetchError || !row) {
+      console.error('addGoalContribution (refetch):', fetchError
+        ? { message: fetchError.message, details: fetchError.details, hint: fetchError.hint, code: fetchError.code }
+        : 'meta não encontrada');
+      throw new Error(fetchError?.message || 'Erro ao recarregar a meta');
+    }
+
+    if (row.status !== 'completed' && Number(row.current_amount) >= Number(row.target_amount)) {
+      const { data: completed } = await supabase
+        .from('goals')
+        .update({ status: 'completed' })
+        .eq('id', goalId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      if (completed) return toGoal(completed);
     }
     return toGoal(row);
   });
