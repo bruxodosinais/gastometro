@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, Bot, UserCircle,
-  MessageSquare, Rocket, Headphones, BarChart2,
+  MessageSquare, Rocket, Headphones, BarChart2, PieChart, LogOut,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
 import { openSupport } from '@/components/SupportButton';
@@ -41,6 +42,7 @@ const SECTIONS: Section[] = [
     items: [
       { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,    newKey: MISSAO_FEATURE_KEY },
       { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
+      { href: '/orcamentos',  label: 'Orçamentos',           Icon: PieChart    },
       { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
       { href: '/metas',       label: 'Metas',                Icon: Target      },
       { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
@@ -57,7 +59,13 @@ const SECTIONS: Section[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [userName, setUserName] = useState('');
+
+  async function handleLogout() {
+    await createClient().auth.signOut();
+    router.push('/auth/login');
+  }
   const recurringPending = useMonthlyPending();
   const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
   const { isPro, loading: subLoading } = useSubscription();
@@ -437,6 +445,46 @@ export default function Sidebar() {
           Icon={UserCircle}
           active={pathname === '/perfil'}
         />
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            marginTop: 4,
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 10px 8px',
+            background: 'transparent',
+            color: 'var(--text-2)',
+            fontSize: 13,
+            fontWeight: 700,
+            borderLeft: 'none',
+            borderRight: 'none',
+            borderBottom: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            transition: 'background 120ms',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <LogOut size={16} color="var(--text-2)" />
+          </span>
+          <span style={{ flex: 1 }}>Sair</span>
+        </button>
       </div>
     </aside>
   );
