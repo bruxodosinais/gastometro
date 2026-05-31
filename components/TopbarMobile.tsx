@@ -1,9 +1,10 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, Moon, Sun } from 'lucide-react';
+import { Bell, Moon, Sun, Menu } from 'lucide-react';
 import { useTheme } from '@/lib/themeContext';
 import { useMonthlyPending } from '@/lib/hooks/useMonthlyPending';
+import { OPEN_DRAWER_EVENT } from '@/components/Navigation';
 
 // Mantemos o drawer de notificações vivendo na home, mas o sino agora mora
 // na topbar global. Quando o usuário já está em /app, evitamos o noop do
@@ -53,6 +54,26 @@ export default function TopbarMobile() {
         paddingTop: 'env(safe-area-inset-top)',
       }}
     >
+      {/* Botão de menu (abre drawer lateral) */}
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent(OPEN_DRAWER_EVENT))}
+        aria-label="Menu"
+        style={{
+          width: 34,
+          height: 34,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 9,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        <Menu size={20} color="var(--text-2)" />
+      </button>
+
       {/* Logo */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
