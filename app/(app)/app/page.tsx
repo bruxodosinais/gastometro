@@ -52,6 +52,7 @@ import { anim, hidden } from '../_components/home/_anim';
 import SaldoCard from '../_components/home/SaldoCard';
 import EntradaSaidaCards from '../_components/home/EntradaSaidaCards';
 import FaturaAlertCard from '../_components/home/FaturaAlertCard';
+import CartaoCard from '../_components/home/CartaoCard';
 import OrcamentoCard from '../_components/home/OrcamentoCard';
 import MissaoCard from '../_components/home/MissaoCard';
 import ReservaCard from '../_components/home/ReservaCard';
@@ -1077,6 +1078,23 @@ export default function HomePage() {
           }}
         />
       )}
+
+      {/* ── 6B. CARTÃO PRINCIPAL ────────────────────────────────────────────── */}
+      {(() => {
+        if (cardFaturas.length === 0) return null;
+        const principal = cardFaturas.reduce(
+          (max, cf) => (cf.total > max.total ? cf : max),
+          cardFaturas[0]
+        );
+        return (
+          <CartaoCard
+            card={principal.card}
+            fatura={principal.total}
+            mounted={mounted}
+            onPagar={() => handlePayFatura(principal.card, principal.total)}
+          />
+        );
+      })()}
 
       {/* ── 7. ORÇAMENTO CARD ───────────────────────────────────────────────── */}
       <OrcamentoCard
