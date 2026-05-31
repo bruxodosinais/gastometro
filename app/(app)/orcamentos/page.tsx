@@ -83,6 +83,33 @@ export default function OrcamentosPage() {
         </p>
       </header>
 
+      {/* Pills de saúde — só quando há orçamentos com atenção ou estourados */}
+      {!loading && !error && rows.length > 0 && (() => {
+        const countYellow = rows.filter(r => r.pct >= 70 && r.pct < 100).length;
+        const countRed = rows.filter(r => r.pct >= 100).length;
+        const countGreen = rows.filter(r => r.pct < 70).length;
+        if (countYellow === 0 && countRed === 0) return null;
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            {countGreen > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)', fontSize: 12, fontWeight: 700 }}>
+                {countGreen} no controle
+              </span>
+            )}
+            {countYellow > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--yellow-bg)', color: 'var(--yellow-text)', fontSize: 12, fontWeight: 700 }}>
+                {countYellow} em atenção
+              </span>
+            )}
+            {countRed > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--red-bg)', color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>
+                {countRed} estourado{countRed > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (

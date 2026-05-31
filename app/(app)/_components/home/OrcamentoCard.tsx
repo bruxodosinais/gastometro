@@ -240,7 +240,7 @@ export default function OrcamentoCard({
                   : `⚠️ ${budgetOverflows[0].category} e ${budgetOverflows[1].category} estouraram o orçamento`}
               </p>
               <Link
-                href="/categorias"
+                href="/orcamentos"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -252,7 +252,7 @@ export default function OrcamentoCard({
                   whiteSpace: 'nowrap',
                 }}
               >
-                Ver categorias
+                Ver orçamentos
                 <ChevronRight size={13} />
               </Link>
             </div>

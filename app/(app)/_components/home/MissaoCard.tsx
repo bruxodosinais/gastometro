@@ -141,6 +141,10 @@ export default function MissaoCard({ mounted }: Props) {
   const target = Number(mission.targetAmount);
   const pct = target > 0 ? Math.min(100, (totalSaved / target) * 100) : 0;
   const streak = calcStreak(contributions);
+  const monthlyTarget = Number(mission.monthlyTarget);
+  const remaining = Math.max(0, target - totalSaved);
+  const monthsLeft = monthlyTarget > 0 ? Math.ceil(remaining / monthlyTarget) : null;
+  const done = pct >= 100;
 
   return (
     <Link
@@ -157,96 +161,50 @@ export default function MissaoCard({ mounted }: Props) {
         ...(mounted ? anim(310) : hidden),
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-          marginBottom: 6,
-        }}
-      >
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--text-3)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            margin: 0,
-          }}
-        >
-          MISSÃO DE POUPANÇA
+      {/* Topo */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+          Missão de Poupança
         </p>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--accent)',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           Ver missão →
         </span>
       </div>
 
-      <p
-        style={{
-          fontSize: 15,
-          fontWeight: 800,
-          color: 'var(--text)',
-          margin: 0,
-          marginBottom: 10,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {mission.name}
-      </p>
+      {/* Nome + % */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {mission.name}
+        </p>
+        <p style={{ fontSize: 28, fontWeight: 900, color: done ? 'var(--green)' : 'var(--accent)', margin: 0, flexShrink: 0, lineHeight: 1 }}>
+          {done ? 'Concluído!' : `${Math.round(pct)}%`}
+        </p>
+      </div>
 
-      <div
-        style={{
-          height: 6,
-          background: 'var(--border-2)',
-          borderRadius: 3,
-          overflow: 'hidden',
-        }}
-      >
+      {/* Barra de progresso */}
+      <div style={{ height: 6, background: 'var(--border-2)', borderRadius: 3, overflow: 'hidden' }}>
         <div
           style={{
             height: '100%',
             width: `${barReady ? pct : 0}%`,
-            background: 'linear-gradient(90deg, #5B5BD6, #7C7CE8)',
+            background: done ? 'var(--green)' : 'var(--accent)',
             borderRadius: 3,
             transition: 'width 1s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       </div>
 
-      <p
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: 'var(--text-2)',
-          margin: 0,
-          marginTop: 8,
-        }}
-      >
-        {formatCurrency(totalSaved)} / {formatCurrency(target)} · {Math.round(pct)}%
+      {/* Rodapé */}
+      <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', margin: 0, marginTop: 8 }}>
+        {formatCurrency(totalSaved)} / {formatCurrency(target)}
       </p>
-
+      {!done && monthlyTarget > 0 && monthsLeft !== null && monthsLeft > 0 && (
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', margin: 0, marginTop: 4 }}>
+          Guarde {formatCurrency(monthlyTarget)}/mês · falta {monthsLeft} {monthsLeft === 1 ? 'mês' : 'meses'}
+        </p>
+      )}
       {streak >= 2 && (
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--text-2)',
-            margin: 0,
-            marginTop: 6,
-          }}
-        >
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', margin: 0, marginTop: 4 }}>
           🔥 {streak} meses seguidos
         </p>
       )}
