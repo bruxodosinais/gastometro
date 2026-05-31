@@ -1065,20 +1065,6 @@ export default function HomePage() {
       {/* ── 5. GRID RECEITA / DESPESA ───────────────────────────────────────── */}
       <EntradaSaidaCards income={income} spent={spent} mounted={mounted} />
 
-      {/* ── 6. ALERTA CONTAS PENDENTES ──────────────────────────────────────── */}
-      {isCurrentMonth && pendingObligations.length > 0 && (
-        <FaturaAlertCard
-          pendingTotal={pendingTotal}
-          pendingCount={pendingObligations.length}
-          mounted={mounted}
-          onClick={() => {
-            contasMesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setHighlighting(true);
-            setTimeout(() => setHighlighting(false), 2000);
-          }}
-        />
-      )}
-
       {/* ── 6B. CARTÃO PRINCIPAL ────────────────────────────────────────────── */}
       {(() => {
         if (cardFaturas.length === 0) return null;
@@ -1095,6 +1081,20 @@ export default function HomePage() {
           />
         );
       })()}
+
+      {/* ── 6. ALERTA CONTAS PENDENTES ──────────────────────────────────────── */}
+      {isCurrentMonth && pendingObligations.length > 0 && (
+        <FaturaAlertCard
+          pendingTotal={pendingTotal}
+          pendingCount={pendingObligations.length}
+          mounted={mounted}
+          onClick={() => {
+            contasMesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setHighlighting(true);
+            setTimeout(() => setHighlighting(false), 2000);
+          }}
+        />
+      )}
 
       {/* ── 7. ORÇAMENTO CARD ───────────────────────────────────────────────── */}
       <OrcamentoCard

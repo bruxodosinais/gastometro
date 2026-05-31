@@ -75,16 +75,24 @@ export default function ContasDoMes({
   const rows: RowItem[] = [
     ...pendingIncomeRows.map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
     ...pendingObligationsRows.map((o): RowItem => ({ kind: 'obligation', ob: o })),
-    ...activeIncomeRecs
-      .filter((r) => receivedIncomeRecIds.has(r.id))
-      .sort(sortByDay)
-      .map((r): RowItem => ({ kind: 'income', rec: r, received: true })),
-    ...obligations
-      .filter((o) => o.status === 'paid')
-      .sort(sortObByDue)
-      .map((o): RowItem => ({ kind: 'obligation', ob: o })),
   ];
-  const visible = rows.slice(0, 3);
+  const visible = rows.slice(0, 5);
+
+  if (rows.length === 0) {
+    return (
+      <div
+        ref={sectionRef}
+        style={{ margin: '16px 16px 0', ...(mounted ? anim(350) : hidden) }}
+      >
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>✅</span>
+          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--green-text)', margin: 0 }}>
+            Tudo em dia por aqui!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -133,7 +141,7 @@ export default function ContasDoMes({
       >
         <div>
           {visible.map((item, idx) => {
-            const isLast = idx === visible.length - 1 && rows.length <= 3;
+            const isLast = idx === visible.length - 1 && rows.length <= 5;
             const borderStyle = isLast
               ? {}
               : { borderBottom: '1px solid var(--border-2)' };
@@ -442,22 +450,20 @@ export default function ContasDoMes({
           })}
         </div>
 
-        {rows.length > 3 && (
-          <Link
-            href="/recorrentes"
-            style={{
-              display: 'block',
-              padding: '12px 16px',
-              color: 'var(--accent)',
-              fontSize: 13,
-              fontWeight: 700,
-              textDecoration: 'none',
-              borderTop: '1px solid var(--border-2)',
-            }}
-          >
-            Ver todas as {rows.length} contas →
-          </Link>
-        )}
+        <Link
+          href="/recorrentes"
+          style={{
+            display: 'block',
+            padding: '12px 16px',
+            color: 'var(--accent)',
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: 'none',
+            borderTop: '1px solid var(--border-2)',
+          }}
+        >
+          Ver recorrentes →
+        </Link>
       </div>
     </div>
   );
