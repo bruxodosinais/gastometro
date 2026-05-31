@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, Camera, Check, ChevronRight, Download, Eye, EyeOff, Headphones, Loader2, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Check, ChevronRight, Download, Eye, EyeOff, Headphones, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
@@ -10,15 +10,12 @@ import { getErrorMessage } from '@/lib/errors';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useTheme, type Theme } from '@/lib/themeContext';
-import UpgradeBanner from '@/components/UpgradeBanner';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { openSupport } from '@/components/SupportButton';
 
 // Vinculação de WhatsApp (W2). Enquanto a feature está em desenvolvimento,
 // um banner "Em breve" é renderizado por cima dos estados A/B/C.
 // Trocar para `true` quando lançar.
-const WHATSAPP_ENABLED = false;
-
 // Mantém só dígitos e formata como telefone brasileiro: (11) 99999-9999.
 function maskBrazilPhone(value: string): string {
   const d = value.replace(/\D/g, '').slice(0, 11);
@@ -128,17 +125,11 @@ export default function PerfilPage() {
   const [savingPush, setSavingPush] = useState(false);
   const [activatingPush, setActivatingPush] = useState(false);
 
-  // WhatsApp (W2)
+  // WhatsApp
   const [whatsappPhone, setWhatsappPhone] = useState<string | null>(null);
-  const [whatsappVerified, setWhatsappVerified] = useState(false);
   const [waInput, setWaInput] = useState('');
-  const [waOtp, setWaOtp] = useState('');
-  const [waOtpSent, setWaOtpSent] = useState(false);
-  const [waSending, setWaSending] = useState(false);
-  const [waVerifying, setWaVerifying] = useState(false);
-  const [waUnlinking, setWaUnlinking] = useState(false);
-  const [waError, setWaError] = useState('');
-  const [waSuccess, setWaSuccess] = useState('');
+  const [waEditing, setWaEditing] = useState(false);
+  const [waSaving, setWaSaving] = useState(false);
 
   // Danger zone
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -174,7 +165,7 @@ export default function PerfilPage() {
 
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, whatsapp_phone, whatsapp_verified')
+          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, whatsapp_phone')
           .eq('id', user.id)
           .single();
 
@@ -195,7 +186,6 @@ export default function PerfilPage() {
             weekly_summary: profile.push_weekly_summary !== false,
           });
           setWhatsappPhone(profile.whatsapp_phone ?? null);
-          setWhatsappVerified(profile.whatsapp_verified === true);
         }
       } catch (err) {
         setProfileError(getErrorMessage(err));
@@ -377,93 +367,44 @@ export default function PerfilPage() {
     }
   }
 
-  async function handleSendWhatsappOtp() {
-    setWaError('');
-    setWaSuccess('');
+  async function handleSaveWhatsapp() {
     const digits = waInput.replace(/\D/g, '');
-    if (digits.length < 10 || digits.length > 11) {
-      setWaError('Informe um número válido com DDD.');
-      return;
-    }
-    setWaSending(true);
-    try {
-      const res = await fetch('/api/whatsapp/link-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: `55${digits}` }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setWaError(data.error ?? 'Não foi possível enviar o código.');
-        return;
-      }
-      setWaOtpSent(true);
-      setWaSuccess('Código enviado pelo WhatsApp. Confira sua conversa.');
-    } catch {
-      setWaError('Erro de conexão. Tente novamente.');
-    } finally {
-      setWaSending(false);
-    }
-  }
-
-  async function handleVerifyWhatsappOtp() {
-    setWaError('');
-    setWaSuccess('');
-    const otp = waOtp.replace(/\D/g, '');
-    if (otp.length !== 6) {
-      setWaError('Digite o código de 6 dígitos.');
-      return;
-    }
-    setWaVerifying(true);
-    try {
-      const res = await fetch('/api/whatsapp/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setWaError(data.error ?? 'Não foi possível verificar o código.');
-        return;
-      }
-      setWhatsappPhone(`55${waInput.replace(/\D/g, '')}`);
-      setWhatsappVerified(true);
-      setWaOtpSent(false);
-      setWaOtp('');
-      setWaInput('');
-      addToast('WhatsApp vinculado com sucesso!');
-    } catch {
-      setWaError('Erro de conexão. Tente novamente.');
-    } finally {
-      setWaVerifying(false);
-    }
-  }
-
-  async function handleUnlinkWhatsapp() {
-    setWaUnlinking(true);
+    if (digits.length < 10) return;
+    setWaSaving(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from('profiles').upsert({
+      await supabase.from('profiles').upsert({
+        id: userId,
+        whatsapp_phone: `55${digits}`,
+        whatsapp_verified: false,
+        updated_at: new Date().toISOString(),
+      });
+      setWhatsappPhone(`55${digits}`);
+      setWaEditing(false);
+      setWaInput('');
+      addToast('WhatsApp salvo!');
+    } catch {
+      addToast('Erro ao salvar. Tente novamente.', 'error');
+    } finally {
+      setWaSaving(false);
+    }
+  }
+
+  async function handleRemoveWhatsapp() {
+    try {
+      const supabase = createClient();
+      await supabase.from('profiles').upsert({
         id: userId,
         whatsapp_phone: null,
         whatsapp_verified: false,
-        whatsapp_otp: null,
-        whatsapp_otp_expires_at: null,
         updated_at: new Date().toISOString(),
       });
-      if (error) throw error;
       setWhatsappPhone(null);
-      setWhatsappVerified(false);
-      setWaOtpSent(false);
-      setWaOtp('');
+      setWaEditing(false);
       setWaInput('');
-      setWaError('');
-      setWaSuccess('');
-      addToast('WhatsApp desvinculado.');
+      addToast('WhatsApp removido.');
     } catch {
-      addToast('Erro ao desvincular. Tente novamente.', 'error');
-    } finally {
-      setWaUnlinking(false);
+      addToast('Erro ao remover. Tente novamente.', 'error');
     }
   }
 
@@ -876,72 +817,77 @@ export default function PerfilPage() {
           {/* WHATSAPP */}
           <div style={{ marginBottom: 12 }}>
             <span style={secLabel}>WhatsApp</span>
-            {!WHATSAPP_ENABLED ? (
-              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>💬</div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Bot WhatsApp — Em breve</p>
-                    <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 999, background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '0.04em' }}>Exclusivo Pro</span>
+            <div style={cardStyle}>
+              {whatsappPhone && !waEditing ? (
+                /* Número já cadastrado */
+                <div style={{ padding: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>
+                    {formatStoredPhone(whatsappPhone)}
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '0 0 12px' }}>
+                    Número vinculado
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => { setWaInput(''); setWaEditing(true); }}
+                      style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Alterar número
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveWhatsapp}
+                      style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--red)', background: 'transparent', fontSize: 13, fontWeight: 700, color: 'var(--red)', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Remover
+                    </button>
                   </div>
                 </div>
-                <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
-                  Registre gastos e receitas direto pelo WhatsApp. Digite &quot;gastei 50 no iFood&quot; e o app registra automaticamente.
-                </p>
-              </div>
-            ) : !isPro ? (
-              <UpgradeBanner message="Vinculação de WhatsApp é exclusiva do plano Pro" feature="whatsapp" />
-            ) : whatsappVerified && whatsappPhone ? (
-              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <MessageCircle size={18} color="var(--green-text)" />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{formatStoredPhone(whatsappPhone)}</p>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)', fontSize: 11, fontWeight: 800 }}>
-                      <Check size={11} /> Conectado
-                    </span>
-                  </div>
-                </div>
-                <button type="button" onClick={handleUnlinkWhatsapp} disabled={waUnlinking} style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: '1.5px solid var(--red)', borderRadius: 'var(--r-sm)', padding: 12, fontSize: 13, fontWeight: 800, color: 'var(--red)', cursor: waUnlinking ? 'default' : 'pointer', opacity: waUnlinking ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {waUnlinking ? <Loader2 size={15} className="animate-spin" /> : null}
-                  {waUnlinking ? 'Desvinculando…' : 'Desvincular'}
-                </button>
-              </div>
-            ) : (
-              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <MessageCircle size={18} color="var(--accent)" />
-                  <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Vincular WhatsApp</p>
-                </div>
-                <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', margin: '0 0 12px', lineHeight: 1.5 }}>
-                  Registre gastos pelo WhatsApp. Enviaremos um código de verificação para o número informado.
-                </p>
-                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Número com DDD</label>
-                <input type="tel" inputMode="numeric" value={waInput} onChange={(e) => setWaInput(maskBrazilPhone(e.target.value))} placeholder="(11) 99999-9999" disabled={waOtpSent} style={{ width: '100%', boxSizing: 'border-box', background: waOtpSent ? 'var(--bg)' : 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 16, fontWeight: 700, color: 'var(--text)', outline: 'none', opacity: waOtpSent ? 0.6 : 1 }} />
-                {!waOtpSent ? (
-                  <button type="button" onClick={handleSendWhatsappOtp} disabled={waSending} style={{ marginTop: 12, width: '100%', boxSizing: 'border-box', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 14, fontWeight: 800, cursor: waSending ? 'default' : 'pointer', opacity: waSending ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {waSending ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {waSending ? 'Enviando…' : 'Enviar código'}
-                  </button>
-                ) : (
-                  <>
-                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', margin: '14px 0 6px' }}>Código de verificação</label>
-                    <input type="text" inputMode="numeric" value={waOtp} onChange={(e) => setWaOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" maxLength={6} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 16, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.3em', textAlign: 'center', outline: 'none' }} />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <button type="button" onClick={() => { setWaOtpSent(false); setWaOtp(''); setWaError(''); setWaSuccess(''); }} disabled={waVerifying} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: waVerifying ? 'default' : 'pointer', opacity: waVerifying ? 0.6 : 1 }}>Trocar número</button>
-                      <button type="button" onClick={handleVerifyWhatsappOtp} disabled={waVerifying} style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 13, fontWeight: 800, color: 'white', cursor: waVerifying ? 'default' : 'pointer', opacity: waVerifying ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        {waVerifying ? <Loader2 size={15} className="animate-spin" /> : null}
-                        {waVerifying ? 'Verificando…' : 'Verificar'}
+              ) : (
+                /* Sem número ou editando */
+                <div style={{ padding: 16 }}>
+                  {!whatsappPhone && (
+                    <>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 8px' }}>
+                        Adicionar WhatsApp
+                      </p>
+                      <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '0 0 12px' }}>
+                        Para receber notificações e relatórios pelo WhatsApp.
+                      </p>
+                    </>
+                  )}
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={waInput}
+                    onChange={(e) => setWaInput(maskBrazilPhone(e.target.value))}
+                    placeholder="(11) 99999-9999"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    {waEditing && (
+                      <button
+                        type="button"
+                        onClick={() => { setWaEditing(false); setWaInput(''); }}
+                        style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        Cancelar
                       </button>
-                    </div>
-                  </>
-                )}
-                {waError && <p style={{ color: 'var(--red)', fontSize: 12, background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', textAlign: 'center', marginTop: 12, marginBottom: 0 }}>{waError}</p>}
-                {waSuccess && !waError && <p style={{ color: 'var(--green-text)', fontSize: 12, background: 'var(--green-bg)', borderRadius: 'var(--r-sm)', padding: '10px 14px', textAlign: 'center', marginTop: 12, marginBottom: 0 }}>{waSuccess}</p>}
-              </div>
-            )}
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveWhatsapp}
+                      disabled={waSaving}
+                      style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 13, fontWeight: 800, color: 'white', cursor: waSaving ? 'default' : 'pointer', opacity: waSaving ? 0.7 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      {waSaving ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {waSaving ? 'Salvando…' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* INSTALAÇÃO */}

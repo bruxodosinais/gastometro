@@ -7,6 +7,14 @@ import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import LoadingButton from '@/components/ui/LoadingButton';
 
+function maskBrazilPhone(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 function traduzirErroAuth(mensagem: string): string {
   if (mensagem.includes('User already registered'))
     return 'Este e-mail já está cadastrado.';
@@ -89,6 +97,7 @@ function CadastroContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -141,6 +150,15 @@ function CadastroContent() {
         terms_accepted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
+
+      const digits = whatsapp.replace(/\D/g, '');
+      if (digits.length >= 10) {
+        await supabase.from('profiles').upsert({
+          id: userId,
+          whatsapp_phone: `55${digits}`,
+          updated_at: new Date().toISOString(),
+        });
+      }
 
       if (ref === 'beta') {
         // Plano Pro do beta: o insert precisa da service role (RLS não deixa
@@ -229,6 +247,22 @@ function CadastroContent() {
               <span style={ICON_WRAP}>
                 <PersonIcon />
               </span>
+            </div>
+          </div>
+
+          {/* WhatsApp (opcional) */}
+          <div>
+            <label style={LABEL}>WhatsApp (opcional)</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(maskBrazilPhone(e.target.value))}
+                placeholder="(11) 99999-9999"
+                autoComplete="tel"
+                className="auth-input"
+              />
             </div>
           </div>
 
