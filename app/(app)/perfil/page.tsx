@@ -131,6 +131,9 @@ export default function PerfilPage() {
   const [waEditing, setWaEditing] = useState(false);
   const [waSaving, setWaSaving] = useState(false);
 
+  // Financial period
+  const [financialStartDay, setFinancialStartDay] = useState<number | ''>('');
+
   // Danger zone
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -165,7 +168,7 @@ export default function PerfilPage() {
 
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, whatsapp_phone')
+          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, whatsapp_phone, financial_start_day')
           .eq('id', user.id)
           .single();
 
@@ -186,6 +189,7 @@ export default function PerfilPage() {
             weekly_summary: profile.push_weekly_summary !== false,
           });
           setWhatsappPhone(profile.whatsapp_phone ?? null);
+          setFinancialStartDay((profile.financial_start_day as number | null) ?? '');
         }
       } catch (err) {
         setProfileError(getErrorMessage(err));
@@ -258,6 +262,11 @@ export default function PerfilPage() {
     const { error: err } = await createClient().auth.updateUser({ data: { display_name: trimmed } });
     setSaving(false);
     if (err) { setProfileError('Erro ao salvar. Tente novamente.'); return; }
+    await createClient().from('profiles').upsert({
+      id: userId,
+      financial_start_day: financialStartDay !== '' ? Number(financialStartDay) : null,
+      updated_at: new Date().toISOString(),
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -637,6 +646,29 @@ export default function PerfilPage() {
                     disabled
                     style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, fontWeight: 700, color: 'var(--text)', opacity: 0.6, cursor: 'not-allowed' }}
                   />
+                </div>
+
+                {/* Dia de início do mês financeiro */}
+                <div style={{ padding: '14px 16px', borderBottom: rowBorder }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+                    Dia de início do mês financeiro (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={31}
+                    value={financialStartDay}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      setFinancialStartDay(Number.isFinite(v) && v >= 1 && v <= 31 ? v : '');
+                    }}
+                    placeholder="Ex: 5 (dia que recebe salário)"
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 14, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
+                  />
+                  <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', marginTop: 6, marginBottom: 0 }}>
+                    Ajusta qual mês aparece como atual na Home, Histórico e Análise
+                  </p>
                 </div>
 
                 {/* Plano */}

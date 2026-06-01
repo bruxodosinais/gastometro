@@ -32,6 +32,7 @@ import {
   formatCurrency,
   getMonthKey,
 } from '@/lib/calculations';
+import { getFinancialCurrentPeriod, getFinancialPeriodLabel } from '@/lib/financialPeriod';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
 import { useStreak } from '@/lib/hooks/useStreak';
@@ -115,6 +116,7 @@ export default function HomePage() {
   const [showMonthlyClose, setShowMonthlyClose] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [financialStartDay, setFinancialStartDay] = useState<number | null>(null);
   const { toasts, addToast, removeToast } = useToast();
 
   // ── Data loading ───────────────────────────────────────────────────────────
@@ -176,12 +178,18 @@ export default function HomePage() {
         setUserName(name.charAt(0).toUpperCase() + name.slice(1));
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, avatar_emoji')
+          .select('avatar_url, avatar_emoji, financial_start_day')
           .eq('id', user.id)
           .single();
         if (profile) {
           setProfileAvatarUrl(profile.avatar_url ?? null);
           setProfileAvatarEmoji(profile.avatar_emoji ?? null);
+          const fsDay = (profile.financial_start_day as number | null) ?? null;
+          setFinancialStartDay(fsDay);
+          const financialPeriod = getFinancialCurrentPeriod(fsDay);
+          if (period === getMonthKey(new Date()) && financialPeriod !== period) {
+            setPeriod(financialPeriod);
+          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -398,7 +406,7 @@ export default function HomePage() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
   const now = new Date();
-  const isCurrentMonth = period === getMonthKey(now);
+  const isCurrentMonth = period === getFinancialCurrentPeriod(financialStartDay);
   const isFutureMonth = period > getMonthKey(now);
 
   const [periodYear, periodMonth] = period.split('-').map(Number);
@@ -666,6 +674,8 @@ export default function HomePage() {
     const raw = periodDateObj.toLocaleDateString('pt-BR', { month: 'long' });
     return `${raw.charAt(0).toUpperCase()}${raw.slice(1)}/${periodYear}`;
   })();
+  const periodLabel = getFinancialPeriodLabel(period, financialStartDay);
+
   const saldoMode: 'current' | 'past' | 'future' = isCurrentMonth
     ? 'current'
     : isFutureMonth
@@ -999,9 +1009,16 @@ export default function HomePage() {
           >
             <ChevronLeft size={14} color="var(--text-2)" />
           </button>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>
-            {navigatorLabel}
-          </span>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', display: 'block' }}>
+              {navigatorLabel}
+            </span>
+            {periodLabel && (
+              <span style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginTop: 1 }}>
+                {periodLabel}
+              </span>
+            )}
+          </div>
           <button
             onClick={goNextMonth}
             style={{

@@ -246,6 +246,17 @@ export default function OnboardingPage() {
           });
         }
         setSavedIncome(amount);
+        if (day) {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              financial_start_day: day,
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
       } catch (e) {
         console.error('Onboarding: erro ao salvar renda:', e);
       } finally {
