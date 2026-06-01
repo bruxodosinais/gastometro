@@ -72,13 +72,23 @@ export default function ContasDoMes({
     .filter((r) => isDayReachedForRec(r.dayOfMonth))
     .sort(sortByDay);
 
+  const allPending = pendingIncomeRows.length === 0 && pendingObligationsRows.length === 0;
+
   const rows: RowItem[] = [
     ...pendingIncomeRows.map((r): RowItem => ({ kind: 'income', rec: r, received: false })),
     ...pendingObligationsRows.map((o): RowItem => ({ kind: 'obligation', ob: o })),
+    ...activeIncomeRecs
+      .filter((r) => receivedIncomeRecIds.has(r.id))
+      .sort(sortByDay)
+      .map((r): RowItem => ({ kind: 'income', rec: r, received: true })),
+    ...obligations
+      .filter((o) => o.status === 'paid')
+      .sort(sortObByDue)
+      .map((o): RowItem => ({ kind: 'obligation', ob: o })),
   ];
   const visible = rows.slice(0, 5);
 
-  if (rows.length === 0) {
+  if (allPending) {
     return (
       <div
         ref={sectionRef}
@@ -271,23 +281,34 @@ export default function ContasDoMes({
             const isPaying = payingIds.has(ob.id);
             const hasDueDay =
               typeof ob.dueDay === 'number' && ob.dueDay >= 1 && ob.dueDay <= 31;
-            const daysLate =
-              !isPaid && hasDueDay && todayDay > ob.dueDay!
-                ? todayDay - ob.dueDay!
-                : 0;
-            const dueToday = !isPaid && hasDueDay && todayDay === ob.dueDay;
-            const dueTomorrow = !isPaid && hasDueDay && ob.dueDay === todayDay + 1;
+            const obDate = hasDueDay
+              ? new Date(
+                  Number(ob.month.slice(0, 4)),
+                  Number(ob.month.slice(5, 7)) - 1,
+                  ob.dueDay!
+                )
+              : null;
+            const todayMidnight = new Date();
+            todayMidnight.setHours(0, 0, 0, 0);
+            const diffDays = obDate
+              ? Math.round((todayMidnight.getTime() - obDate.getTime()) / 86400000)
+              : 0;
+            const daysLate = !isPaid && hasDueDay && diffDays > 0 ? diffDays : 0;
+            const dueToday = !isPaid && hasDueDay && diffDays === 0;
+            const dueTomorrow = !isPaid && hasDueDay && diffDays === -1;
             const dueLabelText = isPaid
               ? ''
               : !hasDueDay
-              ? '' // sem prazo definido — não mostra "Vence dia X"
+              ? ''
               : daysLate > 0
               ? `Venceu há ${daysLate} dia${daysLate > 1 ? 's' : ''}`
               : dueToday
               ? 'Vence hoje'
               : dueTomorrow
               ? 'Vence amanhã'
-              : `Vence dia ${ob.dueDay}`;
+              : obDate
+              ? `Vence dia ${ob.dueDay}`
+              : '';
             const dueLabelColor =
               daysLate > 0
                 ? 'var(--red)'

@@ -119,7 +119,7 @@ export default function HomePage() {
 
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadData() {
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentMonth = getMonthKey(new Date());
     setLoadError(null);
     try {
       const [exp, bud, rec, obs, contrib, cards] = await retryAsync(() =>
@@ -200,7 +200,7 @@ export default function HomePage() {
 
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        const month = new Date().toISOString().slice(0, 7);
+        const month = getMonthKey(new Date());
         Promise.all([
           getMonthlyObligations(month),
           getExpenses(),
