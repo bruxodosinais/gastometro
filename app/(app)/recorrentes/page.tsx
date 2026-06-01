@@ -21,7 +21,7 @@ import {
   toggleRecurringExpense,
   updateRecurringExpense,
 } from '@/lib/storage';
-import { getMonthLabel } from '@/lib/calculations';
+import { formatCurrency, getMonthLabel } from '@/lib/calculations';
 import {
   CreditCard as CreditCardType,
   EntryType,
@@ -564,8 +564,36 @@ export default function RecorrentesPage() {
     return diaRef <= todayDay;
   });
 
-  const expenseRecs = filteredRecurrings.filter((r) => r.type === 'expense');
+  const dueSortKey = (rec: RecurringExpense): number => {
+    const due =
+      typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+        ? rec.dueDay
+        : undefined;
+    if (due === undefined) return 9999;
+    if (isCurrentMonth) {
+      if (isPaidInMonth(rec, selectedMonth)) return 5000 + due;
+      return due;
+    }
+    return due;
+  };
+
+  const expenseRecs = filteredRecurrings
+    .filter((r) => r.type === 'expense')
+    .sort((a, b) => dueSortKey(a) - dueSortKey(b));
   const incomeRecs = filteredRecurrings.filter((r) => r.type === 'income');
+
+  const overdueExpenses = isCurrentMonth
+    ? recurrings.filter((rec) => {
+        if (rec.type !== 'expense' || !rec.active) return false;
+        if (isPaidInMonth(rec, selectedMonth)) return false;
+        const due =
+          typeof rec.dueDay === 'number' && rec.dueDay >= 1 && rec.dueDay <= 31
+            ? rec.dueDay
+            : undefined;
+        return due !== undefined && todayDay > due;
+      })
+    : [];
+  const overdueTotal = overdueExpenses.reduce((s, r) => s + r.amount, 0);
 
   const activeRecurrings = recurrings.filter((r) => r.active !== false).length;
   const atRecurringsLimit = subscription.isFree && activeRecurrings >= PLAN_LIMITS.free.recurringExpenses;
@@ -753,6 +781,39 @@ export default function RecorrentesPage() {
               activeCount={recurrings.filter((r) => r.active).length}
               totalMonthlyAmount={totalMonthlyAmount}
             />
+          )}
+
+          {overdueExpenses.length > 0 && (
+            <div
+              onClick={() => setActiveTab('pendentes')}
+              style={{
+                margin: '12px 0 0',
+                background: 'var(--red-bg)',
+                border: '1.5px solid rgba(255,71,87,0.25)',
+                borderLeft: '3px solid var(--red)',
+                borderRadius: 'var(--r-sm)',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'rgba(255,71,87,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, fontSize: 16,
+              }}>⚠️</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--red)', margin: 0 }}>
+                  {overdueExpenses.length} conta{overdueExpenses.length > 1 ? 's' : ''} em atraso · {formatCurrency(overdueTotal)}
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                  Toque para ver os pendentes
+                </p>
+              </div>
+            </div>
           )}
 
           {recurrings.length > 0 && (
