@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
-  Target, CreditCard, TrendingUp, Bot, UserCircle,
+  Target, CreditCard, TrendingUp, LineChart, Bot, UserCircle,
   MessageSquare, Rocket, Headphones, BarChart2, PieChart, LogOut,
   Sun, Moon, Zap, ChevronDown,
 } from 'lucide-react';
@@ -46,6 +46,7 @@ const SECTIONS: Section[] = [
       { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
       { href: '/orcamentos',  label: 'Orçamentos',           Icon: PieChart    },
       { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
+      { href: '/previsoes',   label: 'Previsões',            Icon: LineChart   },
       { href: '/metas',       label: 'Metas',                Icon: Target      },
       { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
       { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },

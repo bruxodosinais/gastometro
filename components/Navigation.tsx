@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, UserCircle, X, CreditCard, Sparkles,
   MessageSquare, Rocket, Headphones, BarChart2, PieChart, Target, Bot,
-  TrendingUp, LayoutGrid, ChevronRight, LogOut, Sun, Moon,
+  TrendingUp, LineChart, LayoutGrid, ChevronRight, LogOut, Sun, Moon,
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { openFeedback } from '@/components/FeedbackButton';
@@ -33,6 +33,7 @@ const sheetItems: SheetItem[] = [
   { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
   { href: '/orcamentos',  label: 'Orçamentos',           Icon: PieChart    },
   { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
+  { href: '/previsoes',   label: 'Previsões',            Icon: LineChart   },
   { href: '/metas',       label: 'Metas',                Icon: Target      },
   { href: '/cartoes',     label: 'Cartões',              Icon: CreditCard  },
   { href: '/patrimonio',  label: 'Patrimônio',           Icon: TrendingUp  },
