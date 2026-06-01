@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/missao-lembrete",
       "schedule": "0 10 5 * *"
+    },
+    {
+      "path": "/api/cron/email-funnel",
+      "schedule": "0 13 * * *"
     }
   ]
 }

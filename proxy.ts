@@ -44,7 +44,8 @@ export default async function proxy(request: NextRequest) {
     pathname === '/api/push/cron/due-tomorrow' ||
     pathname === '/api/push/cron/budget-exceeded' ||
     pathname === '/api/push/cron/weekly-summary' ||
-    pathname === '/api/cron/missao-lembrete';
+    pathname === '/api/cron/missao-lembrete' ||
+    pathname === '/api/cron/email-funnel';
 
   if (isPublicWebhook || isCronEndpoint) {
     return supabaseResponse;
