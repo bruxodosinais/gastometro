@@ -6,3 +6,4 @@ export * from './goals';
 export * from './assets';
 export * from './budgets';
 export * from './categories';
+export * from './activity';

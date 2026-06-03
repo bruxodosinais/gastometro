@@ -35,7 +35,7 @@ import {
 import { getFinancialCurrentPeriod, getFinancialPeriodLabel } from '@/lib/financialPeriod';
 import { usePeriod } from '@/lib/periodContext';
 import { calculateStreak } from '@/lib/streak';
-import { useStreak } from '@/lib/hooks/useStreak';
+import { useAccessStreak } from '@/lib/hooks/useAccessStreak';
 import {
   Budget,
   CreditCard as CreditCardType,
@@ -69,7 +69,7 @@ export default function HomePage() {
   const router = useRouter();
   const { period, setPeriod } = usePeriod();
   const { isFree, loading: subLoading } = useSubscription();
-  const { currentStreak } = useStreak();
+  const { currentStreak } = useAccessStreak();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [expenses, setExpenses] = useState<Expense[]>([]);
