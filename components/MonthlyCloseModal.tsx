@@ -10,6 +10,8 @@ interface Props {
   prevMonthLabel: string;
   income: number;
   spent: number;
+  /** Gasto em caixa (exclui compras no crédito) — base do "orçamento livre". */
+  debitSpent: number;
   topCategory: { cat: string; total: number } | null;
   monthlyPlan: MonthlyPlan | null;
   onClose: () => void;
@@ -20,6 +22,7 @@ export default function MonthlyCloseModal({
   prevMonthLabel,
   income,
   spent,
+  debitSpent,
   topCategory,
   monthlyPlan,
   onClose,
@@ -27,11 +30,25 @@ export default function MonthlyCloseModal({
 }: Props) {
   const { categories: customs } = useCustomCategories();
   const balance = income - spent;
-  const savingsGoalMet = monthlyPlan != null && monthlyPlan.savingsGoal > 0 && balance >= monthlyPlan.savingsGoal;
-  const motivational =
-    balance >= 0
+  const plannedIncome = monthlyPlan?.expectedIncome ?? 0;
+  const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
+  const hasGoal = savingsGoal > 0;
+  const savingsGoalMet = hasGoal && balance >= savingsGoal;
+  // Orçamento livre planejado = (renda planejada, ou a real se não houve plano)
+  // menos a meta de poupança. Sem base de renda, não exibe a linha (evita
+  // números sem sentido quando o mês anterior não teve renda lançada).
+  const freeBudget = (plannedIncome > 0 ? plannedIncome : income) - savingsGoal;
+  // Frase de reforço/hábito: prioriza o status da meta; senão, o saldo do mês.
+  const savingsGap = savingsGoal - balance;
+  const motivational = !hasGoal
+    ? balance >= 0
       ? 'Você fechou o mês no azul! Continue assim.'
-      : 'Mês desafiador, mas você acompanhou seus gastos. Isso já é meio caminho.';
+      : 'Mês desafiador, mas você acompanhou seus gastos. Isso já é meio caminho.'
+    : savingsGoalMet
+    ? `Você bateu sua meta de poupança de ${formatCurrency(savingsGoal)}! 🎉`
+    : savingsGap > 0
+    ? `Faltou ${formatCurrency(savingsGap)} para bater a meta de poupança. Bora no próximo mês!`
+    : 'Mês desafiador, mas você acompanhou seus gastos. Isso já é meio caminho.';
 
   return (
     <div
@@ -52,14 +69,28 @@ export default function MonthlyCloseModal({
         </div>
 
         <div className="space-y-3 mb-5">
+          {plannedIncome > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 text-sm">Renda planejada</span>
+              <span className="font-semibold text-sm text-gray-700">{formatCurrency(plannedIncome)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm">Receitas totais</span>
+            <span className="text-gray-500 text-sm">{plannedIncome > 0 ? 'Renda recebida' : 'Receitas totais'}</span>
             <span className="font-semibold text-sm" style={{ color: '#00b87a' }}>{formatCurrency(income)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500 text-sm">Gastos totais</span>
             <span className="font-semibold text-sm" style={{ color: '#f04e5e' }}>{formatCurrency(spent)}</span>
           </div>
+          {freeBudget > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 text-sm">Orçamento livre</span>
+              <span className="text-sm font-semibold" style={{ color: debitSpent <= freeBudget ? '#00b87a' : '#f04e5e' }}>
+                {formatCurrency(debitSpent)} de {formatCurrency(freeBudget)}
+              </span>
+            </div>
+          )}
           <div className="h-px bg-gray-100" />
           <div className="flex items-center justify-between">
             <span className="text-gray-700 font-medium text-sm">Saldo</span>
@@ -67,11 +98,13 @@ export default function MonthlyCloseModal({
               {formatCurrency(balance)}
             </span>
           </div>
-          {monthlyPlan != null && monthlyPlan.savingsGoal > 0 && (
+          {hasGoal && (
             <div className="flex items-center justify-between">
               <span className="text-gray-500 text-sm">Meta de poupança</span>
               <span className="text-sm font-semibold" style={{ color: savingsGoalMet ? '#00b87a' : '#f59e0b' }}>
-                {savingsGoalMet ? '✓ Atingida' : `✗ Não atingida (${formatCurrency(monthlyPlan.savingsGoal)})`}
+                {savingsGoalMet
+                  ? `✓ Atingida (${formatCurrency(savingsGoal)})`
+                  : `✗ Faltou ${formatCurrency(Math.max(savingsGap, 0))} de ${formatCurrency(savingsGoal)}`}
               </span>
             </div>
           )}

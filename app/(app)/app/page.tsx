@@ -115,8 +115,16 @@ export default function HomePage() {
   const [payingFaturaId, setPayingFaturaId] = useState<string | null>(null);
   const [showMonthlyClose, setShowMonthlyClose] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
+  // Plano do mês ANTERIOR ao período selecionado — usado só para pré-preencher
+  // o modal "Configurar orçamento" quando o mês atual ainda não tem plano.
+  // Não persiste nada: é apenas sugestão de valores (evita "plano fantasma").
+  const [budgetPrefillPlan, setBudgetPrefillPlan] = useState<MonthlyPlan | null>(null);
+  // Guarda contra reexecução do check de fechamento (o efeito depende de
+  // expenses/financialStartDay, que mudam algumas vezes no load inicial).
+  const monthlyCloseCheckedRef = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [financialStartDay, setFinancialStartDay] = useState<number | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   // ── Data loading ───────────────────────────────────────────────────────────
@@ -191,15 +199,23 @@ export default function HomePage() {
             setPeriod(financialPeriod);
           }
         }
+        // Sinaliza que financialStartDay já reflete o perfil (ou o default
+        // null) — a retrospectiva só decide depois disto para não usar um
+        // período financeiro errado durante o load.
+        setProfileLoaded(true);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('Lock') && msg.includes('stole it')) {
           // Outra requisição roubou o lock do navigator.locks usado pelo
           // GoTrue. Reagenda fora do finally — o guard será liberado abaixo.
+          // NÃO marca profileLoaded: a retentativa ainda vai definir o startDay.
           setTimeout(() => loadUserAndProfile(), 200);
           return;
         }
         console.error('loadUserAndProfile error:', err);
+        // Falha definitiva: startDay fica no default (null); libera a
+        // retrospectiva para não travar para sempre.
+        setProfileLoaded(true);
       } finally {
         loadingUserRef.current = false;
       }
@@ -227,6 +243,12 @@ export default function HomePage() {
 
   useEffect(() => {
     getMonthlyPlan(period).then(setMonthlyPlan);
+    // Pré-preenchimento (item A): busca o plano do mês imediatamente anterior
+    // ao período selecionado para sugerir renda/meta quando o mês novo ainda
+    // não tiver plano salvo.
+    const [py, pm] = period.split('-').map(Number);
+    const prevKey = getMonthKey(new Date(py, pm - 2, 1));
+    getMonthlyPlan(prevKey).then(setBudgetPrefillPlan);
   }, [period]);
 
   useEffect(() => {
@@ -241,22 +263,28 @@ export default function HomePage() {
     return () => window.removeEventListener(OPEN_NOTIF_EVENT, open);
   }, []);
 
-  // Monthly close modal on day 1
+  // Retrospectiva de fechamento do mês (item C).
+  // Dispara na primeira vez que o usuário abre a Home no novo período
+  // financeiro — não mais só no dia 1. Respeita financial_start_day via
+  // getFinancialCurrentPeriod e mostra apenas 1x por período (localStorage).
+  // Sem mês anterior com dados (1º mês de uso) → não mostra.
   useEffect(() => {
-    if (!ready) return;
-    const today = new Date();
-    if (today.getDate() !== 1) return;
-    const currentMonthKey = getMonthKey(today);
-    if (localStorage.getItem(`fechamento_mes_visto_${currentMonthKey}`)) return;
-    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const prevMonthKey = getMonthKey(prevMonthDate);
-    const hasPrevData = expenses.some((e) => e.date.slice(0, 7) === prevMonthKey);
+    if (!ready || !profileLoaded || monthlyCloseCheckedRef.current) return;
+    const curPeriod = getFinancialCurrentPeriod(financialStartDay);
+    if (localStorage.getItem(`fechamento_mes_visto_${curPeriod}`)) {
+      monthlyCloseCheckedRef.current = true;
+      return;
+    }
+    const [cy, cm] = curPeriod.split('-').map(Number);
+    const prevKey = getMonthKey(new Date(cy, cm - 2, 1));
+    const hasPrevData = expenses.some((e) => e.date.slice(0, 7) === prevKey);
     if (!hasPrevData) return;
-    getMonthlyPlan(prevMonthKey).then((plan) => {
+    monthlyCloseCheckedRef.current = true;
+    getMonthlyPlan(prevKey).then((plan) => {
       setPrevMonthlyPlan(plan);
       setShowMonthlyClose(true);
     });
-  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, profileLoaded, financialStartDay, expenses]);
 
   useEffect(() => {
     if (!ready || creditCards.length === 0) return;
@@ -617,8 +645,14 @@ export default function HomePage() {
 
   const streak = isCurrentMonth ? calculateStreak(expenses) : 0;
 
-  // ── Previous month data (for hint) ────────────────────────────────────────
-  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // ── Previous month data (for hint / fechamento) ───────────────────────────
+  // Baseado no período financeiro corrente (não no mês de calendário cru) para
+  // respeitar financial_start_day. Com startDay null/1 cai no mês anterior
+  // normal. A agregação segue por chave de mês (e.date.slice(0,7)), igual ao
+  // resto da Home.
+  const financialNowPeriod = getFinancialCurrentPeriod(financialStartDay);
+  const [fnYear, fnMonth] = financialNowPeriod.split('-').map(Number);
+  const prevMonthDate = new Date(fnYear, fnMonth - 2, 1);
   const prevMonthKey = getMonthKey(prevMonthDate);
   const prevMonthLabel = prevMonthDate.toLocaleDateString('pt-BR', { month: 'long' });
   const prevMonthLabelCapitalized =
@@ -630,6 +664,13 @@ export default function HomePage() {
   const prevMonthSpent = prevMonthEntries
     .filter((e) => e.type === 'expense')
     .reduce((s, e) => s + e.amount, 0);
+  // Gasto em CAIXA do mês anterior (exclui compras no crédito, que só viram
+  // débito quando a fatura é paga) — usado na retrospectiva como "gasto livre".
+  const prevMonthDebitSpent =
+    prevMonthSpent -
+    prevMonthEntries
+      .filter((e) => e.type === 'expense' && e.isCredit === true)
+      .reduce((s, e) => s + e.amount, 0);
   const prevMonthTopCat = (() => {
     const totals = EXPENSE_CATEGORIES.map((cat) => ({
       cat,
@@ -726,12 +767,14 @@ export default function HomePage() {
   })();
 
   // ── Monthly close handlers ─────────────────────────────────────────────────
+  // Marca como vista usando a chave do PERÍODO FINANCEIRO corrente (mesma chave
+  // verificada no efeito) para não reaparecer a cada reload neste mês.
   function handleCloseMonthlyClose() {
-    localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
+    localStorage.setItem(`fechamento_mes_visto_${financialNowPeriod}`, 'true');
     setShowMonthlyClose(false);
   }
   function handleViewMonthHistory() {
-    localStorage.setItem(`fechamento_mes_visto_${getMonthKey(now)}`, 'true');
+    localStorage.setItem(`fechamento_mes_visto_${financialNowPeriod}`, 'true');
     setShowMonthlyClose(false);
     router.push('/historico?filter=prevMonth');
   }
@@ -1126,10 +1169,16 @@ export default function HomePage() {
         pendingObligations={pendingObligations}
         pendingTotal={pendingTotal}
         mounted={mounted}
+        hasSavedPlan={monthlyPlan != null}
+        monthName={periodSlashLabel.split('/')[0]}
+        hasPrevPlan={budgetPrefillPlan != null}
         onOpenBudgetModal={() => {
           setBudgetError('');
-          setBudgetIncomeInput(monthlyPlan?.expectedIncome ?? 0);
-          setBudgetGoalInput(monthlyPlan?.savingsGoal ?? 0);
+          // Pré-preenche com o plano do mês (se já existir) ou, no mês novo
+          // sem plano, com os valores do mês anterior — apenas sugestão.
+          const fill = monthlyPlan ?? budgetPrefillPlan;
+          setBudgetIncomeInput(fill?.expectedIncome ?? 0);
+          setBudgetGoalInput(fill?.savingsGoal ?? 0);
           setBudgetModalOpen(true);
         }}
       />
@@ -1392,6 +1441,7 @@ export default function HomePage() {
           prevMonthLabel={prevMonthLabelCapitalized}
           income={prevMonthIncome}
           spent={prevMonthSpent}
+          debitSpent={prevMonthDebitSpent}
           topCategory={prevMonthTopCat}
           monthlyPlan={prevMonthlyPlan}
           onClose={handleCloseMonthlyClose}

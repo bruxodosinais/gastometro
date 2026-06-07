@@ -128,7 +128,8 @@
       "Bash(sed -n '520,523p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")",
       "Bash(sed -n '165p;173p;292p;303p' \"app/\\(app\\)/cartoes/[id]/page.tsx\")",
       "Bash(sed -n '781p' \"app/\\(app\\)/metas/page.tsx\")",
-      "Bash(sed -n '271p;522p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")"
+      "Bash(sed -n '271p;522p' \"app/\\(app\\)/_components/cartoes/CartaoImportFlow.tsx\")",
+      "Bash(break)"
     ]
   }
 }

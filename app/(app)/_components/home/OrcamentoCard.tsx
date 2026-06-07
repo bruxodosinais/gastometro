@@ -20,6 +20,12 @@ type Props = {
   pendingObligations: MonthlyObligation[];
   pendingTotal: number;
   mounted: boolean;
+  /** true quando o mês atual já tem um plano salvo no banco. */
+  hasSavedPlan: boolean;
+  /** Nome do mês do período em vista (ex.: "Junho"), para o convite. */
+  monthName: string;
+  /** true quando há plano do mês anterior para pré-preencher. */
+  hasPrevPlan: boolean;
   onOpenBudgetModal: () => void;
 };
 
@@ -34,10 +40,18 @@ export default function OrcamentoCard({
   pendingObligations,
   pendingTotal,
   mounted,
+  hasSavedPlan,
+  monthName,
+  hasPrevPlan,
   onOpenBudgetModal,
 }: Props) {
   const hasBudget = valorLivreParaGastarPlanejado > 0;
   const isZeroed = hasBudget ? orcamentoRestante <= 0 : debitSpent > 0;
+  // Convite proativo na virada (item B): mês corrente ainda sem plano salvo.
+  // Tem prioridade sobre o estado de erro/zerado — o vermelho só aparece quando
+  // JÁ existe plano e a renda realmente estourou, nunca como resíduo do mês
+  // anterior.
+  const showNudge = isCurrentMonth && !hasSavedPlan;
   const showNeutral = !hasBudget && debitSpent === 0;
   const barColor = isZeroed ? 'var(--red)' : 'var(--green)';
   const availableValue = Math.max(orcamentoRestante, 0);
@@ -54,7 +68,51 @@ export default function OrcamentoCard({
         ...(mounted ? anim(300) : hidden),
       }}
     >
-      {showNeutral ? (
+      {showNudge ? (
+        <>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--text-3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 4,
+            }}
+          >
+            ORÇAMENTO LIVRE
+          </p>
+          <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '8px 0 4px' }}>
+            {hasPrevPlan
+              ? `Novo mês começou 👋`
+              : `Bem-vindo ao TôOrganizado 👋`}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 14 }}>
+            {hasPrevPlan
+              ? `Vamos definir seu orçamento de ${monthName}? Já deixamos sugerido o valor do mês passado — é só ajustar.`
+              : `Configure seu orçamento de ${monthName} para acompanhar seus gastos.`}
+          </p>
+          <button
+            type="button"
+            onClick={onOpenBudgetModal}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'var(--r-sm)',
+              padding: '10px 18px',
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            Configurar orçamento
+          </button>
+        </>
+      ) : showNeutral ? (
         <>
           <p
             style={{
