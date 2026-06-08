@@ -22,6 +22,7 @@ import {
   updateRecurringExpense,
 } from '@/lib/storage';
 import { formatCurrency, getMonthLabel } from '@/lib/calculations';
+import { earnCoins } from '@/lib/gamification/coins';
 import {
   CreditCard as CreditCardType,
   EntryType,
@@ -348,6 +349,12 @@ export default function RecorrentesPage() {
     try {
       const { expense } = await markObligationAsPaid(obligationId, ob, actualAmount);
       setPaidExpenseIds((prev) => new Map(prev).set(obligationId, expense.id));
+      // +15 🪙 por marcar conta fixa como paga (mesmo crédito do handler da Home).
+      // NÃO centralizamos em markObligationAsPaid porque ela também roda no SEED
+      // do onboarding (commit), que não deve dar moeda. markObligationAsPaid
+      // insere a despesa direto (sem addExpense), então não há +10 'expense_logged'
+      // junto. Fire-and-forget: nunca bloqueia o fluxo.
+      earnCoins('recurring_paid').catch(() => {});
     } catch {
       setObligations((prev) =>
         prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const, paidAt: undefined } : o))

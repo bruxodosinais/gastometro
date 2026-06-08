@@ -3,6 +3,10 @@ import Sidebar from '@/components/Sidebar';
 import TopbarDesktop from '@/components/TopbarDesktop';
 import TopbarMobile from '@/components/TopbarMobile';
 import RecurringCheck from '@/components/RecurringCheck';
+import CoinToast from '@/components/CoinToast';
+import StreakFreezeToast from '@/components/StreakFreezeToast';
+import MilestoneToast from '@/components/MilestoneToast';
+import GoalMilestoneToast from '@/components/GoalMilestoneToast';
 import FeedbackButton from '@/components/FeedbackButton';
 import SupportButton from '@/components/SupportButton';
 import WeeklyReportModal from '@/components/WeeklyReportModal';
@@ -12,6 +16,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <PeriodProvider>
       <RecurringCheck />
+      <CoinToast />
+      <StreakFreezeToast />
+      <MilestoneToast />
+      <GoalMilestoneToast />
       <Sidebar />
       <TopbarDesktop />
       <TopbarMobile />

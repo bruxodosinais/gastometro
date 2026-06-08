@@ -12,6 +12,7 @@ import {
   getExpenses,
   recordActivityToday,
 } from '@/lib/storage';
+import { earnCoins } from '@/lib/gamification/coins';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import DuplicateWarningModal from '@/components/DuplicateWarningModal';
 import LoadingButton from '@/components/ui/LoadingButton';
@@ -538,6 +539,12 @@ export default function LancamentosPage() {
         setTimeout(() => setNewestId(null), 400);
         // Contabiliza o dia no streak mesmo se o user lançar sem passar pela Home.
         recordActivityToday();
+        // +10 🪙 por lançamento MANUAL (gasto ou receita) — só aqui, na tela de
+        // lançamento. Não creditamos em addExpense direto (ele também é usado em
+        // seed do onboarding, pagamento de fatura, etc.) nem ao marcar recorrente
+        // como paga (esse fluxo credita 'recurring_paid' à parte, sem passar por
+        // esta tela). Fire-and-forget: nunca bloqueia o salvamento.
+        earnCoins('expense_logged').catch(() => {});
       }
 
       setTimeout(() => {

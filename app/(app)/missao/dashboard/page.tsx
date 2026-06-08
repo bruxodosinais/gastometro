@@ -23,6 +23,7 @@ import {
   type MissionContribution,
   type SavingsMission,
 } from '@/lib/storage/missions';
+import { claimReachedGoalMilestones } from '@/lib/gamification/goalMilestones';
 import { useSubscription } from '@/hooks/useSubscription';
 import ContributionSheet from '../../_components/missao/ContributionSheet';
 import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
@@ -185,6 +186,14 @@ export default function MissaoDashboardPage() {
     setBadgeUnlockedAt(Object.fromEntries(bdgs.map((b) => [b.badgeKey, b.unlockedAt])));
     setChallenge(chls[0] ?? null);
     setLoading(false);
+
+    // M2: reivindica marcos de meta (25/50/75/100%) atingidos. loadAll roda no
+    // mount E após cada aporte (via handleSaved → loadAll), cobrindo os dois
+    // momentos. Server-authoritative + idempotente; fire-and-forget. O recompute
+    // do servidor é a autoridade — o pct daqui só decide quais marcos tentar.
+    const saved = contribs.reduce((s, c) => s + Number(c.amount), 0);
+    const pct = m.targetAmount > 0 ? Math.min(100, (saved / m.targetAmount) * 100) : 0;
+    claimReachedGoalMilestones(m.id, pct).catch(() => {});
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);

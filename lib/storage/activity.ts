@@ -4,8 +4,9 @@ import { calculateStreak } from '../streak';
 
 // Data LOCAL do usuário (YYYY-MM-DD). Gravamos a data calculada no cliente em
 // vez de NOW() do servidor para evitar o off-by-one de fuso (mesma lição do
-// fix de timezone em currentMonth).
-function todayLocalStr(): string {
+// fix de timezone em currentMonth). Exportada para o consumo de freeze (3b)
+// passar EXATAMENTE o mesmo "hoje" que o streak usa.
+export function todayLocalStr(): string {
   const d = new Date();
   return [
     d.getFullYear(),

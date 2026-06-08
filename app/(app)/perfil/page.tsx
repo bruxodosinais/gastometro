@@ -6,6 +6,7 @@ import { ArrowLeft, Bell, Camera, Check, ChevronRight, Download, Eye, EyeOff, He
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
+import StreakMilestonesSection from '@/components/StreakMilestonesSection';
 import { getErrorMessage } from '@/lib/errors';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -610,6 +611,9 @@ export default function PerfilPage() {
 
         {/* ── COLUNA ESQUERDA ───────────────────────────────────────────────── */}
         <div>
+
+          {/* MARCOS DE OFENSIVA (badges) */}
+          <StreakMilestonesSection />
 
           {/* CONTA */}
           <div style={{ marginBottom: 12 }}>
