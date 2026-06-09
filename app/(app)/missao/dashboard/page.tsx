@@ -512,10 +512,10 @@ export default function MissaoDashboardPage() {
             <span className="text-[28px] leading-none">🔥</span>
             <div className="min-w-0">
               <p className="text-[15px] font-extrabold" style={{ color: 'var(--text)' }}>
-                {streak} meses consecutivos
+                {streak} {streak === 1 ? 'mês' : 'meses'} seguidos guardando
               </p>
               <p className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
-                Não quebra agora!
+                Sua consistência de poupança tá voando — não quebra agora!
               </p>
             </div>
           </div>

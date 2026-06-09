@@ -37,7 +37,6 @@ import {
 } from '@/lib/calculations';
 import { getFinancialCurrentPeriod, getFinancialPeriodLabel } from '@/lib/financialPeriod';
 import { usePeriod } from '@/lib/periodContext';
-import { calculateStreak } from '@/lib/streak';
 import { useAccessStreak } from '@/lib/hooks/useAccessStreak';
 import { useCoins } from '@/lib/gamification/useCoins';
 import { earnCoins } from '@/lib/gamification/coins';
@@ -680,7 +679,6 @@ export default function HomePage() {
       ? 100
       : 0;
 
-  const streak = isCurrentMonth ? calculateStreak(expenses) : 0;
 
   // ── Previous month data (for hint / fechamento) ───────────────────────────
   // Baseado no período financeiro corrente (não no mês de calendário cru) para
@@ -851,21 +849,6 @@ export default function HomePage() {
       {streakBadge}
     </div>
   ) : null;
-
-  // ── Hint ──────────────────────────────────────────────────────────────────
-  const hintText = (() => {
-    if (!isCurrentMonth) return null;
-    if (prevMonthSpent > 0 && spent > 0) {
-      const diff = spent - prevMonthSpent;
-      if (diff < 0)
-        return `Você gastou ${formatCurrency(Math.abs(diff))} a menos que em ${prevMonthLabel} — continue assim!`;
-      if (diff > 0)
-        return `Você gastou ${formatCurrency(diff)} a mais que em ${prevMonthLabel}. Atenção ao ritmo.`;
-    }
-    if (streak >= 5)
-      return `${streak} dias seguidos registrando. Você está construindo um ótimo hábito!`;
-    return null;
-  })();
 
   // ── Monthly close handlers ─────────────────────────────────────────────────
   // Marca como vista usando a chave do PERÍODO FINANCEIRO corrente (mesma chave
