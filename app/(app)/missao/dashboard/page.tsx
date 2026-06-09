@@ -24,6 +24,7 @@ import {
   type SavingsMission,
 } from '@/lib/storage/missions';
 import { claimReachedGoalMilestones } from '@/lib/gamification/goalMilestones';
+import { completeChallenge } from '@/lib/gamification/challenges';
 import { useSubscription } from '@/hooks/useSubscription';
 import ContributionSheet from '../../_components/missao/ContributionSheet';
 import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
@@ -104,6 +105,8 @@ export default function MissaoDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  // M4: quando != null, o aporte em andamento conclui este desafio ao salvar.
+  const [completingChallengeId, setCompletingChallengeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   // Modais de acesso rápido (atalhos abaixo do header). Distintos do
   // `historyOpen` acima, que abre o modal de depósitos.
@@ -287,7 +290,15 @@ export default function MissaoDashboardPage() {
     const newTotalSaved = totalSaved + amount;
     await loadAll();
     await triggerMilestoneIfAny(newTotalSaved);
-  }, [loadAll, totalSaved, triggerMilestoneIfAny]);
+    // M4: se o aporte concluiu um desafio, marca concluído + credita +100.
+    // O aporte já deu +50 (M1) e os marcos da meta já rodaram acima — o
+    // CoinToast empilha "💰 Aporte +50" e "🤖 Desafio concluído! +100".
+    if (completingChallengeId) {
+      const res = await completeChallenge(completingChallengeId);
+      if (res.ok) setChallenge((c) => (c ? { ...c, completed: true } : c));
+      setCompletingChallengeId(null);
+    }
+  }, [loadAll, totalSaved, triggerMilestoneIfAny, completingChallengeId]);
 
   const handleAcceptChallenge = async () => {
     if (!challenge) return;
@@ -552,13 +563,34 @@ export default function MissaoDashboardPage() {
                   Agora não
                 </button>
               </div>
-            ) : (
+            ) : challenge.completed ? (
               <p
                 className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-extrabold"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                style={{ background: 'var(--green-bg)', color: 'var(--green-text)' }}
               >
-                <Check size={12} /> Desafio aceito
+                <Check size={12} /> Desafio concluído
               </p>
+            ) : (
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    setCompletingChallengeId(challenge.id);
+                    setSheetOpen(true);
+                  }}
+                  className="flex h-11 w-full items-center justify-center rounded-xl text-[13px] font-extrabold text-white"
+                  style={{ background: 'var(--accent)', borderRadius: 'var(--r-sm)' }}
+                >
+                  {challenge.potentialSavings && challenge.potentialSavings > 0
+                    ? `Concluir desafio · guardar ${formatCurrency(Number(challenge.potentialSavings))}`
+                    : 'Concluir desafio'}
+                </button>
+                <p
+                  className="inline-flex items-center justify-center gap-1 text-[11px] font-bold"
+                  style={{ color: 'var(--text-3)' }}
+                >
+                  <Check size={12} /> Desafio aceito
+                </p>
+              </div>
             )}
           </div>
         </section>
@@ -702,7 +734,7 @@ export default function MissaoDashboardPage() {
               {completing ? <Loader2 className="animate-spin" size={18} /> : 'Criar nova missão'}
             </button>
             <button
-              onClick={() => setSheetOpen(true)}
+              onClick={() => { setCompletingChallengeId(null); setSheetOpen(true); }}
               className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full text-[15px] font-extrabold transition active:scale-[0.98]"
               style={{
                 background: 'transparent',
@@ -715,7 +747,7 @@ export default function MissaoDashboardPage() {
           </div>
         ) : (
           <button
-            onClick={() => setSheetOpen(true)}
+            onClick={() => { setCompletingChallengeId(null); setSheetOpen(true); }}
             className="mx-auto flex h-[54px] w-full max-w-sm items-center justify-center gap-2 rounded-full text-[15px] font-extrabold text-white transition active:scale-[0.98]"
             style={{
               background: 'var(--accent)',
@@ -738,7 +770,16 @@ export default function MissaoDashboardPage() {
           monthlyTarget={monthlyTarget}
           alreadySavedThisMonth={totalThisMonth}
           shouldGenerateChallenge={isPro && !challenge}
-          onClose={() => setSheetOpen(false)}
+          initialAmount={
+            completingChallengeId ? Number(challenge?.potentialSavings ?? 0) : 0
+          }
+          contextLabel={
+            completingChallengeId ? 'Você completou o desafio e está guardando! 🎯' : undefined
+          }
+          onClose={() => {
+            setSheetOpen(false);
+            setCompletingChallengeId(null);
+          }}
           onSaved={handleSaved}
         />
       )}

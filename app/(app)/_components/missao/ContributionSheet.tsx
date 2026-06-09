@@ -19,6 +19,11 @@ type Props = {
   // Indica se o usuário é Pro E ainda não tem desafio do mês — usado para
   // disparar a geração de desafio assíncrono após o aporte.
   shouldGenerateChallenge: boolean;
+  // Valor pré-preenchido ao abrir (ex.: economia estimada do desafio em M4).
+  // Default 0 (depósito comum). O usuário pode ajustar antes de salvar.
+  initialAmount?: number;
+  // Texto de contexto opcional sob o título (ex.: "Você completou o desafio…").
+  contextLabel?: string;
   onClose: () => void;
   // Chamado após persistir com sucesso. Dashboard usa para recarregar e
   // disparar MilestoneModal se cruzou um marco.
@@ -34,6 +39,8 @@ export default function ContributionSheet({
   monthlyTarget,
   alreadySavedThisMonth,
   shouldGenerateChallenge,
+  initialAmount = 0,
+  contextLabel,
   onClose,
   onSaved,
 }: Props) {
@@ -44,7 +51,7 @@ export default function ContributionSheet({
   // Reset + auto-focus ao abrir.
   useEffect(() => {
     if (!open) return;
-    setAmount(0);
+    setAmount(initialAmount);
     setSaving(false);
     document.body.style.overflow = 'hidden';
     const t = setTimeout(() => inputRef.current?.focus(), 50);
@@ -52,7 +59,7 @@ export default function ContributionSheet({
       document.body.style.overflow = '';
       clearTimeout(t);
     };
-  }, [open]);
+  }, [open, initialAmount]);
 
   if (!open) return null;
 
@@ -149,6 +156,12 @@ export default function ContributionSheet({
             <X size={16} color="var(--text-2)" />
           </button>
         </div>
+
+        {contextLabel && (
+          <p className="mt-2 text-[13px] font-bold" style={{ color: 'var(--accent)' }}>
+            {contextLabel}
+          </p>
+        )}
 
         {/* Card-display: tocar/clicar dá focus() no input invisível abaixo,
             abrindo o teclado numérico no mobile. */}

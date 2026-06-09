@@ -34,6 +34,8 @@ export interface MissionChallenge {
   potentialSavings?: number;
   accepted: boolean;
   dismissed: boolean;
+  completed: boolean;
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -87,6 +89,8 @@ function toChallenge(row: Record<string, unknown>): MissionChallenge {
     potentialSavings: row.potential_savings == null ? undefined : Number(row.potential_savings),
     accepted: (row.accepted as boolean | null) ?? false,
     dismissed: (row.dismissed as boolean | null) ?? false,
+    completed: (row.completed as boolean | null) ?? false,
+    completedAt: (row.completed_at as string | null) ?? undefined,
     createdAt: row.created_at as string,
   };
 }
