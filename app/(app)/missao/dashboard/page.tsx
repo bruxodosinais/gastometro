@@ -25,6 +25,7 @@ import {
 } from '@/lib/storage/missions';
 import { claimReachedGoalMilestones } from '@/lib/gamification/goalMilestones';
 import { completeChallenge } from '@/lib/gamification/challenges';
+import { getMissionCoach } from '@/lib/mission/coach';
 import { useSubscription } from '@/hooks/useSubscription';
 import ContributionSheet from '../../_components/missao/ContributionSheet';
 import MilestoneModal, { type MilestoneKind } from '../../_components/missao/MilestoneModal';
@@ -235,6 +236,22 @@ export default function MissaoDashboardPage() {
     if (monthlyTarget <= 0) return null;
     return Math.ceil((target - totalSaved) / monthlyTarget);
   }, [target, totalSaved, monthlyTarget]);
+
+  // Coach: linha motivacional ligada à meta, ao lado da projeção.
+  const coach = useMemo(
+    () =>
+      mission
+        ? getMissionCoach({
+            totalSaved,
+            target,
+            startDate: mission.startDate,
+            targetDate: mission.targetDate,
+            monthlyTarget,
+            status: mission.status,
+          })
+        : null,
+    [mission, totalSaved, target, monthlyTarget],
+  );
 
   // ─── Side-effects: badges silenciosos + milestones ─────────────────────
   // Roda após cada loadAll. Idempotente via UNIQUE constraint no banco.
@@ -624,6 +641,14 @@ export default function MissaoDashboardPage() {
                 </p>
               )}
             </>
+          )}
+          {coach && (
+            <p
+              className="mt-3 rounded-xl p-3 text-[13px] font-bold leading-snug"
+              style={{ background: 'var(--accent-bg)', color: 'var(--text)' }}
+            >
+              {coach.message}
+            </p>
           )}
         </div>
       </section>
@@ -1047,8 +1072,16 @@ function HistoryModal({
                         className="flex items-center justify-between px-4 py-2"
                         style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border-2)' }}
                       >
-                        <span className="text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
+                        <span className="flex items-center gap-2 text-[12px] font-bold" style={{ color: 'var(--text-2)' }}>
                           {new Date(c.registeredAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                          {c.isRoundup && (
+                            <span
+                              className="rounded-full px-2 py-[1px] text-[10px] font-extrabold"
+                              style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
+                            >
+                              Arredondamento
+                            </span>
+                          )}
                         </span>
                         <span className="text-[13px] font-extrabold" style={{ color: 'var(--text)' }}>
                           {formatCurrency(Number(c.amount))}

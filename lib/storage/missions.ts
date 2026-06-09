@@ -22,6 +22,7 @@ export interface MissionContribution {
   userId: string;
   month: string;           // YYYY-MM
   amount: number;
+  isRoundup: boolean;
   registeredAt: string;
 }
 
@@ -75,6 +76,7 @@ function toContribution(row: Record<string, unknown>): MissionContribution {
     userId: row.user_id as string,
     month: row.month as string,
     amount: Number(row.amount),
+    isRoundup: (row.is_roundup as boolean | null) ?? false,
     registeredAt: row.registered_at as string,
   };
 }
@@ -244,6 +246,7 @@ export async function addContribution(
   userId: string,
   month: string,
   amount: number,
+  isRoundup = false,
 ): Promise<MissionContribution> {
   return withCacheInvalidation('mission_contributions', async () => {
     const supabase = createClient();
@@ -261,6 +264,7 @@ export async function addContribution(
         user_id: user.id,
         month,
         amount,
+        is_roundup: isRoundup,
       })
       .select()
       .single();

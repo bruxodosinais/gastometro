@@ -11,6 +11,7 @@ import {
   type MissionContribution,
   type SavingsMission,
 } from '@/lib/storage/missions';
+import { getMissionCoach } from '@/lib/mission/coach';
 import { anim, hidden } from './_anim';
 
 type Props = {
@@ -146,6 +147,16 @@ export default function MissaoCard({ mounted }: Props) {
   const monthsLeft = monthlyTarget > 0 ? Math.ceil(remaining / monthlyTarget) : null;
   const done = pct >= 100;
 
+  // Coach: "check-in" diário — Dia X + mensagem motivacional ligada à meta.
+  const coach = getMissionCoach({
+    totalSaved,
+    target,
+    startDate: mission.startDate,
+    targetDate: mission.targetDate,
+    monthlyTarget,
+    status: mission.status,
+  });
+
   return (
     <Link
       href="/missao/dashboard"
@@ -165,6 +176,9 @@ export default function MissaoCard({ mounted }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
           Missão de Poupança
+          {mission.status === 'active' && (
+            <span style={{ color: 'var(--accent)' }}> · Dia {coach.dayOfMission}</span>
+          )}
         </p>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           Ver missão →
@@ -208,6 +222,23 @@ export default function MissaoCard({ mounted }: Props) {
           🔥 {streak} meses seguidos
         </p>
       )}
+
+      {/* Coach: mensagem motivacional ligada à meta (check-in diário). */}
+      <p
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--text)',
+          margin: 0,
+          marginTop: 10,
+          padding: '8px 10px',
+          background: 'var(--accent-bg)',
+          borderRadius: 'var(--r-sm)',
+          lineHeight: 1.45,
+        }}
+      >
+        {coach.message}
+      </p>
     </Link>
   );
 }

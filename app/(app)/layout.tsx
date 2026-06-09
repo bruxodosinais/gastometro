@@ -7,6 +7,7 @@ import CoinToast from '@/components/CoinToast';
 import StreakFreezeToast from '@/components/StreakFreezeToast';
 import MilestoneToast from '@/components/MilestoneToast';
 import GoalMilestoneToast from '@/components/GoalMilestoneToast';
+import RoundUpToast from '@/components/RoundUpToast';
 import FeedbackButton from '@/components/FeedbackButton';
 import SupportButton from '@/components/SupportButton';
 import WeeklyReportModal from '@/components/WeeklyReportModal';
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <StreakFreezeToast />
       <MilestoneToast />
       <GoalMilestoneToast />
+      <RoundUpToast />
       <Sidebar />
       <TopbarDesktop />
       <TopbarMobile />

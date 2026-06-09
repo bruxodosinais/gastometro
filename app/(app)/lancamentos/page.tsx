@@ -13,6 +13,7 @@ import {
   recordActivityToday,
 } from '@/lib/storage';
 import { earnCoins } from '@/lib/gamification/coins';
+import { maybeRoundUpExpense } from '@/lib/mission/roundup';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import DuplicateWarningModal from '@/components/DuplicateWarningModal';
 import LoadingButton from '@/components/ui/LoadingButton';
@@ -545,6 +546,11 @@ export default function LancamentosPage() {
         // como paga (esse fluxo credita 'recurring_paid' à parte, sem passar por
         // esta tela). Fire-and-forget: nunca bloqueia o salvamento.
         earnCoins('expense_logged').catch(() => {});
+        // M5: round-up — só GASTO manual. Guarda a diferença na Missão ativa
+        // (sem +50, anti-farming). No-op se toggle off / sem missão / diff 0.
+        if (savedType === 'expense') {
+          maybeRoundUpExpense(savedAmount).catch(() => {});
+        }
       }
 
       setTimeout(() => {

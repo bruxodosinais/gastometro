@@ -233,7 +233,7 @@ export async function computeWeeklyReport(
 
     const { data: contribRows } = await supabase
       .from('mission_contributions')
-      .select('id, mission_id, user_id, month, amount, registered_at')
+      .select('id, mission_id, user_id, month, amount, is_roundup, registered_at')
       .eq('mission_id', missionId);
 
     const contributions: MissionContribution[] = (contribRows ?? []).map((r) => ({
@@ -242,6 +242,7 @@ export async function computeWeeklyReport(
       userId: r.user_id as string,
       month: r.month as string,
       amount: Number(r.amount),
+      isRoundup: (r.is_roundup as boolean | null) ?? false,
       registeredAt: r.registered_at as string,
     }));
 

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer, useToast } from '@/components/Toast';
 import StreakMilestonesSection from '@/components/StreakMilestonesSection';
+import RoundUpSettings from '@/components/RoundUpSettings';
 import { getErrorMessage } from '@/lib/errors';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -614,6 +615,9 @@ export default function PerfilPage() {
 
           {/* MARCOS DE OFENSIVA (badges) */}
           <StreakMilestonesSection />
+
+          {/* MICRO-APORTE / ROUND-UP */}
+          <RoundUpSettings />
 
           {/* CONTA */}
           <div style={{ marginBottom: 12 }}>
