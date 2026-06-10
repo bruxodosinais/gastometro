@@ -7,6 +7,8 @@ import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { EXPENSE_CATEGORIES, type Expense } from '@/lib/types';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
+import { coachProjection, coachScore, coachTopCategory } from '@/lib/insights/coach';
+import { useMissionContext } from '@/lib/insights/useMissionContext';
 
 type Props = {
   expenses: Expense[];
@@ -31,6 +33,7 @@ export default function InsightsCard({
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const { categories: customs } = useCustomCategories();
+  const { context: mission, loading: missionLoading } = useMissionContext();
 
   // ── Dates ────────────────────────────────────────────────────────────────
   const now = new Date();
@@ -107,15 +110,17 @@ export default function InsightsCard({
   const maxDowIdx = totalsByDow.indexOf(maxDowValue);
   const hasDowData = maxDowValue > 0;
 
-  // ── Score do mês ─────────────────────────────────────────────────────────
-  const scoreText =
-    budgetPct <= 50
-      ? '🎯 Ótimo controle! Continue assim.'
-      : budgetPct <= 80
-      ? '👍 Bom ritmo. Fique de olho.'
-      : budgetPct <= 100
-      ? '⚠️ Atenção com os gastos.'
-      : '🔴 Orçamento estourado.';
+  // ── Coach (Item 7): top-categoria, projeção e score em tom de coach ───────
+  const topCatCoach = topCat
+    ? coachTopCategory({
+        category: topCat.cat,
+        icon: getCategoryDisplay(topCat.cat, customs).icon,
+        total: topCat.total,
+        mission,
+      })
+    : null;
+  const projectionCoach = showProjection ? coachProjection({ projectedLeftover: sobra, mission }) : null;
+  const scoreCoach = coachScore({ budgetPct, mission });
 
   const hasAnyData = periodExpenses.length > 0;
 
@@ -179,39 +184,25 @@ export default function InsightsCard({
             {/* ── Estado colapsado: sempre visível ─────────────────────── */}
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {topCat && (
-                <li
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: 'var(--text-2)',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  • {topCat.cat} foi sua maior categoria: {formatCurrency(topCat.total)}
+                <li style={{ lineHeight: 1.4 }}>
+                  {missionLoading ? (
+                    <span className="skeleton" style={{ display: 'block', height: 14, width: '90%', borderRadius: 4 }} />
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>
+                      {topCatCoach?.emoji} {topCatCoach?.message}
+                    </span>
+                  )}
                 </li>
               )}
               {showProjection && (
-                <li
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: 'var(--text-2)',
-                    marginTop: topCat ? 4 : 0,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  • No ritmo atual,{' '}
-                  <span
-                    style={{
-                      color: sobra >= 0 ? GREEN : RED,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {sobra >= 0
-                      ? `vai sobrar ${formatCurrency(sobra)}`
-                      : `vai faltar ${formatCurrency(Math.abs(sobra))}`}
-                  </span>{' '}
-                  no fim do mês
+                <li style={{ marginTop: topCat ? 4 : 0, lineHeight: 1.4 }}>
+                  {missionLoading ? (
+                    <span className="skeleton" style={{ display: 'block', height: 14, width: '95%', borderRadius: 4 }} />
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 500, color: sobra >= 0 ? GREEN : RED }}>
+                      {projectionCoach?.emoji} {projectionCoach?.message}
+                    </span>
+                  )}
                 </li>
               )}
             </ul>
@@ -409,7 +400,13 @@ export default function InsightsCard({
                       lineHeight: 1.4,
                     }}
                   >
-                    {scoreText}
+                    {missionLoading ? (
+                      <span className="skeleton" style={{ display: 'block', height: 14, width: '70%', borderRadius: 4 }} />
+                    ) : (
+                      <>
+                        {scoreCoach.emoji} {scoreCoach.message}
+                      </>
+                    )}
                   </div>
                 </section>
               </div>

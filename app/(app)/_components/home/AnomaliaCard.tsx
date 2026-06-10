@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  formatCurrency,
   getCategoryAlerts,
   getMonthKey,
   CATEGORY_ANOMALY_THRESHOLD,
@@ -12,18 +11,20 @@ import { getExpenses } from '@/lib/storage';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
 import type { CategorySummary } from '@/lib/types';
+import { coachAnomaly } from '@/lib/insights/coach';
+import { useMissionContext } from '@/lib/insights/useMissionContext';
 import { anim, hidden } from './_anim';
 
 type Props = { mounted: boolean };
 
 const YELLOW = '#FFB800';
-const RED = '#FF4757';
 
 // Limiar mais alto que /categorias (>5%) e que isAlert (>20%): só anomalias
 // reais de gasto entram no card proativo da Home. Centralizado em lib/calculations.
 
 export default function AnomaliaCard({ mounted }: Props) {
   const { categories: customs } = useCustomCategories();
+  const { context: mission, loading: missionLoading } = useMissionContext();
   const [anomaly, setAnomaly] = useState<CategorySummary | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -47,7 +48,10 @@ export default function AnomaliaCard({ mounted }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  if (!loaded) {
+  // Segura o card até a anomalia E o contexto de Missão resolverem — assim a
+  // linha de coach já assenta na copy certa (sem piscar "que tal uma Missão?"
+  // pra quem tem missão).
+  if (!loaded || missionLoading) {
     return (
       <div
         className="skeleton"
@@ -59,6 +63,14 @@ export default function AnomaliaCard({ mounted }: Props) {
   if (!anomaly) return null;
 
   const { icon } = getCategoryDisplay(anomaly.category, customs);
+  const coach = coachAnomaly({
+    category: anomaly.category,
+    icon,
+    total: anomaly.total,
+    average: anomaly.average,
+    percentChange: anomaly.percentChange,
+    mission,
+  });
 
   return (
     <div
@@ -105,29 +117,13 @@ export default function AnomaliaCard({ mounted }: Props) {
           <p
             style={{
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 600,
               color: '#7A5B00',
-              margin: '6px 0 0',
-              lineHeight: 1.3,
-            }}
-          >
-            {icon} {anomaly.category}{' '}
-            <span style={{ color: RED, fontWeight: 800 }}>
-              +{Math.round(anomaly.percentChange)}% acima da média
-            </span>
-          </p>
-
-          <p
-            style={{
-              fontSize: 12,
-              fontWeight: 500,
-              color: '#8A6D1F',
               margin: '6px 0 0',
               lineHeight: 1.4,
             }}
           >
-            Você gastou {formatCurrency(anomaly.total)} em {anomaly.category} este
-            mês. Sua média é {formatCurrency(anomaly.average)}.
+            {coach.emoji} {coach.message}
           </p>
 
           <Link

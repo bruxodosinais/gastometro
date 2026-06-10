@@ -18,6 +18,8 @@ import type {
   RecurringExpense,
 } from '@/lib/types';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
+import { coachRisingSpend, coachSavingsRate, type MissionContext } from '@/lib/insights/coach';
+import { useMissionContext } from '@/lib/insights/useMissionContext';
 import { buildMonthlyBuckets } from './chartUtils';
 
 type Props = {
@@ -164,7 +166,11 @@ function ruleNegativeMonths(
   };
 }
 
-function ruleLowSavings(entries: Expense[], months: string[]): Tip | null {
+function ruleLowSavings(
+  entries: Expense[],
+  months: string[],
+  mission: MissionContext | null,
+): Tip | null {
   const buckets = buildMonthlyBuckets(entries, months);
   const rates: number[] = [];
   for (const b of buckets) {
@@ -175,22 +181,27 @@ function ruleLowSavings(entries: Expense[], months: string[]): Tip | null {
   const avg = rates.reduce((s, r) => s + r, 0) / rates.length;
   if (avg >= 0.1) return null;
   const pct = Math.round(avg * 100);
+  const coach = coachSavingsRate({ ratePct: pct, mission });
   return {
     id: 'low-savings',
     variant: 'warning',
     icon: <PiggyBank size={15} />,
-    title: `Sua taxa de poupança média está em ${pct}%`,
+    title: 'Dá pra guardar mais',
     description: (
       <>
-        O ideal é guardar pelo menos <strong>10–20% da renda</strong>. Considere
-        uma Missão de Poupança pra criar o hábito.
+        {coach.emoji} {coach.message}
       </>
     ),
-    cta: { label: 'Criar missão', href: '/missao/nova' },
+    cta: coach.cta,
   };
 }
 
-function ruleRisingSpend(entries: Expense[], months: string[], customs: CustomCategory[]): Tip | null {
+function ruleRisingSpend(
+  entries: Expense[],
+  months: string[],
+  customs: CustomCategory[],
+  mission: MissionContext | null,
+): Tip | null {
   if (months.length < 3) return null;
   const buckets = buildMonthlyBuckets(entries, months);
   const last3 = buckets.slice(-3);
@@ -225,20 +236,21 @@ function ruleRisingSpend(entries: Expense[], months: string[], customs: CustomCa
     }
   }
 
+  const coach = coachRisingSpend({
+    category: topCat,
+    icon: topCat ? getCategoryDisplay(topCat, customs).icon : '',
+    percentChange: topCat ? topPct : 0,
+    fromMonthLabel: getMonthLabel(m1.monthKey),
+    mission,
+  });
   return {
     id: 'rising-spend',
     variant: 'warning',
     icon: <TrendingUp size={15} />,
     title: 'Seus gastos cresceram 3 meses seguidos',
-    description: topCat ? (
+    description: (
       <>
-        Maior crescimento foi em {getCategoryDisplay(topCat, customs).icon}{' '}
-        <strong>{topCat}</strong>: +{Math.round(topPct)}% comparado a {getMonthLabel(m1.monthKey)}.
-      </>
-    ) : (
-      <>
-        De {getMonthLabel(m1.monthKey)} para {getMonthLabel(m3.monthKey)} houve
-        aumento consistente. Vale revisar onde o gasto cresceu.
+        {coach.emoji} {coach.message}
       </>
     ),
   };
@@ -331,15 +343,20 @@ export default function TipsSection({
   recurringExpenses,
 }: Props) {
   const { categories: customs } = useCustomCategories();
+  const { context: mission, loading: missionLoading } = useMissionContext();
   const tips: Tip[] = [];
   const t1 = ruleUnbudgetedRecurring(entries, months, budgets, customs);
   if (t1) tips.push(t1);
   const t2 = ruleNegativeMonths(entries, months, recurringExpenses, customs);
   if (t2) tips.push(t2);
-  const t3 = ruleLowSavings(entries, months);
-  if (t3) tips.push(t3);
-  const t4 = ruleRisingSpend(entries, months, customs);
-  if (t4) tips.push(t4);
+  // Dicas ligadas à Missão só entram DEPOIS do contexto resolver — evita
+  // mostrar o CTA "Criar Missão" (ou a copy genérica) pra quem já tem missão.
+  if (!missionLoading) {
+    const t3 = ruleLowSavings(entries, months, mission);
+    if (t3) tips.push(t3);
+    const t4 = ruleRisingSpend(entries, months, customs, mission);
+    if (t4) tips.push(t4);
+  }
 
   if (tips.length === 0) return null;
 
