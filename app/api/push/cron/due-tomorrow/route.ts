@@ -7,6 +7,7 @@ import {
   recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
+import { dueTomorrowCopy } from '@/lib/notifications/copy';
 
 export const maxDuration = 60;
 
@@ -22,6 +23,39 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // DRY-RUN escopado (?dryRun=1&user=<id>): computa a copy sem ENVIAR e sem
+  // gravar log — bypassa opt-in/dedup/subscription só pra inspecionar o texto.
+  const dryRun = req.nextUrl.searchParams.get('dryRun');
+  const onlyUser = req.nextUrl.searchParams.get('user') || undefined;
+  if (dryRun) {
+    if (!onlyUser) {
+      return NextResponse.json({ error: 'dryRun requer ?user' }, { status: 400 });
+    }
+    const t = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const { data: rec } = await admin
+      .from('recurring_expenses')
+      .select('id, user_id, description, amount, due_day')
+      .eq('active', true)
+      .eq('due_day', t.getDate())
+      .eq('type', 'expense')
+      .eq('user_id', onlyUser);
+    const uids = Array.from(new Set((rec ?? []).map((r) => r.user_id as string)));
+    const { data: missions } = uids.length
+      ? await admin.from('savings_missions').select('user_id').in('user_id', uids).eq('status', 'active')
+      : { data: [] as { user_id: string }[] };
+    const withMission = new Set((missions ?? []).map((m) => m.user_id as string));
+    const payloads = (rec ?? []).map((r) => ({
+      user_id: r.user_id,
+      hasMission: withMission.has(r.user_id as string),
+      ...dueTomorrowCopy({
+        description: (r.description as string) ?? 'Conta recorrente',
+        amountBRL: fmtBRL(Number(r.amount ?? 0)),
+        hasMission: withMission.has(r.user_id as string),
+      }),
+    }));
+    return NextResponse.json({ dryRun: true, count: payloads.length, payloads });
+  }
 
   // Dia do vencimento alvo = dia de amanhã (1-31), fuso America/Sao_Paulo via offset simples.
   // O cron roda 09:00 UTC = 06:00 BRT — então "amanhã" considera o calendário BRT atual.
@@ -93,16 +127,23 @@ export async function GET(req: NextRequest) {
   }
 
   // 4. Carrega subscriptions por usuário e dispara.
-  const subscriptions = await getSubscriptionsForUsers(
-    admin,
-    Array.from(new Set(eligible.map((r) => r.user_id as string)))
-  );
+  const eligibleUserIds = Array.from(new Set(eligible.map((r) => r.user_id as string)));
+  const subscriptions = await getSubscriptionsForUsers(admin, eligibleUserIds);
   const subsByUser = new Map<string, typeof subscriptions>();
   for (const s of subscriptions) {
     const arr = subsByUser.get(s.user_id) ?? [];
     arr.push(s);
     subsByUser.set(s.user_id, arr);
   }
+
+  // 4b. Tie-to-Missão: 1 query batched só pra saber QUEM tem missão ativa
+  // (a copy só alterna o fecho com/sem missão — não precisa do progresso).
+  const { data: missionRows } = await admin
+    .from('savings_missions')
+    .select('user_id')
+    .in('user_id', eligibleUserIds)
+    .eq('status', 'active');
+  const usersWithMission = new Set((missionRows ?? []).map((m) => m.user_id as string));
 
   let totalSent = 0;
   let totalFailed = 0;
@@ -115,9 +156,14 @@ export async function GET(req: NextRequest) {
     if (userSubs.length === 0) continue;
     const description = (item.description as string) ?? 'Conta recorrente';
     const amount = Number(item.amount ?? 0);
+    const copy = dueTomorrowCopy({
+      description,
+      amountBRL: fmtBRL(amount),
+      hasMission: usersWithMission.has(userId),
+    });
     const payload = {
-      title: '🔔 Conta vence amanhã',
-      message: `${description} — ${fmtBRL(amount)}`,
+      title: copy.title,
+      message: copy.body,
       url: '/recorrentes',
     };
     const res = await sendPushToSubscriptions(admin, userSubs, payload);

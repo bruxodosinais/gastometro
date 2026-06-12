@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { MonthlyObligation, MonthlyPlan } from '@/lib/types';
+import { coachBudget } from '@/lib/insights/coach';
+import { useMissionContext } from '@/lib/insights/useMissionContext';
 import { anim, hidden } from './_anim';
 
 type BudgetOverflow = { category: string; spent: number; limit: number };
@@ -45,6 +47,8 @@ export default function OrcamentoCard({
   hasPrevPlan,
   onOpenBudgetModal,
 }: Props) {
+  const { context: mission, loading: missionLoading } = useMissionContext();
+  const budgetCoach = coachBudget({ freeMargin: valorLivreParaGastarPlanejado, mission });
   const hasBudget = valorLivreParaGastarPlanejado > 0;
   const isZeroed = hasBudget ? orcamentoRestante <= 0 : debitSpent > 0;
   // Convite proativo na virada (item B): mês corrente ainda sem plano salvo.
@@ -209,15 +213,9 @@ export default function OrcamentoCard({
               <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
                 disponível
               </p>
-              <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
-                {valorLivreParaGastarPlanejado > 0
-                  ? `de ${formatCurrency(valorLivreParaGastarPlanejado)} orçados`
-                  : valorLivreParaGastarPlanejado < 0
-                  ? `custos fixos + meta superam a renda em ${formatCurrency(
-                      -valorLivreParaGastarPlanejado
-                    )}`
-                  : 'sem margem livre no orçamento'}
-              </p>
+              {/* A subfrase fria de planejamento ("de R$X orçados" / "custos
+                  fixos + meta superam a renda" / "sem margem livre") saiu — a
+                  linha do coachBudget cobre isso melhor (com ação). */}
             </div>
             <div style={{ textAlign: 'right' }}>
               <p
@@ -321,6 +319,40 @@ export default function OrcamentoCard({
                 : 'Orçamento do mês.'}
             </p>
           )}
+
+          {/* Coach (Item 7b): margem livre ligada à Missão. Loading-aware pra
+              não piscar o CTA "Criar Missão" pra quem já tem missão. Só no mês
+              corrente ("esse mês"). */}
+          {isCurrentMonth &&
+            (missionLoading ? (
+              <span
+                className="skeleton"
+                style={{ display: 'block', height: 14, width: '90%', borderRadius: 4, marginTop: 10 }}
+              />
+            ) : (
+              <>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginTop: 10, lineHeight: 1.4 }}>
+                  {budgetCoach.emoji} {budgetCoach.message}
+                </p>
+                {budgetCoach.cta && (
+                  <Link
+                    href={budgetCoach.cta.href}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      marginTop: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                    }}
+                  >
+                    {budgetCoach.cta.label}
+                    <ChevronRight size={13} />
+                  </Link>
+                )}
+              </>
+            ))}
           {/* P4: contas fixas pendentes não entram no cálculo do
               Orçamento Livre. Apenas informa — não mexe na barra nem
               no percentual. Só aparece com despesas recorrentes não

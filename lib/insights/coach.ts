@@ -201,6 +201,59 @@ export function coachSavingsRate(args: {
   return { emoji: '🐷', message: `Você guarda ~${r}% da renda. O ideal é 10–20% — uma Missão ajuda a criar o hábito.`, cta: CTA_CRIAR };
 }
 
+// ── Margem livre do orçamento (OrcamentoCard) ───────────────────────────────
+// freeMargin = renda − contas fixas − meta (o "orçamento livre planejado").
+// > 0: sobra estrutural → bom aporte. <= 0: o plano não fecha → tom de ajuda.
+export function coachBudget(args: {
+  freeMargin: number;
+  mission: MissionContext | null;
+}): CoachOutput {
+  const { freeMargin, mission } = args;
+  const st = missionState(mission);
+
+  // Margem ≈ 0 (renda cobre exatamente fixas + meta).
+  if (Math.abs(freeMargin) < 1) {
+    return {
+      emoji: 'ℹ️',
+      message: 'Sua renda cobre as contas fixas + a meta, sem margem livre esse mês.',
+    };
+  }
+
+  if (freeMargin > 0) {
+    switch (st) {
+      case 'open':
+        return {
+          emoji: '✅',
+          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas — daria um bom aporte na sua Missão.`,
+        };
+      case 'full':
+        return {
+          emoji: '✅',
+          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas. Tá voando!`,
+        };
+      default:
+        return {
+          emoji: '✅',
+          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas — daria pra começar a guardar.`,
+          cta: CTA_CRIAR,
+        };
+    }
+  }
+
+  // freeMargin < 0 → contas fixas + meta passam da renda.
+  const overflow = -freeMargin;
+  if (st === 'open' || st === 'full') {
+    return {
+      emoji: '⚠️',
+      message: `Suas contas fixas + meta passam da renda em ~${fmt(overflow)}. Vale rever uma fixa ou ajustar a meta pra não apertar o aporte.`,
+    };
+  }
+  return {
+    emoji: '⚠️',
+    message: `Suas contas fixas + meta passam da renda em ~${fmt(overflow)}. Vale rever uma fixa ou ajustar a meta pra não apertar o mês.`,
+  };
+}
+
 // ── Gastos subindo 3 meses (TipsSection · ruleRisingSpend) ──────────────────
 // Vem sob um título que já diz "3 meses" → a mensagem foca no detalhe + ação.
 export function coachRisingSpend(args: {

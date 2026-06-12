@@ -45,13 +45,22 @@ export async function GET(req: NextRequest) {
   const ids = optedInIds.filter((id) => proIds.has(id));
   if (ids.length === 0) return NextResponse.json({ sent: 0, failed: 0, total: 0 });
 
-  // Carrega e-mails via Auth admin API.
+  // Carrega e-mails + primeiro nome via Auth admin API.
   const emailById = new Map<string, string>();
+  const firstNameById = new Map<string, string>();
   let page = 1;
   while (true) {
     const { data, error: listErr } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (listErr || !data) break;
-    for (const u of data.users) if (u.email) emailById.set(u.id, u.email);
+    for (const u of data.users) {
+      if (!u.email) continue;
+      emailById.set(u.id, u.email);
+      const meta = (u.user_metadata ?? {}) as Record<string, string>;
+      firstNameById.set(
+        u.id,
+        meta.display_name || meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || u.email.split('@')[0],
+      );
+    }
     if (data.users.length < 1000) break;
     page += 1;
     if (page > 50) break;
@@ -76,7 +85,7 @@ export async function GET(req: NextRequest) {
         skipped += 1;
         continue;
       }
-      const html = renderWeeklyEmailHtml(report);
+      const html = renderWeeklyEmailHtml(report, firstNameById.get(userId) ?? '');
       const { error: sendErr } = await resend.emails.send({
         from: 'TôOrganizado <noreply@toorganizado.com.br>',
         to: email,

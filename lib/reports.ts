@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCategoryDisplay } from './categoryConfig';
 import { calcStreak, type MissionContribution } from './storage/missions';
+import { monthlyReportIntro, weeklyReportIntro } from './notifications/copy';
 import type { CustomCategory } from './types';
 
 export type CategoryBreakdown = {
@@ -499,14 +500,21 @@ const HEADER = `
     <p style="margin:0; font-size:13px; color:#94A3B8; letter-spacing:0.08em; text-transform:uppercase; font-weight:800;">TôOrganizado</p>
   </div>`;
 
-export function renderWeeklyEmailHtml(report: WeeklyReport): string {
+export function renderWeeklyEmailHtml(report: WeeklyReport, name = ''): string {
   const variation = variationBadge(report.variationPercent);
+  const intro = weeklyReportIntro({
+    name: escapeHtml(name),
+    progressPercent: report.missao?.progressPercent ?? null,
+  });
   return `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width:560px; margin:0 auto; padding:32px 20px; background:#F7F7F5;">
     ${HEADER}
     <h1 style="font-size:22px; color:#1A1A1A; margin:0 0 4px; text-align:center;">Seu resumo da semana</h1>
-    <p style="font-size:13px; color:#6B6B6B; text-align:center; margin:0 0 22px;">
+    <p style="font-size:13px; color:#6B6B6B; text-align:center; margin:0 0 6px;">
       ${fmtDateBR(report.weekStart)} a ${fmtDateBR(report.weekEnd)}
+    </p>
+    <p style="font-size:14px; color:#1A1A1A; text-align:center; margin:0 0 22px; line-height:1.5;">
+      ${intro}
     </p>
 
     <div style="background:#FFFFFF; border-radius:16px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
@@ -545,7 +553,7 @@ export function renderWeeklyEmailHtml(report: WeeklyReport): string {
   </div>`;
 }
 
-export function renderMonthlyEmailHtml(report: MonthlyReport): string {
+export function renderMonthlyEmailHtml(report: MonthlyReport, name = ''): string {
   const variation = variationBadge(report.variationPercent);
   const savingsPct =
     report.savingsGoal > 0
@@ -556,7 +564,10 @@ export function renderMonthlyEmailHtml(report: MonthlyReport): string {
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width:560px; margin:0 auto; padding:32px 20px; background:#F7F7F5;">
     ${HEADER}
     <h1 style="font-size:22px; color:#1A1A1A; margin:0 0 4px; text-align:center;">Seu mês em números</h1>
-    <p style="font-size:13px; color:#6B6B6B; text-align:center; margin:0 0 22px;">${report.monthLabel}</p>
+    <p style="font-size:13px; color:#6B6B6B; text-align:center; margin:0 0 6px;">${report.monthLabel}</p>
+    <p style="font-size:14px; color:#1A1A1A; text-align:center; margin:0 0 22px; line-height:1.5;">
+      ${monthlyReportIntro({ name: escapeHtml(name) })}
+    </p>
 
     <div style="background:#FFFFFF; border-radius:16px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
       <p style="font-size:12px; color:#6B6B6B; margin:0 0 4px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Total gasto no mês</p>

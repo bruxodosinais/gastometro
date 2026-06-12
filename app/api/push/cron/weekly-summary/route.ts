@@ -8,6 +8,7 @@ import {
   sendPushToSubscriptions,
 } from '@/lib/push';
 import { computeWeeklyReport } from '@/lib/reports';
+import { weeklySummaryCopy, type PushCopy } from '@/lib/notifications/copy';
 
 export const maxDuration = 60;
 
@@ -37,6 +38,36 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const weekKey = getISOWeekKey(now);
   const dedupType = `weekly_summary:${weekKey}`;
+
+  // DRY-RUN escopado (?dryRun=1&user=<id>): computa a copy sem ENVIAR e sem
+  // gravar log — bypassa opt-in/Pro/dedup só pra inspecionar o texto. Exige
+  // ?user=<id> (não varre todos os usuários no preview).
+  const dryRun = req.nextUrl.searchParams.get('dryRun');
+  const onlyUser = req.nextUrl.searchParams.get('user') || undefined;
+  if (dryRun) {
+    if (!onlyUser) {
+      return NextResponse.json({ error: 'dryRun requer ?user' }, { status: 400 });
+    }
+    try {
+      const report = await computeWeeklyReport(admin, onlyUser, now);
+      const hadActivity = !(report.totalSpent === 0 && report.pendingBills.length === 0);
+      const copy = weeklySummaryCopy({
+        spentBRL: report.totalSpent > 0 ? fmtBRL(report.totalSpent) : null,
+        pendingCount: report.pendingBills.length,
+        progressPercent: report.missao?.progressPercent ?? null,
+      });
+      return NextResponse.json({
+        dryRun: true,
+        user_id: onlyUser,
+        hadActivity, // false → o cron real pularia este usuário
+        hasMission: report.missao != null,
+        progressPercent: report.missao?.progressPercent ?? null,
+        ...copy,
+      });
+    } catch (err) {
+      return NextResponse.json({ dryRun: true, error: String(err) }, { status: 500 });
+    }
+  }
 
   // 1. Usuários opted-in para resumo semanal push.
   const { data: profiles, error: profErr } = await admin
@@ -98,24 +129,25 @@ export async function GET(req: NextRequest) {
     const userSubs = subsByUser.get(userId) ?? [];
     if (userSubs.length === 0) continue;
 
-    let message = 'Abra o app para ver seu resumo da semana';
+    let copy: PushCopy;
     try {
       const report = await computeWeeklyReport(admin, userId, now);
       // Pula usuários sem nenhuma atividade nem conta pendente — não há o que resumir.
       if (report.totalSpent === 0 && report.pendingBills.length === 0) continue;
-      if (report.totalSpent > 0) {
-        message = `Você gastou ${fmtBRL(report.totalSpent)} na semana passada — confira o resumo`;
-      } else if (report.pendingBills.length > 0) {
-        message = `Você tem ${report.pendingBills.length} conta(s) pendente(s) — confira o resumo`;
-      }
+      // Tie-to-Missão de graça: report.missao já vem computado (progressPercent).
+      copy = weeklySummaryCopy({
+        spentBRL: report.totalSpent > 0 ? fmtBRL(report.totalSpent) : null,
+        pendingCount: report.pendingBills.length,
+        progressPercent: report.missao?.progressPercent ?? null,
+      });
     } catch (err) {
       console.error('[push/cron/weekly-summary] erro computeWeeklyReport', userId, err);
       continue;
     }
 
     const payload = {
-      title: '📊 Seu resumo semanal',
-      message,
+      title: copy.title,
+      message: copy.body,
       url: '/app',
     };
     const res = await sendPushToSubscriptions(admin, userSubs, payload);

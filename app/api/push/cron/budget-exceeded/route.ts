@@ -7,6 +7,7 @@ import {
   recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
+import { budgetExceededCopy } from '@/lib/notifications/copy';
 
 export const maxDuration = 60;
 
@@ -23,13 +24,6 @@ function pct(value: number, total: number): number {
   return Math.round((value / total) * 100);
 }
 
-function formatGroupedMessage(categories: string[]): string {
-  if (categories.length === 0) return '';
-  if (categories.length === 1) return `${categories[0]} estourou o orçamento`;
-  if (categories.length === 2) return `${categories[0]} e ${categories[1]} estouraram o orçamento`;
-  return `${categories.length} categorias estouraram — ${categories[0]}, ${categories[1]} e mais`;
-}
-
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
   const authHeader = req.headers.get('authorization');
@@ -38,6 +32,62 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // DRY-RUN escopado (?dryRun=1&user=<id>): computa a copy sem ENVIAR e sem
+  // gravar log — bypassa opt-in/cooldown/dedup/subscription só pra inspecionar.
+  const dryRun = req.nextUrl.searchParams.get('dryRun');
+  const onlyUser = req.nextUrl.searchParams.get('user') || undefined;
+  if (dryRun) {
+    if (!onlyUser) {
+      return NextResponse.json({ error: 'dryRun requer ?user' }, { status: 400 });
+    }
+    const d = new Date();
+    const mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().split('T')[0];
+    const { data: buds } = await admin
+      .from('budgets')
+      .select('user_id, category, amount')
+      .eq('user_id', onlyUser);
+    const uids = Array.from(new Set((buds ?? []).map((b) => b.user_id as string)));
+    const { data: exps } = uids.length
+      ? await admin
+          .from('expenses')
+          .select('user_id, category, amount')
+          .in('user_id', uids)
+          .gte('date', mStart)
+          .lt('date', mEnd)
+          .eq('type', 'expense')
+      : { data: [] as { user_id: string; category: string; amount: number }[] };
+    const spent = new Map<string, number>();
+    for (const e of exps ?? []) {
+      const k = `${e.user_id}|${e.category}`;
+      spent.set(k, (spent.get(k) ?? 0) + Number(e.amount));
+    }
+    const breaches = (buds ?? [])
+      .map((b) => ({
+        user_id: b.user_id as string,
+        category: b.category as string,
+        percentage: pct(spent.get(`${b.user_id}|${b.category}`) ?? 0, Number(b.amount)),
+        limit: Number(b.amount),
+      }))
+      .filter((r) => r.limit > 0 && r.percentage >= BREACH_THRESHOLD_PCT);
+    const { data: missions } = uids.length
+      ? await admin.from('savings_missions').select('user_id').in('user_id', uids).eq('status', 'active')
+      : { data: [] as { user_id: string }[] };
+    const withMission = new Set((missions ?? []).map((m) => m.user_id as string));
+    const byUser = new Map<string, string[]>();
+    for (const b of [...breaches].sort((a, b2) => b2.percentage - a.percentage)) {
+      const arr = byUser.get(b.user_id) ?? [];
+      arr.push(b.category);
+      byUser.set(b.user_id, arr);
+    }
+    const payloads = Array.from(byUser.entries()).map(([uid, cats]) => ({
+      user_id: uid,
+      hasMission: withMission.has(uid),
+      ...budgetExceededCopy({ categories: cats, hasMission: withMission.has(uid) }),
+    }));
+    return NextResponse.json({ dryRun: true, count: payloads.length, payloads });
+  }
 
   // Mês atual (YYYY-MM) e janela [primeiro dia, primeiro dia do próximo mês).
   const now = new Date();
@@ -174,6 +224,15 @@ export async function GET(req: NextRequest) {
     subsByUser.set(s.user_id, arr);
   }
 
+  // Tie-to-Missão: 1 query batched só pra saber QUEM tem missão ativa (a copy
+  // só alterna o fecho com/sem missão — não precisa do progresso).
+  const { data: missionRows } = await admin
+    .from('savings_missions')
+    .select('user_id')
+    .in('user_id', targetUserIds)
+    .eq('status', 'active');
+  const usersWithMission = new Set((missionRows ?? []).map((m) => m.user_id as string));
+
   let totalSent = 0;
   let totalFailed = 0;
   let usersNotified = 0;
@@ -186,16 +245,14 @@ export async function GET(req: NextRequest) {
     // Ordena por % decrescente para mostrar a mais crítica primeiro.
     const sorted = [...items].sort((a, b) => b.percentage - a.percentage);
     const categories = sorted.map((b) => b.category);
-    let message: string;
-    if (categories.length === 1) {
-      message = `${categories[0]} — ${sorted[0].percentage}% usado`;
-    } else {
-      message = formatGroupedMessage(categories);
-    }
+    const copy = budgetExceededCopy({
+      categories,
+      hasMission: usersWithMission.has(userId),
+    });
 
     const payload = {
-      title: '⚠️ Orçamento estourado',
-      message,
+      title: copy.title,
+      message: copy.body,
       url: '/categorias',
     };
     const res = await sendPushToSubscriptions(admin, userSubs, payload);
