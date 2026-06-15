@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
+import { readLocalPresignup } from '@/lib/onboarding/presignupMission';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 function maskBrazilPhone(value: string): string {
@@ -125,6 +126,8 @@ function CadastroContent() {
     const supabase = createClient();
     const ref = searchParams.get('ref');
     const redirectTo = `${getSiteUrl()}/auth/callback${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
+    // Missão capturada no /comecar (durabilidade cross-device via user_metadata).
+    const presignupMission = readLocalPresignup();
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -133,6 +136,7 @@ function CadastroContent() {
         data: {
           full_name: name.trim(),
           ...(ref ? { signup_ref: ref } : {}),
+          ...(presignupMission ? { presignup_mission: presignupMission } : {}),
         },
       },
     });

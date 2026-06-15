@@ -30,6 +30,7 @@ export default async function proxy(request: NextRequest) {
   const isOnboarding = pathname === '/onboarding';
   const isPublicPage =
     pathname === '/' ||
+    pathname === '/comecar' ||
     pathname === '/termos' ||
     pathname === '/privacidade' ||
     pathname === '/instalar';

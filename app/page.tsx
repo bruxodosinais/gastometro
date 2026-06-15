@@ -166,7 +166,7 @@ export default function LandingPage() {
               Entrar
             </Link>
             <Link
-              href="/auth/cadastro"
+              href="/comecar"
               className="btn btn-primary"
               style={{ padding: '11px 18px', fontSize: 14, borderRadius: 10 }}
             >
@@ -190,7 +190,7 @@ export default function LandingPage() {
               O app de finanças pessoais que transforma guardar dinheiro em uma conquista — com desafios, badges e metas que dão vontade de cumprir.
             </p>
             <div className="hero-cta">
-              <Link href="/auth/cadastro" className="btn btn-primary lg">
+              <Link href="/comecar" className="btn btn-primary lg">
                 Comece grátis — sem cartão de crédito
               </Link>
               <span className="small"><a href="#solucao">Ver como funciona ↓</a></span>
@@ -311,7 +311,7 @@ export default function LandingPage() {
                   <li><span className="star">✦</span><div><b>GastoBot — assistente financeiro 24h</b><small>Tira dúvida, sugere corte, ajuda no mês</small></div></li>
                 </ul>
                 <div className="feature-cta">
-                  <Link href="/auth/cadastro" className="btn btn-ghost-white">Quero testar grátis</Link>
+                  <Link href="/comecar" className="btn btn-ghost-white">Quero testar grátis</Link>
                 </div>
               </div>
               <div className="feature-phones" aria-hidden="true">
@@ -501,7 +501,7 @@ export default function LandingPage() {
                 <li><span className="ic no">✕</span>Sem cartões de crédito</li>
               </ul>
               <div className="plan-cta">
-                <Link href="/auth/cadastro" className="btn btn-outline" style={{ width: '100%' }}>
+                <Link href="/comecar" className="btn btn-outline" style={{ width: '100%' }}>
                   Começar grátis
                 </Link>
               </div>
@@ -570,7 +570,7 @@ export default function LandingPage() {
             </h2>
             <p className="sec-sub">Junte-se a quem já está no controle.</p>
             <div style={{ marginTop: 32 }}>
-              <Link href="/auth/cadastro" className="btn btn-primary lg">
+              <Link href="/comecar" className="btn btn-primary lg">
                 Criar conta grátis agora
               </Link>
             </div>

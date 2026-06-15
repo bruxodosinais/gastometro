@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -22,7 +22,15 @@ import {
   updateAsset,
   getMonthlyObligations,
   markObligationAsPaid,
+  recordActivityToday,
 } from '@/lib/storage';
+import { createMission, getMission } from '@/lib/storage/missions';
+import {
+  clearLocalPresignup,
+  coercePresignupMission,
+  readLocalPresignup,
+} from '@/lib/onboarding/presignupMission';
+import { numberToStr } from './_components/CurrencyInput';
 import type { MonthlyObligation, RecurringExpense } from '@/lib/types';
 import { OnboardingProgress } from './_components/OnboardingProgress';
 import { PrimaryButton } from './_components/OnboardingNav';
@@ -127,6 +135,88 @@ export default function OnboardingPage() {
         '';
       setUserName(raw.charAt(0).toUpperCase() + raw.slice(1));
     });
+  }, []);
+
+  // ── Aplica a missão do pré-cadastro (/comecar) na 1ª sessão ─────────────────
+  // Lê user_metadata (primário, cross-device) OU localStorage (fallback). Cria
+  // a savings_mission + registra o Dia 1 real + pré-preenche o passo 4
+  // (monthly_plan). Idempotente: ref (StrictMode) + guarda de missão já existente
+  // + só conta nova. Usuário existente / dados incompletos / já tem missão →
+  // descarta o localStorage e não cria nada.
+  const presignupAppliedRef = useRef(false);
+  useEffect(() => {
+    if (presignupAppliedRef.current) return;
+    presignupAppliedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        const u = data.user;
+        // NÃO guardar as ESCRITAS no banco com `cancelled`: o StrictMode (dev)
+        // desmonta entre os dois mounts e cancelaria o createMission da 1ª
+        // execução. O presignupAppliedRef já garante execução única; a
+        // idempotência segue protegida por getMission()==null. `cancelled` só
+        // protege as atualizações de estado do React (setSavings, abaixo).
+        if (!u) return;
+
+        const meta = u.user_metadata as Record<string, unknown> | undefined;
+        const presignup = coercePresignupMission(meta?.presignup_mission) ?? readLocalPresignup();
+
+        // Conta já onboardada / sem dados válidos → não cria; só limpa a ponte.
+        if (!presignup || meta?.onboarding_completed === true) {
+          clearLocalPresignup();
+          return;
+        }
+        // Já tem missão ativa → não duplica.
+        const existing = await getMission(u.id);
+        if (existing) {
+          clearLocalPresignup();
+          return;
+        }
+
+        // savings_missions.user_id referencia profiles(id). No usuário recém
+        // confirmado a linha de profiles ainda não existe (o upsert do cadastro
+        // roda sem sessão; o do onboarding só ao salvar a renda, depois daqui).
+        // Garante a linha antes do createMission p/ não estourar a FK. RLS
+        // (auth.uid()=id) passa nesta 1ª sessão; ignoreDuplicates só cria.
+        await supabase.from('profiles').upsert(
+          { id: u.id, updated_at: new Date().toISOString() },
+          { onConflict: 'id', ignoreDuplicates: true },
+        );
+
+        const now = new Date();
+        const fmt = (d: Date) =>
+          [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+        const startDate = fmt(now);
+        const targetDate = fmt(new Date(now.getFullYear(), now.getMonth() + presignup.months, now.getDate()));
+
+        await createMission(u.id, {
+          name: presignup.name,
+          targetAmount: presignup.targetAmount,
+          months: presignup.months,
+          monthlyTarget: presignup.monthlyTarget,
+          startDate,
+          targetDate,
+          remindersEnabled: true,
+          aiChallengesEnabled: true,
+        });
+        await recordActivityToday(); // Dia 1 real
+
+        if (!cancelled) {
+          // Pré-preenche o passo 4 (meta de poupança mensal → monthly_plan).
+          setSavings(numberToStr(presignup.monthlyTarget));
+          setSavedSavings(presignup.monthlyTarget);
+        }
+      } catch (e) {
+        console.error('Onboarding: erro ao aplicar missão do pré-cadastro:', e);
+      } finally {
+        clearLocalPresignup();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Ao entrar na sub-etapa B, carrega o salário recorrente (passo 1) e as
