@@ -5,7 +5,7 @@ import { Loader2, X } from 'lucide-react';
 import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getExpenses } from '@/lib/storage';
 import { addContribution, checkAndUnlockBadges } from '@/lib/storage/missions';
-import { earnCoins } from '@/lib/gamification/coins';
+import { celebrate } from '@/lib/notifications/celebrate';
 import CurrencyInput from '@/components/CurrencyInput';
 
 type Props = {
@@ -75,11 +75,9 @@ export default function ContributionSheet({
       return;
     }
 
-    // +50 🪙 por GUARDAR — a ação-herói do app. Único ponto manual de aporte;
-    // não há fluxo automático criando mission_contributions. Fire-and-forget:
-    // nunca bloqueia o aporte. O label dá a celebração "💰 Aporte registrado!"
-    // no toast global (sem empilhar um 2º toast); o badge sobe via COIN_AWARD_EVENT.
-    earnCoins('mission_contribution', { label: '💰 Aporte registrado!' }).catch(() => {});
+    // Celebração de reforço da ação-herói (guardar). O feedback real é o
+    // progresso da meta subir + os marcos. Sem moeda.
+    celebrate('💰 Aporte registrado!');
 
     // Avalia badges automáticos (streak, valor acumulado, comportamento).
     // Fire-and-forget: o aporte já foi persistido — falha no badge não deve

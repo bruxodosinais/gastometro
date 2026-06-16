@@ -1,14 +1,11 @@
 import { createClient } from '../supabase/client';
 import { cachedFetch, invalidate, TTL } from '../dataCache';
-import { COIN_AWARD_EVENT, type CoinAwardDetail } from './coins';
 
-// Streak Freeze (Pilar 2 · Item 3a): ganhar 1/semana e comprar com moedas.
-// Mesmo princípio de coins.ts — o BANCO decide regra/valor; aqui só disparamos
-// a ação e propagamos o feedback. NÃO mexe no cálculo de streak (isso é o 3b).
+// Streak Freeze (Pilar 2): ganhar 1/semana + consumir pra preservar a ofensiva.
+// A COMPRA com moeda foi aposentada (moeda removida); buy_streak_freeze (RPC)
+// fica dormindo no banco. NÃO mexe no cálculo de streak.
 
-export const FREEZE_COST = 50;
-
-// Evento de janela para o contador 🧊 se atualizar (espelha COIN_AWARD_EVENT).
+// Evento de janela para o contador 🧊 se atualizar.
 export const FREEZE_CHANGED_EVENT = 'freezes:changed';
 export interface FreezeChangedDetail {
   freezes: number;
@@ -25,13 +22,6 @@ export interface ConsumeFreezeResult {
   consumed: number;
   newFreezes?: number;
   streakSaved: boolean;
-}
-
-export interface BuyFreezeResult {
-  ok: boolean;
-  reason?: 'max' | 'coins';
-  newFreezes?: number;
-  newBalance?: number;
 }
 
 // Quantidade de freezes guardados (profiles.streak_freezes). Cache 'freezes:'
@@ -107,41 +97,5 @@ export async function grantWeeklyFreeze(): Promise<void> {
     if (res?.granted === true) dispatchFreezeChanged(res.new_freezes ?? 0);
   } catch (e) {
     console.warn('grantWeeklyFreeze: erro inesperado:', e);
-  }
-}
-
-// Compra 1 freeze por 50 🪙. Retorna o resultado para a UI exibir a mensagem
-// certa (sucesso / 'max' / 'coins'). Em sucesso: atualiza o contador 🧊 e faz o
-// badge de moeda cair 50 (COIN_AWARD_EVENT com delta negativo — o CoinToast
-// ignora amount <= 0, então não aparece "+"). Não lança.
-export async function buyStreakFreeze(): Promise<BuyFreezeResult> {
-  try {
-    const { data, error } = await createClient().rpc('buy_streak_freeze');
-    if (error) {
-      console.warn('buyStreakFreeze: falhou:', error.message);
-      return { ok: false };
-    }
-    const res = data as {
-      ok?: boolean;
-      reason?: 'max' | 'coins';
-      new_freezes?: number;
-      new_balance?: number;
-    } | null;
-
-    if (res?.ok === true) {
-      const newFreezes = res.new_freezes ?? 0;
-      dispatchFreezeChanged(newFreezes);
-      invalidate('coins');
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent<CoinAwardDetail>(COIN_AWARD_EVENT, { detail: { amount: -FREEZE_COST } })
-        );
-      }
-      return { ok: true, newFreezes, newBalance: res.new_balance };
-    }
-    return { ok: false, reason: res?.reason };
-  } catch (e) {
-    console.warn('buyStreakFreeze: erro inesperado:', e);
-    return { ok: false };
   }
 }

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/lib/useNotifications';
-import CoinIcon from '@/components/CoinIcon';
 import FreezeIcon from '@/components/FreezeIcon';
 import StreakFreezeSheet from '@/components/StreakFreezeSheet';
 import NotificationsDrawer from '@/components/NotificationsDrawer';
@@ -38,10 +37,7 @@ import {
 import { getFinancialCurrentPeriod, getFinancialPeriodLabel } from '@/lib/financialPeriod';
 import { usePeriod } from '@/lib/periodContext';
 import { useAccessStreak } from '@/lib/hooks/useAccessStreak';
-import { useCoins } from '@/lib/gamification/useCoins';
-import { earnCoins } from '@/lib/gamification/coins';
 import { useStreakFreezes } from '@/lib/gamification/useStreakFreezes';
-import { buyStreakFreeze } from '@/lib/gamification/freezes';
 import {
   Budget,
   CreditCard as CreditCardType,
@@ -76,7 +72,6 @@ export default function HomePage() {
   const { period, setPeriod } = usePeriod();
   const { isFree, loading: subLoading } = useSubscription();
   const { currentStreak } = useAccessStreak();
-  const { balance: coinBalance } = useCoins();
   const { freezes } = useStreakFreezes();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -134,7 +129,6 @@ export default function HomePage() {
   const [financialStartDay, setFinancialStartDay] = useState<number | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [freezeSheetOpen, setFreezeSheetOpen] = useState(false);
-  const [buyingFreeze, setBuyingFreeze] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   // ── Data loading ───────────────────────────────────────────────────────────
@@ -329,11 +323,6 @@ export default function HomePage() {
     try {
       const { expense } = await markObligationAsPaid(obligationId, ob, actualAmount);
       setExpenses((prev) => [expense, ...prev]);
-      // +15 🪙 por marcar conta fixa como paga. markObligationAsPaid insere a
-      // despesa via supabase DIRETO (não passa por addExpense nem pela tela de
-      // lançamento), então NÃO há crédito duplo de 'expense_logged'.
-      // Fire-and-forget: nunca bloqueia o fluxo de pagamento.
-      earnCoins('recurring_paid').catch(() => {});
     } catch (err) {
       setObligations((prev) =>
         prev.map((o) => (o.id === obligationId ? { ...o, status: 'pending' as const } : o))
@@ -345,27 +334,6 @@ export default function HomePage() {
         next.delete(obligationId);
         return next;
       });
-    }
-  }
-
-  async function handleBuyFreeze() {
-    if (buyingFreeze) return;
-    setBuyingFreeze(true);
-    try {
-      const res = await buyStreakFreeze();
-      // Badge de moeda e contador 🧊 atualizam via eventos (useCoins/useStreakFreezes).
-      if (res.ok) {
-        addToast('Streak Freeze comprado!');
-        setFreezeSheetOpen(false);
-      } else if (res.reason === 'max') {
-        addToast('Você já tem o máximo de 2 freezes.', 'error');
-      } else if (res.reason === 'coins') {
-        addToast('Saldo insuficiente (50 moedas).', 'error');
-      } else {
-        addToast('Não foi possível comprar agora. Tente de novo.', 'error');
-      }
-    } finally {
-      setBuyingFreeze(false);
     }
   }
 
@@ -786,33 +754,7 @@ export default function HomePage() {
     </div>
   ) : null;
 
-  // ── Coin badge (saldo de moedas) ────────────────────────────────────────────
-  // Aparece no mês corrente, ao lado do streak. Amarelo da moeda (#FFB800),
-  // resto seguindo o design system (vars de tema → dark mode automático).
-  const showCoinBadge = isCurrentMonth;
-  const coinBadge = showCoinBadge ? (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        background: 'var(--surface)',
-        border: '1px solid #FFB800',
-        borderRadius: 20,
-        padding: '4px 12px',
-        fontSize: 12,
-        fontWeight: 700,
-        color: 'var(--text)',
-        lineHeight: 1,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <CoinIcon size={14} />
-      <span>{coinBalance}</span>
-    </div>
-  ) : null;
-
-  // ── Freeze badge (contador 🧊, abre o sheet de compra) ──────────────────────
+  // ── Freeze badge (contador 🧊, abre o sheet informativo) ────────────────────
   const showFreezeBadge = isCurrentMonth;
   const freezeBadge = showFreezeBadge ? (
     <button
@@ -840,11 +782,10 @@ export default function HomePage() {
     </button>
   ) : null;
 
-  // Moedas + freeze + streak agrupados; usado nos dois pontos de render (mobile/desktop).
-  const showBadges = showStreakBadge || showCoinBadge || showFreezeBadge;
+  // Freeze + streak agrupados; usado nos dois pontos de render (mobile/desktop).
+  const showBadges = showStreakBadge || showFreezeBadge;
   const homeBadges = showBadges ? (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      {coinBadge}
       {freezeBadge}
       {streakBadge}
     </div>
@@ -1537,10 +1478,7 @@ export default function HomePage() {
       <StreakFreezeSheet
         open={freezeSheetOpen}
         freezes={freezes}
-        coinBalance={coinBalance}
-        buying={buyingFreeze}
         onClose={() => setFreezeSheetOpen(false)}
-        onBuy={handleBuyFreeze}
       />
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />

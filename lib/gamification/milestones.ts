@@ -23,9 +23,8 @@ export const MILESTONE_DEFS: MilestoneDef[] = [
   { days: 365, name: 'Lendário', coins: 0 },
 ];
 
-// Evento de celebração: o MilestoneToast global escuta e festeja; o useCoins
-// escuta para subir o badge de moeda (sem disparar COIN_AWARD_EVENT, evitando
-// um segundo toast de "+N 🪙" sobreposto à celebração). Só dispara unlocked:true.
+// Evento de celebração: o MilestoneToast global escuta e festeja o marco
+// desbloqueado. Só dispara unlocked:true. (Sem moeda — currency aposentada.)
 export const MILESTONE_UNLOCKED_EVENT = 'milestone:unlocked';
 export interface MilestoneUnlockedDetail {
   days: number;
@@ -69,7 +68,6 @@ export async function claimStreakMilestone(days: number): Promise<void> {
     }
     const res = data as { unlocked?: boolean; milestone_days?: number; coins?: number } | null;
     if (res?.unlocked === true) {
-      invalidate('coins');
       invalidate('milestones');
       const def = MILESTONE_DEFS.find((d) => d.days === (res.milestone_days ?? days));
       if (typeof window !== 'undefined') {

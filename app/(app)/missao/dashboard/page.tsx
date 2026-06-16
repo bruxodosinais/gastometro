@@ -307,9 +307,8 @@ export default function MissaoDashboardPage() {
     const newTotalSaved = totalSaved + amount;
     await loadAll();
     await triggerMilestoneIfAny(newTotalSaved);
-    // M4: se o aporte concluiu um desafio, marca concluído + credita +100.
-    // O aporte já deu +50 (M1) e os marcos da meta já rodaram acima — o
-    // CoinToast empilha "💰 Aporte +50" e "🤖 Desafio concluído! +100".
+    // M4: se o aporte concluiu um desafio, marca como concluído (celebra
+    // "🤖 Desafio concluído!"). O aporte real já entrou na meta acima.
     if (completingChallengeId) {
       const res = await completeChallenge(completingChallengeId);
       if (res.ok) setChallenge((c) => (c ? { ...c, completed: true } : c));

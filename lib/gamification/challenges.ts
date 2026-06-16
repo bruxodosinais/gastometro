@@ -1,15 +1,12 @@
 import { createClient } from '../supabase/client';
 import { invalidate } from '../dataCache';
-import { COIN_AWARD_EVENT, type CoinAwardDetail } from './coins';
+import { celebrate } from '../notifications/celebrate';
 
-// Conclusão de desafio de IA (M4): marca concluído + credita +100 (ai_challenge).
-// O APORTE em si é o fluxo normal (addContribution +50 via M1) — esta função só
-// fecha o desafio e dá o +100. A celebração reusa o COIN_AWARD_EVENT: o CoinToast
-// empilha o pop "🤖 Desafio concluído! +100" logo abaixo do pop "💰 Aporte +50"
-// no MESMO container (sem sobreposição, sem 3º toast). Nunca lança.
-export async function completeChallenge(
-  challengeId: string
-): Promise<{ ok: boolean; coins?: number }> {
+// Conclusão de desafio de IA (M4): marca o desafio como concluído (registro da
+// conquista — a RPC complete_challenge segue inserindo o coin_transaction no
+// ledger dormente, que ninguém lê). O reforço é só a celebração + o aporte real
+// que entra na meta pelo fluxo normal. Nunca lança.
+export async function completeChallenge(challengeId: string): Promise<{ ok: boolean }> {
   try {
     const { data, error } = await createClient().rpc('complete_challenge', {
       p_challenge_id: challengeId,
@@ -18,19 +15,11 @@ export async function completeChallenge(
       console.warn('completeChallenge: falhou:', error.message);
       return { ok: false };
     }
-    const res = data as { ok?: boolean; coins?: number } | null;
+    const res = data as { ok?: boolean } | null;
     if (res?.ok === true) {
-      invalidate('coins');
       invalidate('mission_challenges');
-      const coins = res.coins ?? 0;
-      if (coins > 0 && typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent<CoinAwardDetail>(COIN_AWARD_EVENT, {
-            detail: { amount: coins, label: '🤖 Desafio concluído!' },
-          })
-        );
-      }
-      return { ok: true, coins };
+      celebrate('🤖 Desafio concluído!');
+      return { ok: true };
     }
     return { ok: false };
   } catch (e) {

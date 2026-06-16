@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { MILESTONE_UNLOCKED_EVENT, type MilestoneUnlockedDetail } from '@/lib/gamification/milestones';
-import CoinIcon from '@/components/CoinIcon';
 
-// Celebração GLOBAL de marco de ofensiva (padrão do CoinToast). Montado 1x no
-// layout; escuta MILESTONE_UNLOCKED_EVENT (disparado só quando unlocked:true).
+// Celebração GLOBAL de marco de ofensiva. Montado 1x no layout; escuta
+// MILESTONE_UNLOCKED_EVENT (disparado só quando unlocked:true). Sem moeda.
 interface Pop {
   id: number;
   name: string;
-  coins: number;
 }
 
 let _counter = 0;
@@ -22,7 +20,7 @@ export default function MilestoneToast() {
       const detail = (e as CustomEvent<MilestoneUnlockedDetail>).detail;
       if (!detail) return;
       const id = ++_counter;
-      setPops((prev) => [...prev, { id, name: detail.name, coins: detail.coins }]);
+      setPops((prev) => [...prev, { id, name: detail.name }]);
       setTimeout(() => setPops((prev) => prev.filter((p) => p.id !== id)), 5000);
     }
     window.addEventListener(MILESTONE_UNLOCKED_EVENT, onUnlock);
@@ -68,11 +66,6 @@ export default function MilestoneToast() {
         >
           <span aria-hidden="true">🏆</span>
           <span>{p.name} desbloqueado!</span>
-          {p.coins > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              +{p.coins} <CoinIcon size={15} />
-            </span>
-          )}
         </div>
       ))}
       <style>{`

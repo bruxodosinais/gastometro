@@ -12,7 +12,6 @@ import {
   getExpenses,
   recordActivityToday,
 } from '@/lib/storage';
-import { earnCoins } from '@/lib/gamification/coins';
 import { maybeRoundUpExpense } from '@/lib/mission/roundup';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import DuplicateWarningModal from '@/components/DuplicateWarningModal';
@@ -540,14 +539,8 @@ export default function LancamentosPage() {
         setTimeout(() => setNewestId(null), 400);
         // Contabiliza o dia no streak mesmo se o user lançar sem passar pela Home.
         recordActivityToday();
-        // +10 🪙 por lançamento MANUAL (gasto ou receita) — só aqui, na tela de
-        // lançamento. Não creditamos em addExpense direto (ele também é usado em
-        // seed do onboarding, pagamento de fatura, etc.) nem ao marcar recorrente
-        // como paga (esse fluxo credita 'recurring_paid' à parte, sem passar por
-        // esta tela). Fire-and-forget: nunca bloqueia o salvamento.
-        earnCoins('expense_logged').catch(() => {});
-        // M5: round-up — só GASTO manual. Guarda a diferença na Missão ativa
-        // (sem +50, anti-farming). No-op se toggle off / sem missão / diff 0.
+        // M5: round-up — só GASTO manual. Guarda a diferença na Missão ativa.
+        // No-op se toggle off / sem missão / diff 0.
         if (savedType === 'expense') {
           maybeRoundUpExpense(savedAmount).catch(() => {});
         }

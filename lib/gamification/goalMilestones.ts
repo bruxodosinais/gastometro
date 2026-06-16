@@ -21,8 +21,8 @@ export const GOAL_MILESTONE_DEFS: GoalMilestoneDef[] = [
   { percent: 100, coins: 1000, name: 'Meta batida' },
 ];
 
-// Celebração agrupada: o GoalMilestoneToast festeja e o useCoins sobe o badge
-// (por aqui, não por COIN_AWARD_EVENT, pra não empilhar um 2º toast de moeda).
+// Celebração agrupada: o GoalMilestoneToast festeja os marcos da meta cruzados.
+// (Sem moeda — currency aposentada.)
 export const GOAL_MILESTONE_EVENT = 'goalMilestone:unlocked';
 export interface GoalMilestoneItem {
   percent: number;
@@ -122,7 +122,6 @@ async function runClaimReachedGoalMilestones(
     }
 
     if (unlocked.length > 0) {
-      invalidate('coins');
       invalidate('goalMilestones');
       // Ordena por percent crescente para o toast mostrar "25/50/75".
       unlocked.sort((a, b) => a.percent - b.percent);

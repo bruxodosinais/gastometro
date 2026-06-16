@@ -5,14 +5,13 @@ import {
   GOAL_MILESTONE_EVENT,
   type GoalMilestoneUnlockedDetail,
 } from '@/lib/gamification/goalMilestones';
-import CoinIcon from '@/components/CoinIcon';
 
 // Celebração GLOBAL dos marcos da META (M2). Montado 1x no layout; escuta
 // GOAL_MILESTONE_EVENT (sempre AGRUPADO — vários marcos retroativos viram 1 toast).
+// Sem moeda.
 interface Pop {
   id: number;
   percents: number[];
-  totalCoins: number;
 }
 
 let _counter = 0;
@@ -25,10 +24,7 @@ export default function GoalMilestoneToast() {
       const detail = (e as CustomEvent<GoalMilestoneUnlockedDetail>).detail;
       if (!detail?.milestones?.length) return;
       const id = ++_counter;
-      setPops((prev) => [
-        ...prev,
-        { id, percents: detail.milestones.map((m) => m.percent), totalCoins: detail.totalCoins },
-      ]);
+      setPops((prev) => [...prev, { id, percents: detail.milestones.map((m) => m.percent) }]);
       setTimeout(() => setPops((prev) => prev.filter((p) => p.id !== id)), 5000);
     }
     window.addEventListener(GOAL_MILESTONE_EVENT, onUnlock);
@@ -56,8 +52,8 @@ export default function GoalMilestoneToast() {
       {pops.map((p) => {
         const label =
           p.percents.length === 1
-            ? `🎯 ${p.percents[0]}% da meta!`
-            : `🎯 Marcos ${p.percents.join('/')}% da meta!`;
+            ? `🎯 Você bateu ${p.percents[0]}% da meta!`
+            : `🎯 Você bateu ${p.percents.join('/')}% da meta!`;
         return (
           <div
             key={p.id}
@@ -78,11 +74,6 @@ export default function GoalMilestoneToast() {
             }}
           >
             <span>{label}</span>
-            {p.totalCoins > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                +{p.totalCoins} <CoinIcon size={15} />
-              </span>
-            )}
           </div>
         );
       })}
