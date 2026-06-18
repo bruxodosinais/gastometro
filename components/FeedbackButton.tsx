@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
-import { apiUrl } from '@/lib/native';
+import { fetchApi } from '@/lib/fetchApi';
 
 type Category = 'bug' | 'sugestao' | 'elogio' | 'outro';
 
@@ -79,7 +79,7 @@ export default function FeedbackButton() {
 
     setSubmitting(true);
     try {
-      const r = await fetch(apiUrl('/api/feedback'), {
+      const r = await fetchApi('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

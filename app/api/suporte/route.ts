@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getRequestUser } from '@/lib/supabase/getRequestUser';
 
 const SUPPORT_INBOX = 'contato@toorganizado.com.br';
 const FROM_ADDRESS = 'TôOrganizado <noreply@toorganizado.com.br>';
@@ -22,8 +22,7 @@ function isValidEmail(e: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = await getRequestUser(req);
   if (!user) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
   }

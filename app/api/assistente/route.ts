@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@/lib/supabase/server';
+import { getRequestUser } from '@/lib/supabase/getRequestUser';
 import { calculateStreak } from '@/lib/streak';
 import { PLAN_LIMITS } from '@/lib/planLimits';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
@@ -29,10 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await getRequestUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

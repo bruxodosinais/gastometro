@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
-import { apiUrl } from '@/lib/native';
+import { fetchApi } from '@/lib/fetchApi';
 
 const STORAGE_KEY = 'weekly_report_dismissed_week';
 
@@ -76,7 +76,7 @@ export default function WeeklyReportModal() {
       setLoading(true);
       setOpen(true);
       try {
-        const res = await fetch(apiUrl('/api/reports/weekly-summary'), { cache: 'no-store' });
+        const res = await fetchApi('/api/reports/weekly-summary', { cache: 'no-store' });
         if (!res.ok) {
           setOpen(false);
           return;

@@ -2,6 +2,26 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 import { createAdminClient } from './lib/supabase/admin';
+import { preflight, withCors, logOrigin } from './lib/cors';
+
+// Rotas /api chamadas pelo app NATIVO (Capacitor) — fetch cross-origin que
+// autentica por Authorization: Bearer (não por cookie). Pra elas o middleware
+// (a) responde ao preflight OPTIONS, (b) NÃO redireciona pra /auth/login quando
+// falta cookie (a própria rota resolve auth via getRequestUser cookie/Bearer) e
+// (c) ecoa os headers de CORS. Na web essas chamadas são same-origin (CORS nem
+// se aplica) e o usuário logado segue passando igual a antes.
+const NATIVE_API = new Set<string>([
+  '/api/assistente',
+  '/api/categorizar-csv',
+  '/api/coupons/redeem',
+  '/api/delete-account',
+  '/api/export-my-data',
+  '/api/feedback',
+  '/api/missao/gerar-desafio',
+  '/api/reports/weekly-summary',
+  '/api/suporte',
+  '/api/activate-beta',
+]);
 
 export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -52,6 +72,15 @@ export default async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // API nativa: preflight CORS não tem cookie nem precisa de auth → responde já.
+  const isNativeApi = NATIVE_API.has(pathname);
+  if (isNativeApi) {
+    logOrigin(request, pathname); // TEMP: travar origins reais nos logs do Vercel
+    if (request.method === 'OPTIONS') {
+      return preflight(request);
+    }
+  }
+
   // /cartoes/<id> (rota dinâmica antiga) → /cartoes/detalhe?id=<id> (308
   // permanente). A rota [id] foi removida (incompatível com export estático);
   // este redirect preserva links/bookmarks antigos na web.
@@ -86,6 +115,11 @@ export default async function proxy(request: NextRequest) {
   }
 
   if (!user && !isAuthRoute && !isPublicPage) {
+    // API nativa: não redireciona — a rota responde 401 (com CORS) e o cliente
+    // nativo trata. (Na web, essas rotas só são chamadas logado.)
+    if (isNativeApi) {
+      return withCors(supabaseResponse, request);
+    }
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
@@ -113,7 +147,7 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/app', request.url));
     }
 
-    if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted && !isAdminRoute) {
+    if (!isOnboarding && !isAuthRoute && !isPublicPage && !onboardingCompleted && !isAdminRoute && !isNativeApi) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
     }
 
@@ -132,6 +166,11 @@ export default async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/app', request.url));
       }
     }
+  }
+
+  // API nativa: ecoa CORS na resposta que segue pra rota (a rota faz a auth).
+  if (isNativeApi) {
+    return withCors(supabaseResponse, request);
   }
 
   return supabaseResponse;

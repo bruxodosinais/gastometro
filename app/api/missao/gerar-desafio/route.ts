@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@/lib/supabase/server';
+import { getRequestUser } from '@/lib/supabase/getRequestUser';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const maxDuration = 30;
@@ -26,10 +26,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Limite de requisições atingido.' }, { status: 429 });
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await getRequestUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Pro-gate: free não recebe desafio. 402 deixa o cliente diferenciar de 401.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getRequestUser } from '@/lib/supabase/getRequestUser';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -9,8 +9,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Muitas tentativas. Aguarde.' }, { status: 429 });
   }
 
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, supabase } = await getRequestUser(req);
   if (!user) return NextResponse.json({ success: false, error: 'Não autenticado.' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as { code?: string };
