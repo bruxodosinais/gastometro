@@ -1,5 +1,9 @@
 import type { MetadataRoute } from 'next';
 
+// Conteúdo 100% estático → force-static permite o output:'export' (nativo)
+// coletar a rota. No-op pro build web (o manifest já é estático).
+export const dynamic = 'force-static';
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TôOrganizado',
