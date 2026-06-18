@@ -536,7 +536,7 @@ export default function HomePage() {
   // 1 cartão com fatura → vai direto ao detalhe; vários → lista.
   const faturaHref =
     cardsComFatura.length === 1
-      ? `/cartoes/${cardsComFatura[0].card.id}`
+      ? `/cartoes/detalhe?id=${cardsComFatura[0].card.id}`
       : '/cartoes';
 
   // Categorias que estouraram o orçamento no período selecionado.

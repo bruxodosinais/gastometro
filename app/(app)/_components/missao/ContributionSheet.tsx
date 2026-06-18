@@ -6,6 +6,7 @@ import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getExpenses } from '@/lib/storage';
 import { addContribution, checkAndUnlockBadges } from '@/lib/storage/missions';
 import { celebrate } from '@/lib/notifications/celebrate';
+import { apiUrl } from '@/lib/native';
 import CurrencyInput from '@/components/CurrencyInput';
 
 type Props = {
@@ -104,7 +105,7 @@ export default function ContributionSheet({
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 8);
 
-      fetch('/api/missao/gerar-desafio', {
+      fetch(apiUrl('/api/missao/gerar-desafio'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

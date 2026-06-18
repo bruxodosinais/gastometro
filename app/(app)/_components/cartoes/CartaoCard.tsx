@@ -29,7 +29,7 @@ export default function CartaoCard({ card, fatura, period, isMenuOpen, onToggleM
       }}
     >
       <Link
-        href={`/cartoes/${card.id}`}
+        href={`/cartoes/detalhe?id=${card.id}`}
         style={{ position: 'absolute', inset: 0, borderRadius: 'var(--r)', zIndex: 0 }}
         aria-label={`Ver fatura ${card.nome}`}
       />

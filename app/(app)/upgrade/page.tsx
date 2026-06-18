@@ -5,6 +5,7 @@ import { Check, X, Sparkles, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildKiwifyUrl, readStoredCupom } from '@/lib/utils';
+import { apiUrl } from '@/lib/native';
 
 type Cycle = 'monthly' | 'annual';
 
@@ -51,7 +52,7 @@ export default function UpgradePage() {
     setCouponLoading(true);
     setCouponMsg(null);
     try {
-      const r = await fetch('/api/coupons/redeem', {
+      const r = await fetch(apiUrl('/api/coupons/redeem'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: couponCode.trim() }),

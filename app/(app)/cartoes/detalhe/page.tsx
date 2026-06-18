@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
   addExpense,
@@ -39,10 +39,13 @@ function formatDateBR(iso: string): string {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 }
 
-export default function CartaoDetailPage() {
-  const params = useParams();
+// Detalhe do cartão via query-param (/cartoes/detalhe?id=). Substitui a rota
+// dinâmica /cartoes/[id] (incompatível com output:'export' por ser client sem
+// generateStaticParams). useSearchParams exige Suspense p/ prerender estático.
+function CartaoDetalheInner() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const cardId = params.id as string;
+  const cardId = searchParams.get('id') ?? '';
   const { categories: customs } = useCustomCategories();
 
   const [card, setCard] = useState<CreditCardType | null>(null);
@@ -56,9 +59,10 @@ export default function CartaoDetailPage() {
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
+    if (!cardId) { router.replace('/cartoes'); return; }
     getCreditCards().then((cards) => {
       const found = cards.find((c) => c.id === cardId);
-      if (!found) { router.push('/cartoes'); return; }
+      if (!found) { router.replace('/cartoes'); return; }
       setCard(found);
     });
   }, [cardId, router]);
@@ -333,5 +337,13 @@ export default function CartaoDetailPage() {
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
+  );
+}
+
+export default function CartaoDetalhePage() {
+  return (
+    <Suspense fallback={null}>
+      <CartaoDetalheInner />
+    </Suspense>
   );
 }

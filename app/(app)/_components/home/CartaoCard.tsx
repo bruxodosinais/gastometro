@@ -35,7 +35,7 @@ export default function CartaoCard({ card, fatura, mounted, onPagar }: Props) {
             {card.nome}
           </p>
         </div>
-        <Link href={`/cartoes/${card.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>
+        <Link href={`/cartoes/detalhe?id=${card.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>
           Ver detalhes →
         </Link>
       </div>

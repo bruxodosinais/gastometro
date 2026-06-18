@@ -3,6 +3,7 @@ import Sidebar from '@/components/Sidebar';
 import TopbarDesktop from '@/components/TopbarDesktop';
 import TopbarMobile from '@/components/TopbarMobile';
 import RecurringCheck from '@/components/RecurringCheck';
+import AuthGate from '@/components/AuthGate';
 import AchievementToast from '@/components/AchievementToast';
 import StreakFreezeToast from '@/components/StreakFreezeToast';
 import MilestoneToast from '@/components/MilestoneToast';
@@ -16,6 +17,7 @@ import { PeriodProvider } from '@/lib/periodContext';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <PeriodProvider>
+      <AuthGate />
       <RecurringCheck />
       <AchievementToast />
       <StreakFreezeToast />

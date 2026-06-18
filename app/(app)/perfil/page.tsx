@@ -9,6 +9,7 @@ import { ToastContainer, useToast } from '@/components/Toast';
 import StreakMilestonesSection from '@/components/StreakMilestonesSection';
 import RoundUpSettings from '@/components/RoundUpSettings';
 import { getErrorMessage } from '@/lib/errors';
+import { apiUrl } from '@/lib/native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useTheme, type Theme } from '@/lib/themeContext';
@@ -422,7 +423,7 @@ export default function PerfilPage() {
   async function handleExportData() {
     setExporting(true);
     try {
-      const res = await fetch('/api/export-my-data');
+      const res = await fetch(apiUrl('/api/export-my-data'));
       if (!res.ok) {
         addToast('Não foi possível exportar seus dados. Tente novamente.', 'error');
         return;
@@ -448,7 +449,7 @@ export default function PerfilPage() {
     setDeleteError('');
     setDeleting(true);
     try {
-      const res = await fetch('/api/delete-account', {
+      const res = await fetch(apiUrl('/api/delete-account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirm: true }),

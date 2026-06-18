@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Upload } from 'lucide-react';
+import { apiUrl } from '@/lib/native';
 import {
   addCreditCard,
   deleteCreditCard,
@@ -224,7 +225,7 @@ export default function CartoesPage() {
 
     let categorized: Array<{ id: number; category: string }> = [];
     try {
-      const res = await fetch('/api/categorizar-csv', {
+      const res = await fetch(apiUrl('/api/categorizar-csv'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

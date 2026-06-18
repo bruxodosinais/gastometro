@@ -52,6 +52,17 @@ export default async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // /cartoes/<id> (rota dinâmica antiga) → /cartoes/detalhe?id=<id> (308
+  // permanente). A rota [id] foi removida (incompatível com export estático);
+  // este redirect preserva links/bookmarks antigos na web.
+  const cartaoLegacy = pathname.match(/^\/cartoes\/([^/]+)\/?$/);
+  if (cartaoLegacy && cartaoLegacy[1] !== 'detalhe') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/cartoes/detalhe';
+    url.searchParams.set('id', cartaoLegacy[1]);
+    return NextResponse.redirect(url, 308);
+  }
+
   let user = null;
   let isNetworkFailure = false;
 

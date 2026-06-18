@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { getCachedUser } from '@/lib/dataCache';
 import { ToastContainer, useToast } from '@/components/Toast';
+import { apiUrl } from '@/lib/native';
 
 const MIN_MESSAGE = 20;
 const MAX_SUBJECT = 140;
@@ -91,7 +92,7 @@ export default function SupportButton() {
 
     setSubmitting(true);
     try {
-      const r = await fetch('/api/suporte', {
+      const r = await fetch(apiUrl('/api/suporte'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, Loader2, Check, X, RotateCcw } from 'lucide-react';
 import { addExpense } from '@/lib/storage';
+import { apiUrl } from '@/lib/native';
 import { CustomCategory, EntryType } from '@/lib/types';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
@@ -261,7 +262,7 @@ export default function AssistentePage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/assistente', {
+      const res = await fetch(apiUrl('/api/assistente'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text.trim(), history, todayStr: localDateStr() }),

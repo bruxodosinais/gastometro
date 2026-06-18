@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { readLocalPresignup } from '@/lib/onboarding/presignupMission';
+import { apiUrl } from '@/lib/native';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 function maskBrazilPhone(value: string): string {
@@ -170,7 +171,7 @@ function CadastroContent() {
         // logo após o signUp, pra não depender só do callback de confirmação
         // de e-mail — que não roda quando o signUp já devolve sessão.
         try {
-          await fetch('/api/activate-beta', {
+          await fetch(apiUrl('/api/activate-beta'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
