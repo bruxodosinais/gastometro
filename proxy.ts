@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isNetworkErrorMessage } from './lib/errors';
 import { createAdminClient } from './lib/supabase/admin';
-import { preflight, withCors, logOrigin } from './lib/cors';
+import { preflight, withCors } from './lib/cors';
 
 // Rotas /api chamadas pelo app NATIVO (Capacitor) — fetch cross-origin que
 // autentica por Authorization: Bearer (não por cookie). Pra elas o middleware
@@ -74,11 +74,8 @@ export default async function proxy(request: NextRequest) {
 
   // API nativa: preflight CORS não tem cookie nem precisa de auth → responde já.
   const isNativeApi = NATIVE_API.has(pathname);
-  if (isNativeApi) {
-    logOrigin(request, pathname); // TEMP: travar origins reais nos logs do Vercel
-    if (request.method === 'OPTIONS') {
-      return preflight(request);
-    }
+  if (isNativeApi && request.method === 'OPTIONS') {
+    return preflight(request);
   }
 
   // /cartoes/<id> (rota dinâmica antiga) → /cartoes/detalhe?id=<id> (308

@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
 
 // Origins permitidas a chamar as /api cross-origin. SEM wildcard.
+// - Nativo (Capacitor): CONFIRMADAS em produção pelo feedback funcionando —
+//   iOS = capacitor://localhost, Android = https://localhost.
 // - Web: as chamadas são same-origin (path relativo) → CORS nem se aplica;
-//   incluímos os hosts web por completude/segurança.
-// - Nativo (Capacitor): o webview serve de um scheme próprio →
-//   iOS = capacitor://localhost (iosScheme padrão "capacitor"),
-//   Android = https://localhost (androidScheme padrão "https"),
-//   http://localhost cobre live-reload/dev.
-// CONFIRMAR/TRAVAR via Origin logado em produção (ver logOrigin abaixo).
+//   os hosts web entram por completude.
 const ALLOWED_ORIGINS = new Set<string>([
   'capacitor://localhost',
   'https://localhost',
-  'http://localhost',
   'https://www.toorganizado.com.br',
   'https://toorganizado.com.br',
 ]);
@@ -49,11 +45,4 @@ export function withCors(res: NextResponse, req: Request): NextResponse {
   const h = corsHeaders(req.headers.get('origin'));
   for (const [k, v] of Object.entries(h)) res.headers.set(k, v);
   return res;
-}
-
-// TEMPORÁRIO (verificação): loga o Origin recebido pra travarmos a allowlist
-// exata por plataforma. Remover após confirmar as origins.
-export function logOrigin(req: Request, tag: string): void {
-  const origin = req.headers.get('origin');
-  if (origin) console.log(`[CORS] ${tag} Origin=${origin}`);
 }
