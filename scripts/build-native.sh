@@ -42,6 +42,13 @@ for item in "${ITEMS[@]}"; do
   fi
 done
 
-echo "→ next build (BUILD_TARGET=native, output:export)…"
-BUILD_TARGET=native npx next build --webpack
+# Base absoluta das APIs (Vercel) embarcada no bundle nativo. O webview não tem
+# /api local, então o nativo chama a API de produção. Usa o host canônico www:
+# o apex (toorganizado.com.br) redireciona pra www e o redirect cross-host
+# DERRUBA o header Authorization (Bearer) → tem que bater direto no www.
+# Override: NEXT_PUBLIC_API_BASE=... npm run build:native (ex.: pra apontar local).
+API_BASE="${NEXT_PUBLIC_API_BASE:-https://www.toorganizado.com.br}"
+
+echo "→ next build (BUILD_TARGET=native, output:export, API_BASE=$API_BASE)…"
+BUILD_TARGET=native NEXT_PUBLIC_API_BASE="$API_BASE" npx next build --webpack
 echo "→ build nativo OK — saída em ./out"
