@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { readLocalPresignup } from '@/lib/onboarding/presignupMission';
 import { fetchApi } from '@/lib/fetchApi';
+import { isNativePlatform } from '@/lib/native';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 function maskBrazilPhone(value: string): string {
@@ -194,6 +195,12 @@ function CadastroContent() {
     }
 
     localStorage.setItem('pending_confirmation_email', email);
+    // NATIVO: o link de confirmação abriria no navegador e não logaria o
+    // webview → confirma por CÓDIGO (OTP). WEB: segue pelo link, idêntico.
+    if (isNativePlatform()) {
+      router.push(`/auth/confirmar-codigo?email=${encodeURIComponent(email)}`);
+      return;
+    }
     router.push(`/auth/confirmar-email?email=${encodeURIComponent(email)}`);
   }
 
