@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, X, Sparkles, ArrowLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildKiwifyUrl, readStoredCupom } from '@/lib/utils';
 import { fetchApi } from '@/lib/fetchApi';
+import { isNativePlatform } from '@/lib/native';
 
 type Cycle = 'monthly' | 'annual';
 
@@ -36,6 +38,10 @@ function formatDate(d: Date | null): string {
 }
 
 export default function UpgradePage() {
+  const router = useRouter();
+  // NATIVO: paywall escondido (lojas). A página /upgrade não é alcançável pelo
+  // app, mas guardamos por defesa em profundidade — redireciona pra /app.
+  const native = isNativePlatform();
   const { isPro, billingCycle, currentPeriodEnd, status, loading, refetch } = useSubscription();
   const [cycle, setCycle] = useState<Cycle>('annual');
   const [couponOpen, setCouponOpen] = useState(false);
@@ -47,6 +53,10 @@ export default function UpgradePage() {
   useEffect(() => {
     setCupomAtivo(readStoredCupom());
   }, []);
+
+  useEffect(() => {
+    if (native) router.replace('/app');
+  }, [native, router]);
 
   async function redeemCoupon() {
     setCouponLoading(true);
@@ -93,6 +103,8 @@ export default function UpgradePage() {
     const annualCost = 147;
     return Math.round(((monthlyCost - annualCost) / monthlyCost) * 100);
   }, []);
+
+  if (native) return null;
 
   if (loading) {
     return (

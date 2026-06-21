@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { isNativePlatform } from '@/lib/native';
 import './landing.css';
 
 type Mode = 'mensal' | 'anual';
@@ -60,6 +61,11 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mode, setMode] = useState<Mode>('anual');
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  // NATIVO (Capacitor): esconde a seção de planos (Kiwify) e o link "Planos" —
+  // lojas rejeitam pagamento externo. Via effect pós-mount p/ não dar hydration
+  // mismatch (o export é prerenderizado com native=false). Web: tudo visível.
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(isNativePlatform()), []);
 
   const togMensalRef = useRef<HTMLButtonElement>(null);
   const togAnualRef = useRef<HTMLButtonElement>(null);
@@ -147,7 +153,7 @@ export default function LandingPage() {
           <nav className="nav-links" aria-label="Seções">
             <a href="#solucao">Como funciona</a>
             <a href="#diferencial">Missão</a>
-            <a href="#pricing">Planos</a>
+            {!native && <a href="#pricing">Planos</a>}
             <a href="#faq">FAQ</a>
           </nav>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -451,6 +457,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============== PRICING ============== */}
+      {!native && (
       <section id="pricing">
         <div className="wrap">
           <div className="sec-head reveal">
@@ -538,6 +545,7 @@ export default function LandingPage() {
           <p className="pricing-bottom reveal"><b>Menos que um café por semana.</b> Cancele quando quiser.</p>
         </div>
       </section>
+      )}
 
       {/* ============== FAQ ============== */}
       <section id="faq" style={{ background: '#FFFFFF' }}>

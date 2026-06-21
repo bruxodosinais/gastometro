@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getRequestUser } from '@/lib/supabase/getRequestUser';
 import { calculateStreak } from '@/lib/streak';
 import { PLAN_LIMITS } from '@/lib/planLimits';
+import { isNativeRequest } from '@/lib/cors';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 const EXPENSE_CATEGORIES = ['Delivery', 'Alimentação', 'Transporte', 'Assinaturas', 'Saúde', 'Lazer', 'Outros'];
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
       .select('plan, status')
       .eq('user_id', user.id)
       .maybeSingle();
-    const isPro = subRow?.plan === 'pro' && subRow?.status === 'active';
+    // Nativo (origin do webview): Pro liberado de graça (v1 free nas lojas).
+    const isPro = isNativeRequest(request) || (subRow?.plan === 'pro' && subRow?.status === 'active');
     const monthKey = new Date().toISOString().slice(0, 7);
 
     if (!isPro) {

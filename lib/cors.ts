@@ -15,6 +15,18 @@ const ALLOWED_ORIGINS = new Set<string>([
 const ALLOW_METHODS = 'GET, POST, DELETE, OPTIONS';
 const ALLOW_HEADERS = 'Content-Type, Authorization';
 
+// Origins do webview nativo (Capacitor). Subconjunto da allowlist.
+const NATIVE_ORIGINS = new Set<string>(['capacitor://localhost', 'https://localhost']);
+
+// Request veio do app NATIVO? (pelo Origin do webview). Usado pelo Pro-gate das
+// rotas: no nativo o Pro é liberado de graça (v1 free nas lojas). NOTA: o Origin
+// só não é forjável por um browser; um cliente fora-do-browser poderia mandar
+// esse header. Risco aceito no v1 (free, sem dinheiro real).
+export function isNativeRequest(req: Request): boolean {
+  const origin = req.headers.get('origin');
+  return origin !== null && NATIVE_ORIGINS.has(origin);
+}
+
 // Headers de CORS para uma origin. Só ecoa Allow-Origin se a origin estiver na
 // allowlist (eco exato — requisito de não-wildcard). Sem credentials: o nativo
 // autentica por Bearer (não por cookie), então não precisamos de cookies

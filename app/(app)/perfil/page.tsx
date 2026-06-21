@@ -10,6 +10,7 @@ import StreakMilestonesSection from '@/components/StreakMilestonesSection';
 import RoundUpSettings from '@/components/RoundUpSettings';
 import { getErrorMessage } from '@/lib/errors';
 import { fetchApi } from '@/lib/fetchApi';
+import { isNativePlatform } from '@/lib/native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useTheme, type Theme } from '@/lib/themeContext';
@@ -700,9 +701,12 @@ export default function PerfilPage() {
                         </p>
                       )}
                     </div>
-                    <Link href="/upgrade" style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      {isPro ? 'Gerenciar' : 'Fazer upgrade'}
-                    </Link>
+                    {/* Nativo: sem link de pagamento (lojas). Web: Gerenciar/upgrade. */}
+                    {!isNativePlatform() && (
+                      <Link href="/upgrade" style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        {isPro ? 'Gerenciar' : 'Fazer upgrade'}
+                      </Link>
+                    )}
                   </div>
                 )}
 
