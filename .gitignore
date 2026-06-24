@@ -52,3 +52,6 @@ next-env.d.ts
 # Capacitor / build nativo
 /out
 /.native-build-stash
+
+# store assets (screenshots, ícone, metadados, HTML de referência) — locais
+/store-assets

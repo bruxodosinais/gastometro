@@ -51,6 +51,7 @@ export default async function proxy(request: NextRequest) {
   const isPublicPage =
     pathname === '/' ||
     pathname === '/comecar' ||
+    pathname === '/inicio' ||
     pathname === '/termos' ||
     pathname === '/privacidade' ||
     pathname === '/instalar';

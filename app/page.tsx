@@ -2,7 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
+import { createClient } from '@/lib/supabase/client';
 import './landing.css';
 
 type Mode = 'mensal' | 'anual';
@@ -66,6 +68,54 @@ export default function LandingPage() {
   // mismatch (o export é prerenderizado com native=false). Web: tudo visível.
   const [native, setNative] = useState(false);
   useEffect(() => setNative(isNativePlatform()), []);
+
+  // ── Boot nativo (first-run) ──────────────────────────────────────────────
+  // No app NATIVO, "/" não pode mostrar a landing de vendas: decidimos o destino
+  // no cold start e mascaramos a landing enquanto isso. Na WEB este effect é
+  // NO-OP (isNativePlatform()===false) → a landing renderiza idêntica, sem
+  // auto-redirect e sem hydration mismatch (prerender sai com booting=false).
+  const router = useRouter();
+  const [booting, setBooting] = useState(false);
+  useEffect(() => {
+    if (!isNativePlatform()) return; // web → middleware/landing seguem como hoje
+    setBooting(true); // mascara já: não pisca a tela de vendas no nativo
+    let cancelled = false;
+
+    (async () => {
+      // getUser() é chamada de rede no cold start. Se falhar (offline/erro) ou
+      // demorar, caímos no ramo "sem sessão" — nunca deixamos o splash travado.
+      let user: { user_metadata?: { onboarding_completed?: boolean } } | null = null;
+      try {
+        const timeout = new Promise<{ data: { user: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { user: null } }), 8000),
+        );
+        const result = await Promise.race([createClient().auth.getUser(), timeout]);
+        user = result.data?.user ?? null;
+      } catch {
+        user = null; // rede indisponível → trata como sem sessão
+      }
+      if (cancelled) return;
+
+      if (user) {
+        const onboardingDone = user.user_metadata?.onboarding_completed === true;
+        router.replace(onboardingDone ? '/app' : '/onboarding');
+        return;
+      }
+
+      // Sem sessão (ou falha de rede): flag de intro já vista → login direto.
+      let introSeen = false;
+      try {
+        introSeen = localStorage.getItem('to_intro_seen') === '1';
+      } catch {
+        /* localStorage indisponível → trata como não-vista */
+      }
+      router.replace(introSeen ? '/auth/login' : '/inicio');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const togMensalRef = useRef<HTMLButtonElement>(null);
   const togAnualRef = useRef<HTMLButtonElement>(null);
@@ -136,6 +186,47 @@ export default function LandingPage() {
   }, [mode]);
 
   const plan = PLAN_DATA[mode];
+
+  // Máscara nativa: enquanto o boot decide o destino, não mostramos a landing de
+  // vendas — placeholder mínimo da marca (sem flash branco). Web nunca entra aqui.
+  if (booting) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: '#F7F7F5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          color: '#5B5BD6',
+          fontFamily: 'Nunito, system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: '#5B5BD6',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        </span>
+        <span style={{ font: '800 20px Nunito, sans-serif', color: '#1A1A1A' }}>
+          Tô<b style={{ color: '#5B5BD6' }}>Organizado</b>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="landing-root">
