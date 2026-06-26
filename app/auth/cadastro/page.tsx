@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -106,6 +106,14 @@ function CadastroContent() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Prefill aditivo (nativo): se o quiz salvou um nome no presignup, pré-preenche
+  // o Nome. Effect pós-mount p/ não dar hydration mismatch no export estático.
+  // Web: presignup do /comecar não tem userFirstName → no-op (mantém vazio).
+  useEffect(() => {
+    const first = readLocalPresignup()?.userFirstName;
+    if (first) setName((prev) => prev || first);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

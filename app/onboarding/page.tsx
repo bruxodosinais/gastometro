@@ -163,6 +163,13 @@ export default function OnboardingPage() {
         const meta = u.user_metadata as Record<string, unknown> | undefined;
         const presignup = coercePresignupMission(meta?.presignup_mission) ?? readLocalPresignup();
 
+        // Prefill aditivo (nativo): renda informada no quiz (Q2) → pré-preenche o
+        // Step1Renda pra não repedir salário. Web: presignup do /comecar não tem
+        // monthlyIncome → no-op (renda começa vazia como hoje).
+        if (!cancelled && presignup?.monthlyIncome && presignup.monthlyIncome > 0) {
+          setIncome(numberToStr(presignup.monthlyIncome));
+        }
+
         // Conta já onboardada / sem dados válidos → não cria; só limpa a ponte.
         if (!presignup || meta?.onboarding_completed === true) {
           clearLocalPresignup();

@@ -11,6 +11,15 @@ export interface PresignupMission {
   monthlyTarget: number;
   months: number;
   committedAt: string;
+  // ── Campos opcionais do quiz nativo (Fatia 2) ──────────────────────────────
+  // Ausentes no fluxo web (/comecar), que segue gravando só o shape acima. São
+  // anexados pelo coerce SÓ quando presentes/válidos → web continua válida.
+  // Persistidos pra reuso futuro (reframe, coach, saudação) mesmo sem consumo.
+  monthlyIncome?: number;   // salário informado no Q2 (renda mensal)
+  savingsPercent?: number;  // % do salário escolhido no slider (Q4)
+  painPoint?: string;       // dor selecionada no Q5 (coach futuro)
+  userFirstName?: string;   // nome do Q8 (prefill do cadastro + saudação)
+  incomeSkipped?: boolean;  // true se o usuário pulou o salário (Q2)
 }
 
 const KEY = 'presignup_mission';
@@ -27,7 +36,7 @@ export function coercePresignupMission(raw: unknown): PresignupMission | null {
   if (!name || !(targetAmount > 0) || !(monthlyTarget > 0) || !Number.isFinite(monthsRaw)) {
     return null;
   }
-  return {
+  const out: PresignupMission = {
     templateId: typeof o.templateId === 'string' ? o.templateId : 'outra',
     name: name.slice(0, 80),
     targetAmount,
@@ -35,6 +44,21 @@ export function coercePresignupMission(raw: unknown): PresignupMission | null {
     months: Math.max(1, Math.min(60, Math.round(monthsRaw))),
     committedAt: typeof o.committedAt === 'string' ? o.committedAt : new Date().toISOString(),
   };
+
+  // Opcionais do quiz nativo — anexados só quando válidos (web não os envia).
+  const monthlyIncome = Number(o.monthlyIncome);
+  if (monthlyIncome > 0) out.monthlyIncome = monthlyIncome;
+  const savingsPercent = Number(o.savingsPercent);
+  if (savingsPercent > 0) out.savingsPercent = Math.round(savingsPercent);
+  if (typeof o.painPoint === 'string' && o.painPoint.trim()) {
+    out.painPoint = o.painPoint.trim().slice(0, 120);
+  }
+  if (typeof o.userFirstName === 'string' && o.userFirstName.trim()) {
+    out.userFirstName = o.userFirstName.trim().slice(0, 40);
+  }
+  if (o.incomeSkipped === true) out.incomeSkipped = true;
+
+  return out;
 }
 
 export function readLocalPresignup(): PresignupMission | null {
