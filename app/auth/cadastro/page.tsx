@@ -20,7 +20,7 @@ function maskBrazilPhone(value: string): string {
 
 function traduzirErroAuth(mensagem: string): string {
   if (mensagem.includes('User already registered'))
-    return 'Este e-mail já está cadastrado.';
+    return 'Este e-mail já está cadastrado. Faça login ou use "Esqueci minha senha".';
   if (mensagem.includes('Password should be at least 6 characters'))
     return 'A senha deve ter no mínimo 6 caracteres.';
   return mensagem;
@@ -153,6 +153,16 @@ function CadastroContent() {
 
     if (authError) {
       setError(traduzirErroAuth(authError.message));
+      setLoading(false);
+      return;
+    }
+
+    // E-mail já cadastrado COM a proteção anti-enumeração ligada: o signUp não
+    // dá erro — devolve um user "fantasma" (identities vazio) e session null, sem
+    // mandar OTP. Sem este guard, o usuário cairia no confirmar-codigo/email
+    // esperando um código que nunca chega. Detecção canônica do Supabase:
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setError('Este e-mail já está cadastrado. Faça login ou use "Esqueci minha senha".');
       setLoading(false);
       return;
     }
