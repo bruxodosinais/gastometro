@@ -13,11 +13,29 @@ export default function TermosPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Termos de Uso</h1>
-            <p className="text-gray-500 text-sm mt-1">Tô Organizado — Vigência: maio de 2026</p>
+            <p className="text-gray-500 text-sm mt-1">Tô Organizado — Última atualização: 30 de junho de 2026</p>
           </div>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">1. Aceitação</h2>
+            <h2 className="text-base font-semibold text-gray-900">1. Quem somos</h2>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              O Tô Organizado é operado por:
+            </p>
+            <ul className="list-disc list-inside text-gray-600 text-sm leading-relaxed space-y-1 pl-2">
+              <li><strong>AIWA MARKETING DIGITAL LTDA</strong></li>
+              <li>CNPJ 67.507.924/0001-50</li>
+              <li>Av. Ayrton Senna da Silva, 575, Sala 5 — Londrina/PR, CEP 86.050-460</li>
+              <li>
+                Contato:{' '}
+                <a href="mailto:contato@toorganizado.com.br" className="text-blue-600 hover:underline">
+                  contato@toorganizado.com.br
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-base font-semibold text-gray-900">2. Aceitação</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               Ao criar uma conta no Tô Organizado, você declara que leu, compreendeu e concordou
               integralmente com estes Termos de Uso. Caso não concorde com alguma disposição,
@@ -26,7 +44,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">2. Descrição do serviço</h2>
+            <h2 className="text-base font-semibold text-gray-900">3. Descrição do serviço</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               O Tô Organizado é um aplicativo de controle financeiro pessoal que permite registrar
               receitas e despesas, gerenciar cartões de crédito, acompanhar metas financeiras e
@@ -36,7 +54,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">3. Cadastro e conta</h2>
+            <h2 className="text-base font-semibold text-gray-900">4. Cadastro e conta</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               Você deve fornecer informações verdadeiras e manter os dados da sua conta atualizados.
               É responsável por manter a confidencialidade da sua senha e por todas as atividades
@@ -46,7 +64,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">4. Uso aceitável</h2>
+            <h2 className="text-base font-semibold text-gray-900">5. Uso aceitável</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               Você concorda em utilizar o serviço apenas para fins lícitos e pessoais. É proibido:
               compartilhar credenciais de acesso, tentar acessar dados de outros usuários, realizar
@@ -56,7 +74,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">5. Privacidade</h2>
+            <h2 className="text-base font-semibold text-gray-900">6. Privacidade</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               O tratamento dos seus dados pessoais é regido pela nossa{' '}
               <Link href="/privacidade" className="text-blue-600 hover:underline">
@@ -68,7 +86,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">6. Cancelamento</h2>
+            <h2 className="text-base font-semibold text-gray-900">7. Cancelamento</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               Você pode excluir sua conta a qualquer momento nas configurações de Perfil. Após a
               exclusão, todos os seus dados serão removidos permanentemente de nossos sistemas no
@@ -78,7 +96,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">7. Limitação de responsabilidade</h2>
+            <h2 className="text-base font-semibold text-gray-900">8. Limitação de responsabilidade</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               O Tô Organizado não se responsabiliza por decisões financeiras tomadas com base nas
               informações exibidas no aplicativo. Os dados exibidos dependem exclusivamente das
@@ -89,7 +107,7 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-gray-900">8. Contato</h2>
+            <h2 className="text-base font-semibold text-gray-900">9. Contato</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
               Para dúvidas, solicitações ou reclamações relacionadas a estes Termos de Uso,
               entre em contato pelo e-mail:{' '}
