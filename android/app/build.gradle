@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// Credenciais de assinatura de RELEASE: lidas de android/keystore.properties
+// (arquivo LOCAL, NÃO versionado — ver keystore.properties.example). Nada de
+// senha hardcoded aqui. Se o arquivo não existir, o release degrada sem assinar
+// (e o debug continua normal).
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "br.com.toorganizado"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +27,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseKeystore) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("⚠️  android/keystore.properties não encontrado — o build de RELEASE NÃO será assinado. Copie keystore.properties.example para keystore.properties e preencha-o.")
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
