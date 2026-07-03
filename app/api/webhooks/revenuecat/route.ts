@@ -170,14 +170,59 @@ async function upsertSubscription(
       return;
     }
     if (!isMissingColumn(error) || i === ladder.length - 1) {
+      // Falha DURA de escrita (não é coluna-ausente, ou é o degrau core que
+      // sempre deveria funcionar). PROPAGA → o POST responde 5xx e NÃO marca
+      // dedup, pra o RevenueCat reentregar. Só a degradação por coluna-ausente
+      // (acima) é tolerada e cai pro próximo nível.
       console.error('[revenuecat-webhook] upsert error', error);
-      return;
+      throw new Error(`subscriptions upsert failed: ${error.message}`);
     }
   }
 }
 
 function ok(payload: Record<string, unknown> = { ok: true }) {
   return NextResponse.json(payload, { status: 200 });
+}
+
+// ── Dedup (idempotência) ────────────────────────────────────────────────────
+// A marcação em webhook_events acontece SÓ DEPOIS do processamento OK (ver POST),
+// para que uma falha de escrita NÃO deixe o evento marcado — assim a reentrega
+// do RevenueCat consegue reprocessar. Reprocessar é inócuo (upsert por user_id é
+// idempotente); PERDER um evento não é.
+
+// Leitura pura: este event.id já foi processado com sucesso antes? Só consulta,
+// não marca. Erro de leitura → false (melhor reprocessar do que pular).
+async function alreadyProcessed(
+  admin: ReturnType<typeof createAdminClient>,
+  eventId: string,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from('webhook_events')
+    .select('event_id')
+    .eq('provider', 'revenuecat')
+    .eq('event_id', eventId)
+    .limit(1);
+  if (error) {
+    console.error('[revenuecat] falha ao consultar dedup:', error);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
+// Marca o evento como processado. Chamado só após sucesso. 23505 = corrida
+// benigna (outra entrega concorrente já registrou) → ignora. Outra falha é só
+// logada: o estado já foi gravado; no pior caso um reprocess inócuo no futuro.
+async function markProcessed(
+  admin: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  eventType: string,
+): Promise<void> {
+  const { error } = await admin
+    .from('webhook_events')
+    .insert({ provider: 'revenuecat', event_id: eventId, event_type: eventType });
+  if (error && error.code !== '23505') {
+    console.error('[revenuecat] falha ao registrar dedup pós-processamento:', error);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -217,23 +262,35 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // ── Idempotência ──────────────────────────────────────────────────────────
-  // O RevenueCat reenvia em retries. Registra o event.id ANTES de processar; se
-  // já existe (unique violation 23505 em webhook_events) → reentrega, ignora.
-  if (ev.id) {
-    const { error: dedupError } = await admin
-      .from('webhook_events')
-      .insert({ provider: 'revenuecat', event_id: ev.id, event_type: type });
-    if (dedupError) {
-      if (dedupError.code === '23505') {
-        console.log('[revenuecat] evento duplicado ignorado:', ev.id, type);
-        return ok({ ok: true, skipped: true });
-      }
-      // Falha na dedup: loga e segue (melhor processar duplicado do que perder).
-      console.error('[revenuecat] falha ao registrar dedup:', dedupError);
-    }
+  // ── Idempotência (leitura) ────────────────────────────────────────────────
+  // Reentrega já processada com sucesso antes? Só CONSULTA — NÃO marca aqui. A
+  // marcação é feita só DEPOIS do processamento OK (ver catch/marca abaixo), pra
+  // que uma falha de escrita não deixe o evento marcado e bloqueie a reentrega.
+  if (ev.id && (await alreadyProcessed(admin, ev.id))) {
+    console.log('[revenuecat] evento duplicado ignorado:', ev.id, type);
+    return ok({ ok: true, skipped: true });
   }
 
+  try {
+    const result = await processEvent(admin, ev, type);
+    // Sucesso → marca dedup AGORA (nunca antes) e responde 200.
+    if (ev.id) await markProcessed(admin, ev.id, type);
+    return ok(result);
+  } catch (err) {
+    // Falha DURA (ex.: upsert propagou) → 5xx e SEM marcar dedup, pra o
+    // RevenueCat reentregar e reprocessar (upsert por user_id é idempotente).
+    console.error('[revenuecat-webhook] processamento falhou:', err);
+    return NextResponse.json({ error: 'processing_failed' }, { status: 500 });
+  }
+}
+
+// Processa um evento e retorna o payload de resposta (200). LANÇA em falha dura
+// de escrita — o POST traduz o throw em 5xx e não marca dedup.
+async function processEvent(
+  admin: ReturnType<typeof createAdminClient>,
+  ev: RCEvent,
+  type: string,
+): Promise<Record<string, unknown>> {
   // Resolve a conta. TRANSFER usa transferred_to (novo dono); demais usam
   // app_user_id + aliases. Anônimo (sem UUID) → 200 e ignora.
   const candidates =
@@ -243,14 +300,14 @@ export async function POST(req: NextRequest) {
   const userId = resolveUserId(candidates);
   if (!userId) {
     console.log('[revenuecat] app_user_id anônimo — ignorado', { type });
-    return ok({ ok: true, ignored: 'anonymous' });
+    return { ok: true, ignored: 'anonymous' };
   }
 
   // Confirma que a conta existe (evita FK violation e mantém 200 limpo).
   const { data: userLookup, error: userErr } = await admin.auth.admin.getUserById(userId);
   if (userErr || !userLookup?.user) {
     console.warn('[revenuecat] user_id não encontrado — ignorado', { type });
-    return ok({ ok: true, ignored: 'user-not-found' });
+    return { ok: true, ignored: 'user-not-found' };
   }
 
   const appUserId = ev.app_user_id ?? userId;
@@ -259,94 +316,89 @@ export async function POST(req: NextRequest) {
   const cycle = detectBillingCycle(ev.product_id);
   const periodEnd = msToIso(ev.expiration_at_ms);
 
-  try {
-    switch (type) {
-      // Acesso Pro ativo. CANCELLATION entra aqui de propósito: é só auto-renov
-      // desligada — o acesso vale até expirar; o EXPIRATION depois rebaixa.
-      case 'INITIAL_PURCHASE':
-      case 'RENEWAL':
-      case 'UNCANCELLATION':
-      case 'PRODUCT_CHANGE':
-      case 'CANCELLATION': {
-        await upsertSubscription(
-          admin,
-          userId,
-          {
-            plan: 'pro',
-            status: 'active',
-            billing_cycle: cycle,
-            ...(periodEnd ? { current_period_end: periodEnd } : {}),
-          },
-          appUserId,
-          store,
-          entitlement,
-        );
-        return ok({ ok: true, type, userId, plan: 'pro' });
-      }
-
-      // Problema de cobrança: período de graça. Mantém plan='pro', marca past_due.
-      case 'BILLING_ISSUE': {
-        await upsertSubscription(
-          admin,
-          userId,
-          {
-            plan: 'pro',
-            status: 'past_due',
-            ...(cycle ? { billing_cycle: cycle } : {}),
-            ...(periodEnd ? { current_period_end: periodEnd } : {}),
-          },
-          appUserId,
-          store,
-          entitlement,
-        );
-        return ok({ ok: true, type, userId, status: 'past_due' });
-      }
-
-      // Assinatura expirou de fato → rebaixa pra free.
-      case 'EXPIRATION': {
-        await upsertSubscription(
-          admin,
-          userId,
-          {
-            plan: 'free',
-            status: 'cancelled',
-            current_period_end: periodEnd ?? new Date().toISOString(),
-          },
-          appUserId,
-          store,
-          entitlement,
-        );
-        return ok({ ok: true, type, userId, plan: 'free' });
-      }
-
-      // Edge: assinatura transferida entre app_user_ids. Seta 'pro' no NOVO dono.
-      case 'TRANSFER': {
-        console.log('[revenuecat] TRANSFER — setando pro no novo app_user_id', {
-          userId,
-        });
-        await upsertSubscription(
-          admin,
-          userId,
-          {
-            plan: 'pro',
-            status: 'active',
-            ...(cycle ? { billing_cycle: cycle } : {}),
-            ...(periodEnd ? { current_period_end: periodEnd } : {}),
-          },
-          appUserId,
-          store,
-          entitlement,
-        );
-        return ok({ ok: true, type, userId, plan: 'pro', transfer: true });
-      }
-
-      default:
-        console.log('[revenuecat-webhook] evento ignorado:', type);
-        return ok({ ok: true, ignored: type });
+  switch (type) {
+    // Acesso Pro ativo. CANCELLATION entra aqui de propósito: é só auto-renov
+    // desligada — o acesso vale até expirar; o EXPIRATION depois rebaixa.
+    case 'INITIAL_PURCHASE':
+    case 'RENEWAL':
+    case 'UNCANCELLATION':
+    case 'PRODUCT_CHANGE':
+    case 'CANCELLATION': {
+      await upsertSubscription(
+        admin,
+        userId,
+        {
+          plan: 'pro',
+          status: 'active',
+          billing_cycle: cycle,
+          ...(periodEnd ? { current_period_end: periodEnd } : {}),
+        },
+        appUserId,
+        store,
+        entitlement,
+      );
+      return { ok: true, type, userId, plan: 'pro' };
     }
-  } catch (err) {
-    console.error('[revenuecat-webhook] erro inesperado:', err);
-    return ok({ ok: true, ignored: 'error' });
+
+    // Problema de cobrança: período de graça. Mantém plan='pro', marca past_due.
+    case 'BILLING_ISSUE': {
+      await upsertSubscription(
+        admin,
+        userId,
+        {
+          plan: 'pro',
+          status: 'past_due',
+          ...(cycle ? { billing_cycle: cycle } : {}),
+          ...(periodEnd ? { current_period_end: periodEnd } : {}),
+        },
+        appUserId,
+        store,
+        entitlement,
+      );
+      return { ok: true, type, userId, status: 'past_due' };
+    }
+
+    // Assinatura expirou de fato → rebaixa pra free.
+    case 'EXPIRATION': {
+      await upsertSubscription(
+        admin,
+        userId,
+        {
+          plan: 'free',
+          status: 'cancelled',
+          current_period_end: periodEnd ?? new Date().toISOString(),
+        },
+        appUserId,
+        store,
+        entitlement,
+      );
+      return { ok: true, type, userId, plan: 'free' };
+    }
+
+    // Edge: assinatura transferida entre app_user_ids. Seta 'pro' no NOVO dono.
+    case 'TRANSFER': {
+      console.log('[revenuecat] TRANSFER — setando pro no novo app_user_id', {
+        userId,
+      });
+      await upsertSubscription(
+        admin,
+        userId,
+        {
+          plan: 'pro',
+          status: 'active',
+          ...(cycle ? { billing_cycle: cycle } : {}),
+          ...(periodEnd ? { current_period_end: periodEnd } : {}),
+        },
+        appUserId,
+        store,
+        entitlement,
+      );
+      return { ok: true, type, userId, plan: 'pro', transfer: true };
+    }
+
+    default:
+      console.log('[revenuecat-webhook] evento ignorado:', type);
+      return { ok: true, ignored: type };
   }
 }
 
