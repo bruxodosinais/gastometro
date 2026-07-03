@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
 import { createClient } from '@/lib/supabase/client';
+import { initRevenueCat } from '@/lib/revenuecat';
 import './landing.css';
 
 type Mode = 'mensal' | 'anual';
@@ -79,6 +80,9 @@ export default function LandingPage() {
   useEffect(() => {
     if (!isNativePlatform()) return; // web → middleware/landing seguem como hoje
     setBooting(true); // mascara já: não pisca a tela de vendas no nativo
+    // Configura o RevenueCat cedo, só no nativo. Idempotente e fire-and-forget:
+    // não bloqueia o boot e, com as envs vazias (até a Fase 1), só loga um aviso.
+    void initRevenueCat();
     let cancelled = false;
 
     (async () => {
