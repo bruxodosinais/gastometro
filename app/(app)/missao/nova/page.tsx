@@ -8,6 +8,7 @@ import { formatCurrency, getMonthKey } from '@/lib/calculations';
 import { getMonthlyPlan } from '@/lib/storage';
 import { createMission, getMission } from '@/lib/storage/missions';
 import { getCachedUser } from '@/lib/dataCache';
+import { isNativePlatform } from '@/lib/native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ToastContainer, useToast } from '@/components/Toast';
 import ConfettiAnimation from '../../_components/missao/ConfettiAnimation';
@@ -842,7 +843,7 @@ function Step3(props: {
         enabled={props.aiChallengesEnabled}
         onChange={props.setAiChallengesEnabled}
         disabled={!props.isPro}
-        badge="PRO"
+        badge={isNativePlatform() ? undefined : 'PRO'}
       />
 
       {props.existingMission && (

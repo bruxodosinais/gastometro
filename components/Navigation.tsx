@@ -13,6 +13,7 @@ import { openFeedback } from '@/components/FeedbackButton';
 import { openSupport } from '@/components/SupportButton';
 import { MISSAO_FEATURE_KEY, markFeatureSeen, shouldShowNewBadge } from '@/lib/featureFlags';
 import { getCachedUser } from '@/lib/dataCache';
+import { isNativePlatform } from '@/lib/native';
 import { useTheme } from '@/lib/themeContext';
 import { createClient } from '@/lib/supabase/client';
 
@@ -265,7 +266,8 @@ export default function Navigation() {
                   <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                     {userName || 'Você'}
                   </p>
-                  {!subLoading && (
+                  {/* Escondido no NATIVO (app grátis, sem tier pago — Apple 3.1.1). */}
+                  {!isNativePlatform() && !subLoading && (
                     <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '2px 0 0' }}>
                       {isPro ? 'Plano Pro ✓' : 'Plano Gratuito'}
                     </p>
@@ -444,7 +446,8 @@ export default function Navigation() {
               <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
                 {userName || 'Você'}
               </p>
-              {!subLoading && (
+              {/* Escondido no NATIVO (app grátis, sem tier pago — Apple 3.1.1). */}
+              {!isNativePlatform() && !subLoading && (
                 <span
                   style={{
                     display: 'inline-block', marginTop: 2,

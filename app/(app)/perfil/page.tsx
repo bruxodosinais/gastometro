@@ -595,7 +595,9 @@ export default function PerfilPage() {
           <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4, marginBottom: 0 }}>
             {email}
           </p>
-          {!subLoading && (
+          {/* Badge de plano — escondido no NATIVO (app grátis, sem tier pago
+              visível — Apple 3.1.1). Web: inalterado. */}
+          {!isNativePlatform() && !subLoading && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               marginTop: 8, padding: '3px 10px', borderRadius: 999,
@@ -681,8 +683,9 @@ export default function PerfilPage() {
                   </p>
                 </div>
 
-                {/* Plano */}
-                {!subLoading && (
+                {/* Plano — o bloco INTEIRO fica oculto no NATIVO (nenhuma menção
+                    a plano/tier pago — Apple 3.1.1). Web: inalterado. */}
+                {!isNativePlatform() && !subLoading && (
                   <div style={{ padding: '14px 16px', borderBottom: rowBorder, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Plano</p>
