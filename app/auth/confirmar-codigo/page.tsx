@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import LoadingButton from '@/components/ui/LoadingButton';
 
-// Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada no app NATIVO, onde
-// o link de confirmação abriria no navegador e não logaria o webview. Na WEB o
-// fluxo segue pelo link (/auth/confirmar-email) — esta tela só é alcançada
-// quando o cadastro detecta isNativePlatform(). Funciona em ambos mesmo assim.
+// Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada em AMBAS as
+// plataformas (web + nativo) desde que o template de e-mail virou SÓ-CÓDIGO
+// (sem link): o pre-fetch do link {{ .ConfirmationURL }} por scanners de e-mail
+// consumia o token de uso único e quebrava o cadastro (rejeição Apple 2.1a).
+// verifyOtp(type:'signup') cria a sessão no client e leva pro /onboarding.
 
 const COOLDOWN_SEGUNDOS = 60;
 
@@ -76,9 +77,37 @@ function ConfirmarCodigoContent() {
 
     if (verifyError) {
       const msg = (verifyError.message || '').toLowerCase();
+
+      // Anti-beco (defesa em profundidade): um token "expirado" pode significar
+      // que a conta JÁ foi confirmada (ex.: um scanner de e-mail pré-buscou um
+      // link antigo). Sondamos com resend: se o Supabase responde "already
+      // confirmed", a conta existe e está ativa → mandamos pro login em vez de
+      // prender o usuário pedindo um código que nunca vai validar. Se ainda
+      // estiver pendente, o próprio resend já dispara um código novo.
       if (msg.includes('expired')) {
-        setError('Código expirado. Toque em "Reenviar código" pra receber um novo.');
-      } else if (msg.includes('invalid') || msg.includes('token')) {
+        const { error: probeError } = await supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: { emailRedirectTo: `${getSiteUrl()}/auth/callback` },
+        });
+        if (probeError) {
+          const pm = (probeError.message || '').toLowerCase();
+          if (pm.includes('already') && pm.includes('confirmed')) {
+            setInfo('Sua conta já está confirmada. Redirecionando pro login…');
+            setTimeout(() => router.replace('/auth/login'), 1500);
+            return;
+          }
+          // Rate limit / outro erro: não deu pra reenviar automaticamente agora.
+          setError('Código expirado. Toque em "Reenviar código" pra receber um novo.');
+        } else {
+          // Conta ainda pendente: o resend acima já enviou um código novo.
+          setInfo('Seu código expirou — enviamos um novo. Confira o e-mail (e o spam).');
+        }
+        setCountdown(COOLDOWN_SEGUNDOS);
+        setLoading(false);
+        return;
+      }
+      if (msg.includes('invalid') || msg.includes('token')) {
         setError('Código inválido. Confira os 6 dígitos e tente de novo.');
       } else {
         setError('Não foi possível confirmar. Tente novamente.');

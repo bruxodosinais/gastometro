@@ -150,7 +150,7 @@ function ConfirmadoContent() {
                 Entrar
               </Link>
               <Link
-                href="/auth/confirmar-email"
+                href="/auth/confirmar-codigo"
                 style={{
                   display: 'block',
                   width: '100%',
@@ -165,7 +165,7 @@ function ConfirmadoContent() {
                   textDecoration: 'none',
                 }}
               >
-                Reenviar e-mail de confirmação
+                Confirmar com código
               </Link>
             </>
           )}
