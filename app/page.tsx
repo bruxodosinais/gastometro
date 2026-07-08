@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
 import { createClient } from '@/lib/supabase/client';
+import { initRevenueCat } from '@/lib/revenuecat';
 import './landing.css';
 
 type Mode = 'mensal' | 'anual';
@@ -79,8 +80,9 @@ export default function LandingPage() {
   useEffect(() => {
     if (!isNativePlatform()) return; // web → middleware/landing seguem como hoje
     setBooting(true); // mascara já: não pisca a tela de vendas no nativo
-    // IAP (RevenueCat) removido do binário nesta versão — o app nativo é grátis
-    // (Apple 3.1.1). Volta como update v1.1. Ver app/api/webhooks/revenuecat.
+    // Configura o RevenueCat cedo, só no nativo. Idempotente e fire-and-forget:
+    // não bloqueia o boot e, com a env de chave vazia, só loga um aviso.
+    void initRevenueCat();
     let cancelled = false;
 
     (async () => {
