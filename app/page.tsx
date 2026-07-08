@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
 import { createClient } from '@/lib/supabase/client';
-import { initRevenueCat } from '@/lib/revenuecat';
+import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
 import './landing.css';
 
 type Mode = 'mensal' | 'anual';
@@ -88,7 +88,7 @@ export default function LandingPage() {
     (async () => {
       // getUser() é chamada de rede no cold start. Se falhar (offline/erro) ou
       // demorar, caímos no ramo "sem sessão" — nunca deixamos o splash travado.
-      let user: { user_metadata?: { onboarding_completed?: boolean } } | null = null;
+      let user: { id?: string; user_metadata?: { onboarding_completed?: boolean } } | null = null;
       try {
         const timeout = new Promise<{ data: { user: null } }>((resolve) =>
           setTimeout(() => resolve({ data: { user: null } }), 8000),
@@ -101,6 +101,10 @@ export default function LandingPage() {
       if (cancelled) return;
 
       if (user) {
+        // Fallback idempotente do alias RevenueCat: se o logIn pós-cadastro não
+        // rodou (ex.: usuário fechou o app antes), amarra a compra anônima →
+        // conta neste cold start. initRevenueCat garante o configure() antes.
+        void initRevenueCat().then(() => loginRevenueCat(user?.id ?? ''));
         const onboardingDone = user.user_metadata?.onboarding_completed === true;
         router.replace(onboardingDone ? '/app' : '/onboarding');
         return;

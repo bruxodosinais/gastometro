@@ -13,12 +13,15 @@
 // de cair direto no login num beco sem saída. As respostas vivem em memória do
 // quiz até esse CTA (intro → quiz → building → plan → cadastro).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import IntroCarousel from './_components/IntroCarousel';
 import Quiz from './_components/Quiz';
 import Building from './_components/Building';
 import PlanReady from './_components/PlanReady';
+import Paywall from './_components/Paywall';
+import { isNativePlatform } from '@/lib/native';
+import { initRevenueCat, getOfferings, type Offerings } from '@/lib/revenuecat';
 import { saveLocalPresignup, type PresignupMission } from '@/lib/onboarding/presignupMission';
 
 function markIntroSeen() {
@@ -31,8 +34,30 @@ function markIntroSeen() {
 
 export default function InicioPage() {
   const router = useRouter();
-  const [phase, setPhase] = useState<'intro' | 'quiz' | 'building' | 'plan'>('intro');
+  const [phase, setPhase] = useState<'intro' | 'quiz' | 'building' | 'plan' | 'paywall'>('intro');
   const [mission, setMission] = useState<PresignupMission | null>(null);
+  const [offerings, setOfferings] = useState<Offerings | null>(null);
+
+  // Prefetch das offerings no NATIVO (uma vez, não-bloqueante): deixa a decisão
+  // "mostra paywall?" síncrona no CTA do PlanReady. Web: no-op (getOfferings→null).
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    let alive = true;
+    void initRevenueCat()
+      .then(getOfferings)
+      .then((o) => { if (alive) setOfferings(o); })
+      .catch(() => { /* sem offerings → paywall é pulado, cadastro segue (sem dead-end) */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Fecho único do funil: marca intro vista, persiste a mission e vai pro cadastro.
+  // Usado tanto ao SAIR do paywall (Assinar OK ou Continuar grátis) quanto quando
+  // não há paywall a mostrar.
+  function finishToCadastro(m: PresignupMission) {
+    markIntroSeen(); // só agora → quem abandona antes revê o carousel
+    saveLocalPresignup(m);
+    router.push('/auth/cadastro');
+  }
 
   if (phase === 'quiz') {
     return (
@@ -52,14 +77,22 @@ export default function InicioPage() {
     return <Building mission={mission} onDone={() => setPhase('plan')} />;
   }
 
+  if (phase === 'paywall' && mission && offerings) {
+    return <Paywall offerings={offerings} onDone={() => finishToCadastro(mission)} />;
+  }
+
   if (phase === 'plan' && mission) {
     return (
       <PlanReady
         mission={mission}
         onCreateAccount={() => {
-          markIntroSeen(); // só agora → quem abandona o plano revê o carousel
-          saveLocalPresignup(mission);
-          router.push('/auth/cadastro');
+          // Nativo + offering válida → paywall; senão vai direto pro cadastro
+          // (onboarding nunca trava: sem produtos, a venda é pulada).
+          if (isNativePlatform() && offerings && (offerings.monthly || offerings.annual)) {
+            setPhase('paywall');
+          } else {
+            finishToCadastro(mission);
+          }
         }}
       />
     );

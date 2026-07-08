@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
+import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 // Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada em AMBAS as
@@ -69,7 +70,7 @@ function ConfirmarCodigoContent() {
     // type 'signup' = confirmação de cadastro. Em sucesso a sessão é criada no
     // client → o AuthGate (nativo) leva pra /onboarding, onde a missão do
     // /comecar é aplicada.
-    const { error: verifyError } = await supabase.auth.verifyOtp({
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
       email,
       token,
       type: 'signup',
@@ -114,6 +115,20 @@ function ConfirmarCodigoContent() {
       }
       setLoading(false);
       return;
+    }
+
+    // Aliasa a compra ANÔNIMA do RevenueCat (feita no paywall pré-cadastro) a
+    // ESTA conta. Native-gated e idempotente; no-op na web/sem id. Best-effort:
+    // uma falha aqui NÃO pode travar a confirmação (o boot nativo re-tenta o
+    // alias em app/page.tsx). initRevenueCat garante o configure() antes do logIn.
+    try {
+      const newUserId = verifyData.user?.id;
+      if (newUserId) {
+        await initRevenueCat();
+        await loginRevenueCat(newUserId);
+      }
+    } catch {
+      /* fallback: alias re-tentado no cold start nativo */
     }
 
     router.replace('/onboarding');
