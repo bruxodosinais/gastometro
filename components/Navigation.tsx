@@ -423,6 +423,10 @@ export default function Navigation() {
           background: 'var(--surface)',
           borderRight: '1px solid var(--border)',
           overflowY: 'auto',
+          // Edge-to-edge: header do drawer abaixo da Dynamic Island + base acima
+          // do home indicator. Web: env=0 (sem efeito).
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
           transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 250ms ease',
         }}

@@ -43,7 +43,9 @@ export default function TopbarMobile() {
         top: 0,
         left: 0,
         right: 0,
-        height: 52,
+        // Barra cresce pelo inset da Dynamic Island (border-box): total =
+        // 52 + inset, com 52px de conteúdo ABAIXO da island (paddingTop). Web: 52.
+        height: 'calc(52px + env(safe-area-inset-top))',
         background: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',

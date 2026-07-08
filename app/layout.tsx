@@ -54,6 +54,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // Webview edge-to-edge no nativo → ATIVA os env(safe-area-inset-*) que os
+  // componentes já usam (Navigation, TopbarMobile, QuizShell, IntroCarousel…).
+  // Sem isso os insets resolvem pra 0 e o conteúdo cola sob a Dynamic Island.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

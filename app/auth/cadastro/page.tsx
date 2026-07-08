@@ -231,7 +231,7 @@ function CadastroContent() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 16px 40px',
+        padding: 'env(safe-area-inset-top) 16px calc(40px + env(safe-area-inset-bottom))',
       }}
     >
       <div

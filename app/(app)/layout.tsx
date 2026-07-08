@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <TopbarDesktop />
       <TopbarMobile />
       <Navigation />
-      <div className="pt-[52px] pb-20 lg:pt-[58px] lg:pb-0 lg:pl-[232px]">
+      <div className="pt-[calc(52px_+_env(safe-area-inset-top))] pb-[calc(5rem_+_env(safe-area-inset-bottom))] lg:pt-[58px] lg:pb-0 lg:pl-[232px]">
         {children}
       </div>
       <FeedbackButton />

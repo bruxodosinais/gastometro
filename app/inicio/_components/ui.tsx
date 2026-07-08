@@ -60,7 +60,11 @@ export function QuizShell({
         }}
       >
         {header}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingTop: 8 }}>{children}</div>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* margin auto centraliza verticalmente quando o conteúdo é curto; em
+              passos longos as margens colapsam e rola normal a partir do topo. */}
+          <div style={{ margin: 'auto 0', width: '100%', paddingTop: 8 }}>{children}</div>
+        </div>
         {footer && <div style={{ paddingTop: 16 }}>{footer}</div>}
       </div>
     </div>
