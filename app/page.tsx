@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
@@ -8,78 +8,31 @@ import { createClient } from '@/lib/supabase/client';
 import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
 import './landing.css';
 
-type Mode = 'mensal' | 'anual';
+// Link da App Store: entra quando o app for APROVADO (env na Vercel). HOJE vazio
+// → o botão vira "Em breve" (desabilitado). NUNCA inventar URL. Google Play fica
+// "Em breve" por ora (Android depois).
+const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? '';
+const PLAY_STORE_URL = '';
 
-const PLAN_DATA: Record<Mode, {
-  title: string;
-  price: string;
-  per: string;
-  sub: string;
-  ctaLabel: string;
-  ctaHref: string;
-}> = {
-  mensal: {
-    title: 'Mensal',
-    price: 'R$ 19,90',
-    per: '/mês',
-    sub: 'Cobrança recorrente • Cancele quando quiser',
-    ctaLabel: 'Assinar Pro Mensal',
-    ctaHref: 'https://pay.kiwify.com.br/4FBgOAj?utm_source=landing&utm_medium=web&utm_campaign=upgrade',
-  },
-  anual: {
-    title: 'Anual',
-    price: 'R$ 147,00',
-    per: '/ano',
-    sub: 'Equivale a R$ 12,25/mês • Economize 38%',
-    ctaLabel: 'Assinar Pro Anual',
-    ctaHref: 'https://pay.kiwify.com.br/b8zdPQ6?utm_source=landing&utm_medium=web&utm_campaign=upgrade',
-  },
-};
-
-const FAQS: { q: string; a: string }[] = [
-  {
-    q: 'Preciso de cartão de crédito pra testar?',
-    a: 'Não. O plano Free é gratuito para sempre, sem pedir cartão. Você cria a conta com email e já começa a usar.',
-  },
-  {
-    q: 'Funciona pra quem nunca se organizou?',
-    a: 'É exatamente pra isso. O app foi feito pra quem sempre quis se organizar mas nunca conseguiu manter. Sem termos técnicos, sem planilha, sem julgamento.',
-  },
-  {
-    q: 'Meus dados ficam seguros?',
-    a: 'Sim. Todos os dados são armazenados com criptografia e nunca são compartilhados com terceiros. Você é dono das suas informações.',
-  },
-  {
-    q: 'Posso cancelar quando quiser?',
-    a: 'Sim, sem fidelidade e sem burocracia. Cancela direto pelo app e continua com o plano Free pra sempre.',
-  },
-  {
-    q: 'Qual a diferença pra outros apps?',
-    a: 'Gamificação real com Missão de Poupança, GastoBot com IA, alertas inteligentes e dados confiáveis — funcionalidades pensadas pra quem quer se organizar de verdade.',
-  },
+const FEATURES: { icon: string; title: string; desc: string }[] = [
+  { icon: '🎯', title: 'Missão de Poupança', desc: 'Metas com desafios criados por IA — guardar dinheiro vira conquista, não obrigação.' },
+  { icon: '🔥', title: 'Streaks e níveis', desc: 'Constância que gruda: dias seguidos, níveis e badges pra você não largar no meio.' },
+  { icon: '🤖', title: 'GastôBot com IA', desc: 'Assistente financeiro 24h: tira dúvida, sugere corte e te ajuda a fechar o mês.' },
+  { icon: '📊', title: 'Tudo num lugar', desc: 'Gastos, recorrentes, cartões, metas e patrimônio — a visão do mês numa tela só.' },
 ];
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [mode, setMode] = useState<Mode>('anual');
-  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
-  // NATIVO (Capacitor): esconde a seção de planos (Kiwify) e o link "Planos" —
-  // lojas rejeitam pagamento externo. Via effect pós-mount p/ não dar hydration
-  // mismatch (o export é prerenderizado com native=false). Web: tudo visível.
-  const [native, setNative] = useState(false);
-  useEffect(() => setNative(isNativePlatform()), []);
 
   // ── Boot nativo (first-run) ──────────────────────────────────────────────
-  // No app NATIVO, "/" não pode mostrar a landing de vendas: decidimos o destino
-  // no cold start e mascaramos a landing enquanto isso. Na WEB este effect é
-  // NO-OP (isNativePlatform()===false) → a landing renderiza idêntica, sem
-  // auto-redirect e sem hydration mismatch (prerender sai com booting=false).
+  // No app NATIVO, "/" não mostra esta landing: decidimos o destino no cold
+  // start e mascaramos enquanto isso. Na WEB este effect é NO-OP
+  // (isNativePlatform()===false) → a landing de download renderiza normal.
   const router = useRouter();
   const [booting, setBooting] = useState(false);
   useEffect(() => {
-    if (!isNativePlatform()) return; // web → middleware/landing seguem como hoje
-    setBooting(true); // mascara já: não pisca a tela de vendas no nativo
+    if (!isNativePlatform()) return; // web → landing de download
+    setBooting(true); // mascara já: não pisca a landing no nativo
     // Configura o RevenueCat cedo, só no nativo. Idempotente e fire-and-forget:
     // não bloqueia o boot e, com a env de chave vazia, só loga um aviso.
     void initRevenueCat();
@@ -125,10 +78,6 @@ export default function LandingPage() {
     };
   }, [router]);
 
-  const togMensalRef = useRef<HTMLButtonElement>(null);
-  const togAnualRef = useRef<HTMLButtonElement>(null);
-  const toggleWrapRef = useRef<HTMLDivElement>(null);
-
   // Nav scroll state
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -140,7 +89,6 @@ export default function LandingPage() {
   // Reveal-on-scroll com IntersectionObserver
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>('.landing-root .reveal'));
-    // Já visível no load → revela imediatamente.
     els.forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.top < window.innerHeight - 40) el.classList.add('in');
@@ -166,7 +114,6 @@ export default function LandingPage() {
       if (!el.classList.contains('in')) io.observe(el);
     });
 
-    // Fallback: se algo ainda não revelou em 1.2s, força.
     const fallback = window.setTimeout(() => {
       els.forEach((el) => el.classList.add('in'));
     }, 1200);
@@ -177,26 +124,8 @@ export default function LandingPage() {
     };
   }, []);
 
-  // Posicionamento do pill do toggle de pricing.
-  // useLayoutEffect pra evitar flash na primeira renderização e em mudanças.
-  useLayoutEffect(() => {
-    function reposition() {
-      const activeBtn = mode === 'mensal' ? togMensalRef.current : togAnualRef.current;
-      const parent = toggleWrapRef.current;
-      if (!activeBtn || !parent) return;
-      const r = activeBtn.getBoundingClientRect();
-      const p = parent.getBoundingClientRect();
-      setPill({ left: r.left - p.left, width: r.width });
-    }
-    reposition();
-    window.addEventListener('resize', reposition);
-    return () => window.removeEventListener('resize', reposition);
-  }, [mode]);
-
-  const plan = PLAN_DATA[mode];
-
-  // Máscara nativa: enquanto o boot decide o destino, não mostramos a landing de
-  // vendas — placeholder mínimo da marca (sem flash branco). Web nunca entra aqui.
+  // Máscara nativa: enquanto o boot decide o destino, não mostramos a landing —
+  // placeholder mínimo da marca (sem flash branco). Web nunca entra aqui.
   if (booting) {
     return (
       <div
@@ -249,12 +178,6 @@ export default function LandingPage() {
             </span>
             <span className="brand-text">Tô<b>Organizado</b></span>
           </a>
-          <nav className="nav-links" aria-label="Seções">
-            <a href="#solucao">Como funciona</a>
-            <a href="#diferencial">Missão</a>
-            {!native && <a href="#pricing">Planos</a>}
-            <a href="#faq">FAQ</a>
-          </nav>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Link
               href="/auth/login"
@@ -270,13 +193,6 @@ export default function LandingPage() {
             >
               Entrar
             </Link>
-            <Link
-              href="/comecar"
-              className="btn btn-primary"
-              style={{ padding: '11px 18px', fontSize: 14, borderRadius: 10 }}
-            >
-              Começar grátis
-            </Link>
           </div>
         </div>
       </header>
@@ -287,34 +203,25 @@ export default function LandingPage() {
         <div className="hero-blob b2" aria-hidden="true" />
         <div className="wrap hero-inner">
           <div className="reveal">
-            <span className="eyebrow"><span className="dot" /> Feito para você se organizar</span>
+            <span className="eyebrow"><span className="dot" /> Finanças que viram hábito</span>
             <h1 className="headline">
-              Seu dinheiro finalmente organizado. Sem planilha. Sem culpa. <em>Com missão.</em>
+              Seu dinheiro organizado, <em>direto do seu bolso.</em>
             </h1>
             <p className="sub">
-              O app de finanças pessoais que transforma guardar dinheiro em uma conquista — com desafios, badges e metas que dão vontade de cumprir.
+              O app que transforma organizar as finanças em hábito — com missões de poupança, streaks e um assistente com IA. Baixe e comece em 2 minutos.
             </p>
-            <div className="hero-cta">
-              <Link href="/comecar" className="btn btn-primary lg">
-                Comece grátis — sem cartão de crédito
-              </Link>
-              <span className="small"><a href="#solucao">Ver como funciona ↓</a></span>
+            <div style={{ marginTop: 28 }}>
+              <StoreButtons />
             </div>
-            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 12, marginBottom: 0 }}>
+            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 16, marginBottom: 0, fontWeight: 600 }}>
+              Grátis pra baixar · sem cartão · Pro opcional dentro do app
+            </p>
+            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 0 }}>
               Já tem conta?{' '}
-              <Link href="/auth/login" style={{ color: '#5B5BD6', fontWeight: 600 }}>
+              <Link href="/auth/login" style={{ color: '#5B5BD6', fontWeight: 700 }}>
                 Entrar
               </Link>
             </p>
-            <div className="hero-trust">
-              <span><span className="check">✓</span> Grátis pra sempre</span>
-              <span><span className="check">✓</span> Sem cartão</span>
-              <span><span className="check">✓</span> Dados criptografados</span>
-            </div>
-            <div className="hero-trust">
-              <span><span className="check">✓</span> Funciona offline</span>
-              <span><span className="check">✓</span> Sem sync bancário — zero risco de duplicata</span>
-            </div>
           </div>
           <div className="hero-phones reveal">
             <div className="phone p1" aria-hidden="true">
@@ -333,216 +240,31 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ============== PROBLEMA ============== */}
-      <section id="problema">
+      {/* ============== FEATURES ============== */}
+      <section id="recursos">
         <div className="wrap">
           <div className="sec-head reveal">
-            <span className="sec-eyebrow">Sem julgamento</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Você já tentou se organizar antes.</h2>
-            <p className="sec-sub">A gente sabe. E sabe também por que não rolou.</p>
-          </div>
-          <div className="problems reveal">
-            <div className="problem">Planilha que você abandona na segunda semana</div>
-            <div className="problem">App que parece trabalho, não solução</div>
-            <div className="problem">Fim do mês sem entender pra onde foi o dinheiro</div>
-            <div className="problem">Meta de poupança que nunca sai do papel</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============== SOLUÇÃO ============== */}
-      <section id="solucao" style={{ background: 'linear-gradient(180deg,transparent,#FFFFFF 30%, #FFFFFF 70%, transparent)' }}>
-        <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">A solução</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>O TôOrganizado resolve isso de um jeito diferente.</h2>
-            <p className="sec-sub">Três coisas que mudam tudo no dia-a-dia.</p>
-          </div>
-          <div className="solutions reveal">
-            <article className="solution">
-              <span className="num">01 · Lançar</span>
-              <h3>30 segundos pra registrar qualquer gasto</h3>
-              <div className="solution-stack">
-                <div className="phone" aria-hidden="true">
-                  <div className="phone-screen">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/lancar.png" alt="Tela de lançar" />
-                  </div>
-                </div>
-              </div>
-            </article>
-            <article className="solution">
-              <span className="num">02 · Recorrentes</span>
-              <h3>Todas as suas contas fixas no mesmo lugar</h3>
-              <div className="solution-stack">
-                <div className="phone" aria-hidden="true">
-                  <div className="phone-screen">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/recorrentes.png" alt="Tela de recorrentes" />
-                  </div>
-                </div>
-              </div>
-            </article>
-            <article className="solution">
-              <span className="num">03 · Home</span>
-              <h3>Visão clara do mês — entrou, saiu, sobrou</h3>
-              <div className="solution-stack">
-                <div className="phone" aria-hidden="true">
-                  <div className="phone-screen">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/home.png" alt="Tela inicial" />
-                  </div>
-                </div>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      {/* ============== DIFERENCIAL ============== */}
-      <section id="diferencial">
-        <div className="wrap">
-          <div className="feature-block reveal">
-            <div className="feature-grid">
-              <div>
-                <span className="sec-eyebrow">O diferencial</span>
-                <h2>Isso aqui é diferente.</h2>
-                <p className="sec-sub">O único app de finanças que te dá vontade de abrir todo dia.</p>
-                <ul className="diff-list">
-                  <li><span className="star">✦</span><div><b>Missões de poupança criadas por IA</b><small>Desafios personalizados pro seu mês</small></div></li>
-                  <li><span className="star">✦</span><div><b>Streak de dias consecutivos</b><small>Igual seu app de idioma, mas pra dinheiro</small></div></li>
-                  <li><span className="star">✦</span><div><b>Badges de conquista desbloqueáveis</b><small>Cada meta atingida vira troféu</small></div></li>
-                  <li><span className="star">✦</span><div><b>Card compartilhável no Insta e Whats</b><small>Pra mostrar a evolução pros amigos</small></div></li>
-                  <li><span className="star">✦</span><div><b>GastoBot — assistente financeiro 24h</b><small>Tira dúvida, sugere corte, ajuda no mês</small></div></li>
-                </ul>
-                <div className="feature-cta">
-                  <Link href="/comecar" className="btn btn-ghost-white">Quero testar grátis</Link>
-                </div>
-              </div>
-              <div className="feature-phones" aria-hidden="true">
-                <div className="phone p1">
-                  <div className="phone-screen">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/gastobot.png" alt="GastoBot" />
-                  </div>
-                </div>
-                <div className="phone p2">
-                  <div className="phone-screen">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/card-compartilhavel.png" alt="Card compartilhável" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============== APP TRABALHA POR VOCÊ ============== */}
-      <section id="alertas" data-screen-label="App trabalha por você">
-        <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">Sempre ativo</span>
-            <h2>O app trabalha por você.</h2>
-            <p className="sec-sub">Enquanto você vive, o TôOrganizado monitora, alerta e resume.</p>
+            <span className="sec-eyebrow">Por que o TôOrganizado</span>
+            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+              Organizar dinheiro sem parecer obrigação.
+            </h2>
+            <p className="sec-sub">Quatro coisas que fazem você voltar todo dia.</p>
           </div>
           <div className="alertas-grid reveal">
-            <div className="alerta-card">
-              <div className="alerta-icon">🔔</div>
-              <h3>Alertas inteligentes</h3>
-              <p>Orçamento estourado, conta vencida, cobrança duplicada — você é avisado antes de virar problema.</p>
-            </div>
-            <div className="alerta-card pro">
-              <span className="pro-badge">PRO</span>
-              <div className="alerta-icon">📧</div>
-              <h3>Relatório semanal por e-mail</h3>
-              <p>Todo domingo, um resumo do seu mês: o que entrou, saiu, onde estourou e o progresso da sua missão. Sem abrir o app.</p>
-            </div>
-            <div className="alerta-card">
-              <div className="alerta-icon">📊</div>
-              <h3>Insights automáticos</h3>
-              <p>O app identifica anomalias de gasto, projeta como você vai fechar o mês e mostra tendências por categoria — sem você calcular nada.</p>
-            </div>
-            <div className="alerta-card">
-              <div className="alerta-icon">📱</div>
-              <h3>Instale como app, use offline</h3>
-              <p>Adicione à tela inicial do celular e acesse mesmo sem internet. Seus dados ficam em cache — o app funciona onde você estiver.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============== COMO FUNCIONA ============== */}
-      <section id="como-funciona">
-        <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">Como funciona</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Começa em 2 minutos.</h2>
-            <p className="sec-sub">Sem onboarding chato. Sem questionário interminável.</p>
-          </div>
-          <div className="steps reveal">
-            <div className="step">
-              <div className="step-num">1</div>
-              <h3>Crie sua conta grátis</h3>
-              <p>Sem cartão, sem burocracia. Email e senha, só isso.</p>
-            </div>
-            <div className="step">
-              <div className="step-num">2</div>
-              <h3>Cadastre seus gastos e recorrentes</h3>
-              <p>Em menos de 5 minutos você já tem a visão do mês.</p>
-            </div>
-            <div className="step">
-              <div className="step-num">3</div>
-              <h3>Ative sua primeira Missão</h3>
-              <p>E veja o hábito se formar — uma conquista por vez.</p>
-            </div>
+            {FEATURES.map((f) => (
+              <div key={f.title} className="alerta-card">
+                <div className="alerta-icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ============== PROVA SOCIAL ============== */}
-      <section id="prova" style={{ background: '#FFFFFF' }}>
+      <section style={{ background: '#FFFFFF' }}>
         <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">Quem já está dentro</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Quem já está organizando.</h2>
-            <p className="sec-sub">Primeiros usuários · comunidade em crescimento</p>
-          </div>
-          <div className="testimonials reveal">
-            <article className="testimonial">
-              <div className="quote-marks">&ldquo;</div>
-              <p>Eu tentei umas três planilhas, dois apps caros e nada grudava. Aqui em 3 semanas já tenho R$ 800 guardados — porque virou desafio, não obrigação.</p>
-              <div className="who">
-                <div className="avatar a1">CF</div>
-                <div>
-                  <b>Carla F.</b>
-                  <span>São Paulo, SP · Analista financeira</span>
-                </div>
-              </div>
-            </article>
-            <article className="testimonial">
-              <div className="quote-marks">&ldquo;</div>
-              <p>O GastoBot me mostrou que eu gastava R$ 380/mês em delivery sem perceber. Cortei pela metade e jogo o resto na missão. Surreal.</p>
-              <div className="who">
-                <div className="avatar a2">RM</div>
-                <div>
-                  <b>Rafael M.</b>
-                  <span>Belo Horizonte, MG · Analista júnior</span>
-                </div>
-              </div>
-            </article>
-            <article className="testimonial">
-              <div className="quote-marks">&ldquo;</div>
-              <p>Primeira vez que termino o mês sabendo pra onde foi cada real. E o card de conquista no Insta? Meus amigos pediram o link.</p>
-              <div className="who">
-                <div className="avatar a3">JS</div>
-                <div>
-                  <b>Juliana S.</b>
-                  <span>Recife, PE · Designer</span>
-                </div>
-              </div>
-            </article>
-          </div>
           <p className="users-count reveal">
             <span className="stack" aria-hidden="true">
               <span className="a" style={{ background: 'linear-gradient(135deg,#FF8A65,#FF4757)' }} />
@@ -555,133 +277,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ============== PRICING ============== */}
-      {!native && (
-      <section id="pricing">
-        <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">Planos</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Escolha como quer começar.</h2>
-            <p className="sec-sub">Free pra sempre. Pro quando fizer sentido.</p>
-          </div>
-
-          <div className="toggle-wrap reveal">
-            <div className="toggle" role="tablist" ref={toggleWrapRef}>
-              <span
-                className="pill"
-                style={pill ? { left: pill.left, width: pill.width } : undefined}
-              />
-              <button
-                ref={togMensalRef}
-                className={mode === 'mensal' ? 'active' : ''}
-                role="tab"
-                aria-selected={mode === 'mensal'}
-                onClick={() => setMode('mensal')}
-              >
-                Mensal
-              </button>
-              <button
-                ref={togAnualRef}
-                className={mode === 'anual' ? 'active' : ''}
-                role="tab"
-                aria-selected={mode === 'anual'}
-                onClick={() => setMode('anual')}
-              >
-                Anual <span className="save">−38%</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="plans reveal">
-            <article className="plan">
-              <span className="plan-name">Free</span>
-              <h3>Pra começar</h3>
-              <div className="price"><span className="num">R$ 0</span><span className="per">/sempre</span></div>
-              <p className="price-sub" style={{ color: 'var(--ink-2)' }}>Sem prazo, sem pegadinha.</p>
-              <ul>
-                <li><span className="ic no">✕</span>20 lançamentos por mês</li>
-                <li><span className="ic no">✕</span>5 recorrentes</li>
-                <li><span className="ic no">✕</span>1 consulta no GastoBot/mês</li>
-                <li><span className="ic no">✕</span>Sem metas financeiras</li>
-                <li><span className="ic no">✕</span>Sem controle de patrimônio</li>
-                <li><span className="ic no">✕</span>Sem cartões de crédito</li>
-              </ul>
-              <div className="plan-cta">
-                <Link href="/comecar" className="btn btn-outline" style={{ width: '100%' }}>
-                  Começar grátis
-                </Link>
-              </div>
-            </article>
-
-            <article className="plan pro">
-              <span className="badge-pop">★ Mais popular</span>
-              <span className="plan-name">Pro</span>
-              <h3>{plan.title}</h3>
-              <div className="price">
-                <span className="num">{plan.price}</span>
-                <span className="per">{plan.per}</span>
-              </div>
-              <p className="price-sub">{plan.sub}</p>
-              <ul>
-                <li><span className="ic yes">✓</span>Lançamentos ilimitados</li>
-                <li><span className="ic yes">✓</span>Recorrentes ilimitados</li>
-                <li><span className="ic yes">✓</span>Missão de Poupança com IA e badges</li>
-                <li><span className="ic yes">✓</span>Relatório semanal por e-mail</li>
-                <li><span className="ic yes">✓</span>GastoBot ilimitado</li>
-                <li><span className="ic yes">✓</span>Metas e patrimônio</li>
-                <li><span className="ic yes">✓</span>Cartões de crédito com fatura</li>
-                <li><span className="ic yes">✓</span>Suporte prioritário</li>
-              </ul>
-              <div className="footer-note">✦ Primeiros usuários com preço de fundador</div>
-              <div className="plan-cta">
-                <a href={plan.ctaHref} className="btn btn-ghost-white" style={{ width: '100%' }}>
-                  {plan.ctaLabel}
-                </a>
-              </div>
-            </article>
-          </div>
-
-          <p className="pricing-bottom reveal"><b>Menos que um café por semana.</b> Cancele quando quiser.</p>
-        </div>
-      </section>
-      )}
-
-      {/* ============== FAQ ============== */}
-      <section id="faq" style={{ background: '#FFFFFF' }}>
-        <div className="wrap">
-          <div className="sec-head reveal">
-            <span className="sec-eyebrow">Perguntas</span>
-            <h2 style={{ marginLeft: 'auto', marginRight: 'auto' }}>Dúvidas rápidas.</h2>
-          </div>
-          <div className="faq reveal" id="faqList">
-            {FAQS.map((item, i) => (
-              <FaqItem
-                key={item.q}
-                question={item.q}
-                answer={item.a}
-                open={openFaq === i}
-                onToggle={() => setOpenFaq((cur) => (cur === i ? null : i))}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ============== CTA FINAL ============== */}
       <section>
         <div className="wrap">
           <div className="final-cta reveal">
-            <span className="sec-eyebrow">Sua missão começa aqui</span>
+            <span className="sec-eyebrow">Baixe agora</span>
             <h2 style={{ fontSize: 'clamp(32px,4.4vw,52px)', margin: '0 auto 18px' }}>
-              Sua próxima missão começa hoje.
+              Sua organização começa no próximo toque.
             </h2>
-            <p className="sec-sub">Junte-se a quem já está no controle.</p>
-            <div style={{ marginTop: 32 }}>
-              <Link href="/comecar" className="btn btn-primary lg">
-                Criar conta grátis agora
-              </Link>
+            <p className="sec-sub">Grátis pra baixar. Pro opcional dentro do app.</p>
+            <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
+              <StoreButtons center />
             </div>
-            <p className="small">Sem compromisso. Sem cartão. Cancela quando quiser.</p>
           </div>
         </div>
       </section>
@@ -698,9 +305,11 @@ export default function LandingPage() {
             <span className="brand-text">Tô<b>Organizado</b></span>
           </a>
           <div className="foot-links">
-            <Link href="/privacidade">Política de Privacidade</Link>
-            <Link href="/termos">Termos de Uso</Link>
-            <a href="mailto:contato@toorganizado.com.br">Contato</a>
+            <Link href="/auth/login">Entrar</Link>
+            <Link href="/privacidade">Privacidade</Link>
+            <Link href="/termos">Termos</Link>
+            <Link href="/suporte">Suporte</Link>
+            <Link href="/excluir-conta">Excluir conta</Link>
           </div>
           <span className="made">Feito com 💜 para quem quer se organizar de verdade</span>
         </div>
@@ -709,37 +318,75 @@ export default function LandingPage() {
   );
 }
 
-function FaqItem({
-  question,
-  answer,
-  open,
-  onToggle,
-}: {
-  question: string;
-  answer: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const ansRef = useRef<HTMLDivElement>(null);
-  const [maxHeight, setMaxHeight] = useState<string>('0px');
-
-  useEffect(() => {
-    if (open && ansRef.current) {
-      setMaxHeight(ansRef.current.scrollHeight + 'px');
-    } else {
-      setMaxHeight('0px');
-    }
-  }, [open]);
-
+// ── Botões de download das lojas ────────────────────────────────────────────
+function StoreButtons({ center }: { center?: boolean }) {
   return (
-    <div className={`faq-item${open ? ' open' : ''}`}>
-      <button className="faq-q" onClick={onToggle} aria-expanded={open}>
-        {question}
-        <span className="ic" aria-hidden="true" />
-      </button>
-      <div className="faq-a" ref={ansRef} style={{ maxHeight }}>
-        <div className="faq-a-inner">{answer}</div>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        gap: 12,
+        flexWrap: 'wrap',
+        justifyContent: center ? 'center' : 'flex-start',
+      }}
+    >
+      <StoreBadge store="apple" url={APP_STORE_URL} />
+      <StoreBadge store="google" url={PLAY_STORE_URL} />
     </div>
+  );
+}
+
+function StoreBadge({ store, url }: { store: 'apple' | 'google'; url: string }) {
+  const available = url.length > 0;
+  const label = store === 'apple' ? 'App Store' : 'Google Play';
+  const topLine = available ? 'Baixar na' : 'Em breve na';
+
+  const inner: ReactNode = (
+    <>
+      <span aria-hidden="true" style={{ display: 'flex', flexShrink: 0 }}>
+        {store === 'apple' ? (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.84.95-2.2 1.68-3.32 1.6-.14-1.1.42-2.28 1.06-3 .72-.82 2.02-1.44 3.12-1.5.02.31.02.62.02.92zM20.5 17.02c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.53-4.12 3.54-1.54.02-1.93-1-4.02-.99-2.09.01-2.52 1.01-4.06.99-1.73-.01-3.05-1.77-4.04-3.34C-.03 16.9-.33 12.02 1.4 9.4c1.23-1.86 3.17-2.95 5-2.95 1.86 0 3.03 1.02 4.57 1.02 1.49 0 2.4-1.02 4.57-1.02 1.63 0 3.36.89 4.59 2.42-4.03 2.21-3.38 7.97.37 8.15z" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#EA4335" d="M3.6 2.2C3.3 2.5 3.1 3 3.1 3.6v16.8c0 .6.2 1.1.5 1.4l9-9.9-9-9.7z" opacity="0" />
+            <path fill="currentColor" d="M4 2.1c-.3.16-.5.45-.6.83v18.14c.1.38.3.67.6.83l9.9-9.9L4 2.1zm11.1 6.9L5.9 3.7l7.9 7.9 2.3-2.3-1-.3zM17.9 10.4l-2.3-1.3-2.5 2.5 2.5 2.5 2.4-1.3c.7-.4.7-1.7 0-2.4zM5.9 20.4l9.2-5.3-2.3-2.3-6.9 7.6z" />
+          </svg>
+        )}
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, textAlign: 'left' }}>
+        <small style={{ fontSize: 10, fontWeight: 600, opacity: 0.8 }}>{topLine}</small>
+        <b style={{ fontSize: 16, fontWeight: 800 }}>{label}</b>
+      </span>
+    </>
+  );
+
+  const baseStyle: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 18px',
+    borderRadius: 12,
+    background: '#1A1A1A',
+    color: '#fff',
+    textDecoration: 'none',
+    border: 'none',
+  };
+
+  if (available) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" style={baseStyle}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <span
+      aria-disabled="true"
+      title="Em breve"
+      style={{ ...baseStyle, opacity: 0.5, cursor: 'default' }}
+    >
+      {inner}
+    </span>
   );
 }

@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Check, X, Sparkles, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, X, Sparkles, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/useSubscription';
-import { buildKiwifyUrl, readStoredCupom } from '@/lib/utils';
 import { fetchApi } from '@/lib/fetchApi';
 import { isNativePlatform } from '@/lib/native';
-
-type Cycle = 'monthly' | 'annual';
 
 const PRO_FEATURES = [
   'Lançamentos ilimitados',
@@ -39,20 +36,14 @@ function formatDate(d: Date | null): string {
 
 export default function UpgradePage() {
   const router = useRouter();
-  // NATIVO: paywall escondido (lojas). A página /upgrade não é alcançável pelo
+  // NATIVO: paywall é o do onboarding (IAP). A /upgrade não é alcançável pelo
   // app, mas guardamos por defesa em profundidade — redireciona pra /app.
   const native = isNativePlatform();
   const { isPro, billingCycle, currentPeriodEnd, status, loading, refetch } = useSubscription();
-  const [cycle, setCycle] = useState<Cycle>('annual');
   const [couponOpen, setCouponOpen] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
-  const [cupomAtivo, setCupomAtivo] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCupomAtivo(readStoredCupom());
-  }, []);
 
   useEffect(() => {
     if (native) router.replace('/app');
@@ -81,28 +72,6 @@ export default function UpgradePage() {
       setCouponLoading(false);
     }
   }
-
-  const monthlyBase = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_MONTHLY ?? '#';
-  const annualBase = process.env.NEXT_PUBLIC_KIWIFY_CHECKOUT_ANNUAL ?? '#';
-
-  const monthlyUrl = useMemo(
-    () => buildKiwifyUrl(monthlyBase, cupomAtivo, 'upgrade'),
-    [monthlyBase, cupomAtivo],
-  );
-  const annualUrl = useMemo(
-    () => buildKiwifyUrl(annualBase, cupomAtivo, 'upgrade'),
-    [annualBase, cupomAtivo],
-  );
-
-  const checkoutUrl = cycle === 'monthly' ? monthlyUrl : annualUrl;
-  const priceLabel = cycle === 'monthly' ? 'R$ 19,90/mês' : 'R$ 147,00/ano';
-  const ctaLabel = cycle === 'monthly' ? 'Assinar por R$ 19,90/mês' : 'Assinar por R$ 147,00/ano';
-
-  const annualSavings = useMemo(() => {
-    const monthlyCost = 19.9 * 12;
-    const annualCost = 147;
-    return Math.round(((monthlyCost - annualCost) / monthlyCost) * 100);
-  }, []);
 
   if (native) return null;
 
@@ -174,7 +143,8 @@ export default function UpgradePage() {
           </div>
 
           <p style={{ marginTop: 20, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            Para cancelar ou alterar dados de pagamento, acesse o portal do cliente da Kiwify usando o e-mail da compra.
+            Para gerenciar ou cancelar sua assinatura, acesse as configurações de
+            assinaturas da App Store no seu iPhone (Ajustes → sua conta → Assinaturas).
           </p>
         </div>
       </main>
@@ -207,27 +177,6 @@ export default function UpgradePage() {
         <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0 }}>
           Controle total das suas finanças
         </p>
-      </div>
-
-      {/* Toggle cycle */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 4,
-          padding: 4,
-          borderRadius: 'var(--r-sm)',
-          background: 'var(--surface)',
-          border: '1.5px solid var(--border)',
-          marginBottom: 24,
-        }}
-      >
-        <CycleButton active={cycle === 'monthly'} onClick={() => setCycle('monthly')} label="Mensal" />
-        <CycleButton
-          active={cycle === 'annual'}
-          onClick={() => setCycle('annual')}
-          label="Anual"
-          badge={`${annualSavings}% off`}
-        />
       </div>
 
       {/* Free card */}
@@ -303,13 +252,7 @@ export default function UpgradePage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: 0 }}>Pro</h2>
-          <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--accent)' }}>{priceLabel}</span>
         </div>
-        {cycle === 'annual' && (
-          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', margin: 0, marginBottom: 12 }}>
-            Equivale a R$ 12,25/mês • Economize {annualSavings}%
-          </p>
-        )}
         <ul style={{ listStyle: 'none', padding: 0, margin: '14px 0 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {PRO_FEATURES.map((line) => (
             <li key={line} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -333,60 +276,29 @@ export default function UpgradePage() {
           ))}
         </ul>
 
-        <a
-          href={checkoutUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* CTA informativo: a assinatura Pro é feita DENTRO do app (App Store/IAP),
+            não há checkout web. Sem link externo de pagamento. */}
+        <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
             marginTop: 20,
-            padding: 14,
+            padding: 16,
             borderRadius: 'var(--r-sm)',
-            background: 'var(--accent)',
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 800,
-            textDecoration: 'none',
-            boxShadow: '0 4px 14px rgba(91,91,214,0.28)',
-          }}
-        >
-          <Sparkles size={16} />
-          {ctaLabel}
-        </a>
-
-        <p
-          style={{
-            marginTop: 10,
-            marginBottom: 0,
-            fontSize: 12,
-            fontWeight: 700,
-            color: '#5B5BD6',
+            background: 'var(--accent-bg)',
+            border: '1px solid rgba(91,91,214,0.22)',
             textAlign: 'center',
           }}
         >
-          ✦ Primeiros usuários com preço de fundador
-        </p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>
+            Assine pelo app TôOrganizado
+          </p>
+          <p style={{ margin: '6px 0 0', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            O Pro é assinado dentro do aplicativo (iOS). Baixe o app, abra o menu e
+            toque em assinar — e o Pro fica liberado também aqui no navegador.
+          </p>
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          fontSize: 11,
-          fontWeight: 700,
-          color: 'var(--text-3)',
-        }}
-      >
-        <ShieldCheck size={13} />
-        Cancele quando quiser • Pagamento seguro via Kiwify
-      </div>
-
-      {/* Cupom */}
+      {/* Cupom (mecanismo próprio, independente de loja) */}
       <div style={{ marginTop: 18, textAlign: 'center' }}>
         {!couponOpen ? (
           <button
@@ -470,57 +382,5 @@ function Row({ label, value }: { label: string; value: string }) {
       <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>{label}</span>
       <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 800 }}>{value}</span>
     </div>
-  );
-}
-
-function CycleButton({
-  active,
-  onClick,
-  label,
-  badge,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  badge?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        position: 'relative',
-        padding: '10px 0',
-        borderRadius: 'var(--r-sm)',
-        border: 'none',
-        background: active ? 'var(--accent)' : 'transparent',
-        color: active ? '#fff' : 'var(--text-2)',
-        fontSize: 13,
-        fontWeight: 800,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        transition: 'background 0.2s ease',
-      }}
-    >
-      {label}
-      {badge && (
-        <span
-          style={{
-            marginLeft: 6,
-            display: 'inline-block',
-            padding: '1px 7px',
-            borderRadius: 999,
-            background: active ? 'rgba(255,255,255,0.2)' : 'var(--green-bg)',
-            color: active ? '#fff' : 'var(--green)',
-            fontSize: 10,
-            fontWeight: 900,
-            verticalAlign: 'middle',
-          }}
-        >
-          {badge}
-        </span>
-      )}
-    </button>
   );
 }

@@ -96,7 +96,8 @@ export default function PrivacidadePage() {
               <li><strong>Vercel:</strong> hospedagem e execução do aplicativo.</li>
               <li><strong>Resend:</strong> envio de e-mails transacionais (confirmação de conta, código de verificação, suporte) e de relatórios e lembretes (resumo semanal, relatório mensal, lembrete da Missão e mensagens de onboarding).</li>
               <li><strong>Anthropic (API Claude):</strong> processamento do recurso de Assistente financeiro com IA (ver seção 5).</li>
-              <li><strong>Kiwify:</strong> processamento do pagamento da assinatura Pro na versão web. Recebemos apenas o e-mail e o status da assinatura; os dados de pagamento são tratados pela Kiwify.</li>
+              <li><strong>RevenueCat:</strong> gerencia as assinaturas do aplicativo (validação da compra e status da assinatura Pro). Recebemos apenas o identificador da conta e o status da assinatura.</li>
+              <li><strong>Apple (App Store):</strong> processa os pagamentos das assinaturas feitas dentro do aplicativo. Os dados de pagamento são tratados pela Apple; recebemos apenas a confirmação e o status da compra.</li>
               <li><strong>Apple e Google:</strong> distribuição dos aplicativos pelas respectivas lojas.</li>
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
