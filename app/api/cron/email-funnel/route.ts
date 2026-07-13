@@ -126,15 +126,14 @@ function emailD14Value(name: string): { subject: string; html: string } {
         <strong>Lançamentos ilimitados</strong> — sem o limite de 20/mês
       </li>
     </ul>
-    <a href="https://pay.kiwify.com.br/4FBgOAj"
+    <a href="https://toorganizado.com.br/"
        style="display:inline-block;background:#5B5BD6;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;margin-bottom:14px;">
-      Fazer upgrade Pro — R$19,90/mês →
+      Baixe o app e assine o Pro →
     </a>
     <br>
-    <a href="https://pay.kiwify.com.br/b8zdPQ6"
-       style="font-size:13px;color:#5B5BD6;text-decoration:underline;">
-      Ou R$147,00/ano (economia de 38%) →
-    </a>
+    <span style="font-size:13px;color:#B4B4AA;">
+      A assinatura Pro é feita dentro do app.
+    </span>
     <p style="margin-top:32px;font-size:12px;color:#B4B4AA;">Qualquer dúvida, responda este e-mail.</p>
   </div>
 </body>
@@ -161,11 +160,11 @@ function emailD21Convert(name: string): { subject: string; html: string } {
         TôOrganizado Pro
       </p>
       <p style="font-size:20px;font-weight:900;color:#ffffff;margin:0 0 20px;">
-        R$19,90/mês · cancele quando quiser
+        Tudo liberado · cancele quando quiser
       </p>
-      <a href="https://pay.kiwify.com.br/4FBgOAj"
+      <a href="https://toorganizado.com.br/"
          style="display:inline-block;background:#ffffff;color:#5B5BD6;font-weight:900;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;">
-        Fazer upgrade agora →
+        Baixe o app →
       </a>
     </div>
 
