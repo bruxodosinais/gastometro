@@ -55,6 +55,7 @@ export default async function proxy(request: NextRequest) {
     pathname === '/termos' ||
     pathname === '/privacidade' ||
     pathname === '/excluir-conta' ||
+    pathname === '/suporte' ||
     pathname === '/instalar';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isPublicWebhook = pathname.startsWith('/api/webhooks/');
