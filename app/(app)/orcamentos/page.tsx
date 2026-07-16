@@ -457,7 +457,7 @@ function BudgetModal({
         onClick={onClose}
       />
       <div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm mx-4 z-50"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-sm z-50"
         style={{
           background: 'var(--surface)',
           borderRadius: 'var(--r)',

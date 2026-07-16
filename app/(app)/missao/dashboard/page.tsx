@@ -941,7 +941,7 @@ function SwapMissionConfirm({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed top-1/2 left-1/2 z-[60] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 mx-4"
+        className="fixed top-1/2 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2"
         style={{
           background: 'var(--surface)',
           borderRadius: 20,
@@ -1010,14 +1010,14 @@ function HistoryModal({
   return (
     <>
       {/* Mesmo padrão do ContributionSheet: overlay z-50 + card centralizado
-          na viewport (top/left + translate). max-w-sm + mx-4 mantém respiro
-          em telas estreitas. Sem isso, o modal estava abrindo deslocado por
-          herdar o flex-end + max-width customizado. */}
+          na viewport (top/left + translate). O respiro em telas estreitas vem
+          da largura (calc(100%-2rem)), não de margem. Sem isso, o modal estava
+          abrindo deslocado por herdar o flex-end + max-width customizado. */}
       <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm mx-4 z-50"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-sm z-50"
         style={{
           background: 'var(--surface)',
           borderRadius: 20,
@@ -1204,7 +1204,7 @@ function ConquistasModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed top-1/2 left-1/2 z-50 mx-4 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
+        className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
         style={{ maxHeight: '80vh' }}
       >
         <div className="flex items-center justify-between">
@@ -1279,7 +1279,7 @@ function HistoricoMissoesModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed top-1/2 left-1/2 z-50 mx-4 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
+        className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6"
         style={{ maxHeight: '80vh' }}
       >
         <div className="flex items-center justify-between">
