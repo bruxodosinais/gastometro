@@ -36,7 +36,7 @@ function formatDate(d: Date | null): string {
 
 export default function UpgradePage() {
   const router = useRouter();
-  // NATIVO: app é grátis neste build (sem IAP). A /upgrade não é alcançável pelo
+  // NATIVO: paywall é o do onboarding (IAP). A /upgrade não é alcançável pelo
   // app, mas guardamos por defesa em profundidade — redireciona pra /app.
   const native = isNativePlatform();
   const { isPro, billingCycle, currentPeriodEnd, status, loading, refetch } = useSubscription();

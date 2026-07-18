@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
 import { createClient } from '@/lib/supabase/client';
+import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
 import './landing.css';
 
 // Link da App Store: entra quando o app for APROVADO (env na Vercel). HOJE vazio
@@ -32,9 +33,9 @@ export default function LandingPage() {
   useEffect(() => {
     if (!isNativePlatform()) return; // web → landing de download
     setBooting(true); // mascara já: não pisca a landing no nativo
-    // IAP (RevenueCat) fora deste build FREE — o app nativo é grátis (aprovação
-    // Apple enquanto o acordo de apps pagos não sai). Restaurar depois via
-    // commits c12bcbe (SDK) + c40bf59 (paywall). Ver app/api/webhooks/revenuecat.
+    // Configura o RevenueCat cedo, só no nativo. Idempotente e fire-and-forget:
+    // não bloqueia o boot e, com a env de chave vazia, só loga um aviso.
+    void initRevenueCat();
     let cancelled = false;
 
     (async () => {
@@ -53,6 +54,10 @@ export default function LandingPage() {
       if (cancelled) return;
 
       if (user) {
+        // Fallback idempotente do alias RevenueCat: se o logIn pós-cadastro não
+        // rodou (ex.: usuário fechou o app antes), amarra a compra anônima →
+        // conta neste cold start. initRevenueCat garante o configure() antes.
+        void initRevenueCat().then(() => loginRevenueCat(user?.id ?? ''));
         const onboardingDone = user.user_metadata?.onboarding_completed === true;
         router.replace(onboardingDone ? '/app' : '/onboarding');
         return;

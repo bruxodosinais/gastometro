@@ -296,7 +296,16 @@
       "Bash(sips -Z 880 /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/design/p5-aporte.png --out /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/v-p5.png)",
       "Bash(S=/private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad\nbash $S/design/rects.sh)",
       "Bash(bash /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/design/rects.sh)",
-      "Bash(NODE_PATH=/Users/anderson/gastometro/node_modules node /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/findrect.js)"
+      "Bash(NODE_PATH=/Users/anderson/gastometro/node_modules node /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/findrect.js)",
+      "Bash(cp __TRACKED_VAR__/public/index.html /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/index.orig.html)",
+      "Bash(cp __TRACKED_VAR__/public/missao/dashboard/index.html /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/dash.orig.html)",
+      "Bash(cp /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/dash.orig.html __TRACKED_VAR__/public/missao/dashboard/index.html)",
+      "Bash(cp /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/index.orig.html __TRACKED_VAR__/public/index.html)",
+      "Bash(cp /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/dash.orig.html __CMDSUB_OUTPUT__/public/missao/dashboard/index.html)",
+      "Bash(cp /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/index.orig.html __CMDSUB_OUTPUT__/public/index.html)",
+      "Bash(sips -Z 480 /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/verify-conquistas.png --out /private/tmp/claude-501/-Users-anderson-gastometro/b5d6d611-07c3-4887-bf17-9972df270736/scratchpad/v-conq.png)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(echo \"versão instalada: $\\(node -e \"console.log\\(require\\('@revenuecat/purchases-capacitor/package.json'\\).version\\)\" || echo '?'\\)\")"
     ]
   }
 }
