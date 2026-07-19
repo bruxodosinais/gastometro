@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
-import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
+import { initRevenueCat, loginRevenueCat, syncSubscriptionFromStore } from '@/lib/revenuecat';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 // Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada em AMBAS as
@@ -118,17 +118,19 @@ function ConfirmarCodigoContent() {
     }
 
     // Aliasa a compra ANÔNIMA do RevenueCat (feita no paywall pré-cadastro) a
-    // ESTA conta. Native-gated e idempotente; no-op na web/sem id. Best-effort:
-    // uma falha aqui NÃO pode travar a confirmação (o boot nativo re-tenta o
-    // alias em app/page.tsx). initRevenueCat garante o configure() antes do logIn.
+    // ESTA conta e sincroniza a assinatura no backend NA HORA (o alias não
+    // dispara webhook). Native-gated e idempotente; no-op na web/sem id. Best-
+    // effort: uma falha aqui NÃO pode travar a confirmação (o boot nativo re-tenta
+    // alias+sync em app/page.tsx). initRevenueCat garante o configure() antes do logIn.
     try {
       const newUserId = verifyData.user?.id;
       if (newUserId) {
         await initRevenueCat();
         await loginRevenueCat(newUserId);
+        await syncSubscriptionFromStore();
       }
     } catch {
-      /* fallback: alias re-tentado no cold start nativo */
+      /* fallback: alias+sync re-tentados no cold start nativo */
     }
 
     router.replace('/onboarding');

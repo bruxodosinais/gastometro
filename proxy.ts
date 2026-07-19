@@ -19,6 +19,7 @@ const NATIVE_API = new Set<string>([
   '/api/feedback',
   '/api/missao/gerar-desafio',
   '/api/reports/weekly-summary',
+  '/api/subscription/sync',
   '/api/suporte',
   '/api/activate-beta',
 ]);

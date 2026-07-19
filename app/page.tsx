@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/native';
 import { createClient } from '@/lib/supabase/client';
-import { initRevenueCat, loginRevenueCat } from '@/lib/revenuecat';
+import { initRevenueCat, loginRevenueCat, syncSubscriptionFromStore } from '@/lib/revenuecat';
 import './landing.css';
 
 // Link da App Store: entra quando o app for APROVADO (env na Vercel). HOJE vazio
@@ -54,10 +54,14 @@ export default function LandingPage() {
       if (cancelled) return;
 
       if (user) {
-        // Fallback idempotente do alias RevenueCat: se o logIn pós-cadastro não
-        // rodou (ex.: usuário fechou o app antes), amarra a compra anônima →
-        // conta neste cold start. initRevenueCat garante o configure() antes.
-        void initRevenueCat().then(() => loginRevenueCat(user?.id ?? ''));
+        // Fallback idempotente do alias + sync RevenueCat: se o logIn/sync pós-
+        // cadastro não rodou (ex.: usuário fechou o app antes), amarra a compra
+        // anônima → conta e grava a assinatura no backend neste cold start.
+        // initRevenueCat garante o configure() antes; best-effort (não trava o boot).
+        void initRevenueCat()
+          .then(() => loginRevenueCat(user?.id ?? ''))
+          .then(() => syncSubscriptionFromStore())
+          .catch(() => {});
         const onboardingDone = user.user_metadata?.onboarding_completed === true;
         router.replace(onboardingDone ? '/app' : '/onboarding');
         return;

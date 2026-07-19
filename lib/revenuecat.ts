@@ -15,7 +15,8 @@
 // webhook RevenueCat na Fase 3). O entitlement lido aqui serve SÓ pra feedback
 // imediato de UI logo após a compra/restore.
 
-import { isNativePlatform } from '@/lib/native';
+import { isNativePlatform, apiUrl } from '@/lib/native';
+import { createClient } from '@/lib/supabase/client';
 import type { CustomerInfo, PurchasesPackage } from '@revenuecat/purchases-capacitor';
 
 // Constantes do console RevenueCat (Fase 1).
@@ -143,4 +144,30 @@ export async function loginRevenueCat(appUserId: string): Promise<void> {
 
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   await Purchases.logIn({ appUserID: appUserId });
+}
+
+/**
+ * Sync sob demanda pós-alias: chama o backend (que consulta o RevenueCat via
+ * REST secret key) pra gravar a assinatura em `subscriptions` NA HORA. Necessário
+ * porque o alias anônimo→identificado NÃO dispara webhook — sem isto, a linha só
+ * nasceria na próxima renovação (um ano depois, no anual). Native-gated e
+ * best-effort: sem sessão/erro/timeout → return silencioso (o webhook ainda cobre
+ * renovações/cancelamentos). Retorna true se o backend confirmou 'pro' ativo.
+ */
+export async function syncSubscriptionFromStore(): Promise<boolean> {
+  if (!isNativePlatform()) return false;
+
+  const {
+    data: { session },
+  } = await createClient().auth.getSession();
+  const token = session?.access_token;
+  if (!token) return false;
+
+  const res = await fetch(apiUrl('/api/subscription/sync'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return false;
+  const body = (await res.json().catch(() => null)) as { pro?: boolean } | null;
+  return body?.pro === true;
 }
