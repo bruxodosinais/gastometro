@@ -10,7 +10,6 @@ import {
   Sun, Moon, Zap, ChevronDown,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { isNativePlatform } from '@/lib/native';
 import { getCachedUser } from '@/lib/dataCache';
 import { openFeedback } from '@/components/FeedbackButton';
 import { openSupport } from '@/components/SupportButton';
@@ -309,9 +308,8 @@ export default function Sidebar() {
             >
               {userName || 'Você'}
             </p>
-            {/* Rótulo de plano — escondido no NATIVO (Guideline Apple 3.1.1: o app
-                nativo é grátis, sem menção a tier pago). Web: inalterado. */}
-            {!isNativePlatform() && !subLoading && (
+            {/* Rótulo de plano (backend é a fonte de verdade — vale web e nativo). */}
+            {!subLoading && (
               isPro ? (
                 <span
                   style={{
@@ -382,12 +380,10 @@ export default function Sidebar() {
             <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
               {userName || 'Você'}
             </p>
-            {/* Escondido no NATIVO (sem menção a plano pago — Apple 3.1.1). */}
-            {!isNativePlatform() && (
-              <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '2px 0 0' }}>
-                {isPro ? 'Plano Pro ✓' : 'Plano Gratuito'}
-              </p>
-            )}
+            {/* Status do plano (backend é a fonte de verdade — vale web e nativo). */}
+            <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '2px 0 0' }}>
+              {isPro ? 'Plano Pro ✓' : 'Plano Gratuito'}
+            </p>
           </div>
 
           <div style={{ padding: '6px 8px' }}>

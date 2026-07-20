@@ -843,7 +843,9 @@ function Step3(props: {
         enabled={props.aiChallengesEnabled}
         onChange={props.setAiChallengesEnabled}
         disabled={!props.isPro}
-        badge={isNativePlatform() ? undefined : 'PRO'}
+        // Badge indica feature Pro: na web mantém 'PRO' (inalterado); no nativo
+        // some quando o usuário já é Pro e aparece pro free (leva ao /upgrade).
+        badge={isNativePlatform() && props.isPro ? undefined : 'PRO'}
       />
 
       {props.existingMission && (

@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/useSubscription';
 import { fetchApi } from '@/lib/fetchApi';
 import { isNativePlatform } from '@/lib/native';
+import { initRevenueCat, getOfferings, syncSubscriptionFromStore, type Offerings } from '@/lib/revenuecat';
+import Paywall from '@/app/inicio/_components/Paywall';
 
 const PRO_FEATURES = [
   'Lançamentos ilimitados',
@@ -36,8 +38,8 @@ function formatDate(d: Date | null): string {
 
 export default function UpgradePage() {
   const router = useRouter();
-  // NATIVO: paywall é o do onboarding (IAP). A /upgrade não é alcançável pelo
-  // app, mas guardamos por defesa em profundidade — redireciona pra /app.
+  // NATIVO: o upgrade acontece DENTRO do app (IAP/StoreKit) — /upgrade renderiza o
+  // mesmo Paywall do onboarding pro usuário free. Web: checkout/cupom (inalterado).
   const native = isNativePlatform();
   const { isPro, billingCycle, currentPeriodEnd, status, loading, refetch } = useSubscription();
   const [couponOpen, setCouponOpen] = useState(false);
@@ -45,9 +47,36 @@ export default function UpgradePage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMsg, setCouponMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
+  // Prefetch das offerings (só nativo). Web: no-op (getOfferings → null).
+  const [offerings, setOfferings] = useState<Offerings | null>(null);
+  const [offeringsLoading, setOfferingsLoading] = useState(native);
   useEffect(() => {
-    if (native) router.replace('/app');
-  }, [native, router]);
+    if (!native) return;
+    let alive = true;
+    initRevenueCat()
+      .then(getOfferings)
+      .then((o) => {
+        if (alive) {
+          setOfferings(o);
+          setOfferingsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (alive) setOfferingsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [native]);
+
+  // Compra concluída (ou "Continuar no grátis"): sincroniza a assinatura do
+  // RevenueCat, refaz o fetch do plano e volta pro app. syncSubscriptionFromStore
+  // é no-op se não houver compra ativa → free segue free.
+  async function handlePaywallDone() {
+    await syncSubscriptionFromStore();
+    await refetch();
+    router.replace('/app');
+  }
 
   async function redeemCoupon() {
     setCouponLoading(true);
@@ -73,12 +102,49 @@ export default function UpgradePage() {
     }
   }
 
-  if (native) return null;
-
   if (loading) {
     return (
       <main style={{ padding: 24, minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
         <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Carregando…</p>
+      </main>
+    );
+  }
+
+  // NATIVO + FREE → paywall in-app (IAP). O Pro nativo cai no bloco isPro abaixo,
+  // que já mostra status + gerenciamento pela App Store.
+  if (native && !isPro) {
+    if (offeringsLoading) {
+      return (
+        <main style={{ padding: 24, minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
+          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>Carregando…</p>
+        </main>
+      );
+    }
+    if (offerings && (offerings.monthly || offerings.annual)) {
+      return <Paywall offerings={offerings} onDone={handlePaywallDone} />;
+    }
+    // Sem offerings (não deve acontecer pós-lançamento) → mensagem amigável + /app.
+    return (
+      <main style={{ padding: 24, minHeight: '70vh', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+        <div>
+          <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+            Assinatura indisponível agora
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '8px 0 16px' }}>
+            Não foi possível carregar os planos. Tente de novo em instantes.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.replace('/app')}
+            style={{
+              padding: '10px 18px', background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 'var(--r-sm)', fontFamily: 'inherit',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            Continuar no grátis
+          </button>
+        </div>
       </main>
     );
   }

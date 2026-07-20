@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { cachedFetch, getCachedUser, invalidate, TTL } from '@/lib/dataCache';
-import { isNativePlatform } from '@/lib/native';
 
 export type SubscriptionPlan = 'free' | 'pro';
 export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due';
@@ -77,13 +76,12 @@ export function useSubscription(): UseSubscriptionResult {
     fetchSub();
   }, [fetchSub]);
 
-  // NATIVO (Capacitor): Pro liberado de graça (v1 free nas lojas — Apple/Google
-  // rejeitam link de pagamento externo, então o paywall é escondido e todas as
-  // features Pro ficam abertas). Web: gate normal por assinatura (Kiwify).
-  const native = isNativePlatform();
-  const plan: SubscriptionPlan = native ? 'pro' : row.plan;
-  const status = native ? 'active' : row.status;
-  const isPro = native || (plan === 'pro' && status === 'active');
+  // O BACKEND é a fonte de verdade do isPro (tabela `subscriptions`, mantida pelo
+  // webhook RevenueCat + sync sob demanda pós-cadastro). Vale igual na web
+  // (Kiwify/cupom) e no nativo (IAP StoreKit) — sem override por plataforma.
+  const plan = row.plan;
+  const status = row.status;
+  const isPro = plan === 'pro' && status === 'active';
   const currentPeriodEnd = row.current_period_end ? new Date(row.current_period_end) : null;
 
   return {

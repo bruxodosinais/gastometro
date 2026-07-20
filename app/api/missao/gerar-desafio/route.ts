@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getRequestUser } from '@/lib/supabase/getRequestUser';
-import { isNativeRequest } from '@/lib/cors';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const maxDuration = 30;
@@ -36,8 +35,7 @@ export async function POST(request: Request) {
       .select('plan, status')
       .eq('user_id', user.id)
       .maybeSingle();
-    // Nativo (origin do webview): Pro liberado de graça (v1 free nas lojas).
-    const isPro = isNativeRequest(request) || (sub?.plan === 'pro' && sub?.status === 'active');
+    const isPro = sub?.plan === 'pro' && sub?.status === 'active';
     if (!isPro) return Response.json({ error: 'pro_required' }, { status: 402 });
 
     const body = (await request.json()) as Body;

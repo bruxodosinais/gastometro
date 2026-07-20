@@ -10,7 +10,6 @@ import StreakMilestonesSection from '@/components/StreakMilestonesSection';
 import RoundUpSettings from '@/components/RoundUpSettings';
 import { getErrorMessage } from '@/lib/errors';
 import { fetchApi } from '@/lib/fetchApi';
-import { isNativePlatform } from '@/lib/native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useTheme, type Theme } from '@/lib/themeContext';
@@ -595,9 +594,8 @@ export default function PerfilPage() {
           <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4, marginBottom: 0 }}>
             {email}
           </p>
-          {/* Badge de plano — escondido no NATIVO (app grátis, sem tier pago
-              visível — Apple 3.1.1). Web: inalterado. */}
-          {!isNativePlatform() && !subLoading && (
+          {/* Badge de plano (backend é a fonte de verdade — vale web e nativo). */}
+          {!subLoading && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               marginTop: 8, padding: '3px 10px', borderRadius: 999,
@@ -683,9 +681,10 @@ export default function PerfilPage() {
                   </p>
                 </div>
 
-                {/* Plano — o bloco INTEIRO fica oculto no NATIVO (nenhuma menção
-                    a plano/tier pago — Apple 3.1.1). Web: inalterado. */}
-                {!isNativePlatform() && !subLoading && (
+                {/* Plano — status + ação de upgrade/gerenciar. Backend é a fonte
+                    de verdade (vale web e nativo); no nativo o link leva ao paywall
+                    IAP (free) ou ao status Pro (App Store). */}
+                {!subLoading && (
                   <div style={{ padding: '14px 16px', borderBottom: rowBorder, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Plano</p>
@@ -704,12 +703,11 @@ export default function PerfilPage() {
                         </p>
                       )}
                     </div>
-                    {/* Nativo: sem link de pagamento (lojas). Web: Gerenciar/upgrade. */}
-                    {!isNativePlatform() && (
-                      <Link href="/upgrade" style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        {isPro ? 'Gerenciar' : 'Fazer upgrade'}
-                      </Link>
-                    )}
+                    {/* /upgrade: no nativo abre o paywall IAP (free) ou o status Pro
+                        (App Store); na web, checkout/gerenciar. */}
+                    <Link href="/upgrade" style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      {isPro ? 'Gerenciar' : 'Fazer upgrade'}
+                    </Link>
                   </div>
                 )}
 
