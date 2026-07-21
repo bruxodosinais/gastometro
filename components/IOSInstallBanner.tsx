@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Share } from 'lucide-react';
+import { isNativePlatform } from '@/lib/native';
 
 const DISMISS_KEY = 'ios-install-dismissed';
 
@@ -11,6 +12,9 @@ export default function IOSInstallBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Quem baixou o app da loja não precisa "adicionar à tela de início" — e as 3
+    // checagens abaixo passam dentro do WKWebView do Capacitor. Web: sempre false.
+    if (isNativePlatform()) return;
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua);
     const isSafari = !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);

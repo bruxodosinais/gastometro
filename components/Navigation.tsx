@@ -112,6 +112,18 @@ export default function Navigation() {
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Trava o scroll do body enquanto o sheet/drawer está aberto — sem isso a
+  // página rola por trás do overlay. Mesma convenção dos outros sheets do app:
+  // salva o overflow anterior e restaura no cleanup (não assume string vazia).
+  useEffect(() => {
+    if (!sheetOpen && !drawerOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [sheetOpen, drawerOpen]);
+
   // ESC fecha ambos
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
