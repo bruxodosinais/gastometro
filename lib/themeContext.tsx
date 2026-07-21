@@ -14,10 +14,12 @@ type ThemeContextValue = {
 const STORAGE_KEY = 'theme';
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// Sem nada salvo o padrão é CLARO (não 'system'): o onboarding é claro fixo e o app
+// escurecia logo depois em quem tem o SO no escuro. 'system' segue válido se salvo.
 function readStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return 'light';
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  return raw === 'light' || raw === 'dark' || raw === 'system' ? raw : 'system';
+  return raw === 'light' || raw === 'dark' || raw === 'system' ? raw : 'light';
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -32,8 +34,9 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // SSR: começa em 'system' para casar com o markup; useEffect ajusta no client.
-  const [theme, setThemeState] = useState<Theme>('system');
+  // SSR: começa no padrão claro, igual ao que o script anti-FOUC do layout já
+  // aplicou no <html>; o useEffect abaixo ajusta pra preferência salva.
+  const [theme, setThemeState] = useState<Theme>('light');
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>('light');
 
   // Carrega tema persistido + system preference no mount.

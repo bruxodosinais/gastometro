@@ -946,7 +946,9 @@ export default function HomePage() {
           alignItems: 'flex-start',
           padding: '18px 22px 0',
           position: 'relative',
-          zIndex: 50,
+          // Precisa ficar ABAIXO da TopbarMobile (40): conteúdo de página passa por
+          // baixo da barra fixa. 1 basta pra ficar acima dos irmãos (z-index auto).
+          zIndex: 1,
           ...(mounted ? anim(50) : hidden),
         }}
       >

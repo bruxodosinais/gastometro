@@ -64,6 +64,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`h-full ${nunito.className}`} suppressHydrationWarning>
       <body className="min-h-full" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+        {/* Anti-FOUC: aplica o data-theme ANTES da primeira pintura. Sem isso, o
+            padrão claro só valeria após a hidratação e o aparelho com o SO no
+            escuro piscaria escuro→claro a cada abertura (globals.css escurece via
+            prefers-color-scheme quando não há data-theme). 'system' não seta nada,
+            de propósito: aí a media query é que decide. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'&&t!=='system')t='light';if(t!=='system')document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
+          }}
+        />
         <ThemeProvider>
           <ServiceWorkerRegister />
           <IOSInstallBanner />
