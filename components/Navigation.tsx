@@ -359,7 +359,7 @@ export default function Navigation() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 900, color: '#fff', margin: 0 }}>Seja Pro 🚀</p>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)', margin: 0, marginTop: 2 }}>A partir de R$ 19,90/mês</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)', margin: 0, marginTop: 2 }}>A partir de R$ 10,83/mês</p>
                 </div>
               </Link>
             )}

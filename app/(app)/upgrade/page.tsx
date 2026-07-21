@@ -121,7 +121,9 @@ export default function UpgradePage() {
       );
     }
     if (offerings && (offerings.monthly || offerings.annual)) {
-      return <Paywall offerings={offerings} onDone={handlePaywallDone} />;
+      // zIndex 80: acima da bottom nav (50), overlay/drawer (60/70/71) e toasts —
+      // sem ele o aviso legal de renovação fica coberto pela tab bar (Apple 3.1.2).
+      return <Paywall offerings={offerings} onDone={handlePaywallDone} zIndex={80} />;
     }
     // Sem offerings (não deve acontecer pós-lançamento) → mensagem amigável + /app.
     return (

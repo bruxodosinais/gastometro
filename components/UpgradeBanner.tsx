@@ -89,7 +89,7 @@ export default function UpgradeBanner({ message, feature, variant = 'inline' }: 
             color: 'var(--text-3)',
           }}
         >
-          A partir de R$ 19,90/mês • Cancele quando quiser
+          A partir de R$ 10,83/mês • Cancele quando quiser
         </p>
       </div>
     );

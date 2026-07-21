@@ -39,9 +39,12 @@ const FREE_LIMITS: string[] = [
 export default function Paywall({
   offerings,
   onDone,
+  zIndex,
 }: {
   offerings: Offerings;
   onDone: () => void;
+  // Só quem renderiza o paywall dentro do chrome do app passa (ver QuizShell).
+  zIndex?: number;
 }) {
   const monthly = offerings.monthly;
   const annual = offerings.annual;
@@ -106,6 +109,7 @@ export default function Paywall({
 
   return (
     <QuizShell
+      zIndex={zIndex}
       footer={
         <div>
           {error && (

@@ -20,20 +20,26 @@ export function formatBRL(n: number): string {
 
 // Casca full-screen do quiz: safe-area, bg, coluna centralizada (cabeçalho fixo,
 // conteúdo rolável, rodapé). Usada por todos os 8 passos.
+// zIndex é opt-in: só quem renderiza a casca DENTRO do chrome do app (ex.: /upgrade,
+// que tem bottom nav z-50 e topbar z-40) precisa passar. Ausente = nenhuma chave
+// zIndex no style → /inicio segue idêntico.
 export function QuizShell({
   header,
   footer,
   children,
+  zIndex,
 }: {
   header?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
+  zIndex?: number;
 }) {
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
+        ...(zIndex !== undefined && { zIndex }),
         background: BG,
         color: INK,
         fontFamily: FONT,
