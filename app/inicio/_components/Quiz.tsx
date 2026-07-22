@@ -1,10 +1,11 @@
 'use client';
 
 // Quiz nativo de 8 passos (Fatia 2). State machine numa rota só (sem rotas
-// novas → proxy intocado). Ordem: 1 Missão · 2 Salário⭐ · 3 Valor · 4 Slider%⭐
-// · 5 Dor · 6 Projeção · 7 Pacto · 8 Nome. (⭐ = passo conversacional com coach.)
-// Respostas vivem em memória até o Q8, que monta o PresignupMission estendido e
-// devolve via onComplete (o orquestrador salva + navega pro cadastro).
+// novas → proxy intocado). Ordem: 1 Nome⭐ · 2 Missão · 3 Salário⭐ · 4 Valor
+// · 5 Slider%⭐ · 6 Dor · 7 Projeção · 8 Pacto. (⭐ = passo conversacional com
+// coach.) Respostas vivem em memória até o Pacto (Q8), que monta o
+// PresignupMission estendido e devolve via onComplete (o orquestrador salva +
+// navega pro cadastro).
 
 import { useState } from 'react';
 import { BigCurrencyInput, numberToStr, strToNumber } from '../../onboarding/_components/CurrencyInput';
@@ -109,7 +110,7 @@ export default function Quiz({
   }
 
   // Digitar um salário válido e confirmar cancela um skip anterior (reconcilia a
-  // flag pra não cair no numpad de R$ do Q4 nem descartar o salário no finish()).
+  // flag pra não cair no numpad de R$ do Q5 nem descartar o salário no finish()).
   function confirmIncome() {
     setIncomeSkipped(false);
     next();
@@ -137,12 +138,45 @@ export default function Quiz({
       step={step}
       total={TOTAL}
       onBack={back}
-      onSkip={step === 5 || step === 6 ? next : undefined}
+      onSkip={step === 6 || step === 7 ? next : undefined}
     />
   );
 
-  // ── Q1 · Missão ────────────────────────────────────────────────────────────
+  // ── Q1 · Nome (coach) ───────────────────────────────────────────────────────
   if (step === 1) {
+    return (
+      <QuizShell
+        header={header}
+        footer={<PrimaryBtn disabled={firstName.trim().length === 0} onClick={next}>Continuar</PrimaryBtn>}
+      >
+        <Coach>Antes de começar, como posso te chamar? 😊</Coach>
+        <StepTitle title="Qual é o seu nome?" />
+        <input
+          type="text"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="Seu primeiro nome"
+          autoComplete="given-name"
+          maxLength={40}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            padding: '16px 18px',
+            borderRadius: 14,
+            border: '1.5px solid #E4E4ED',
+            background: '#fff',
+            color: INK,
+            font: `800 18px ${FONT}`,
+            outline: 'none',
+            textAlign: 'center',
+          }}
+        />
+      </QuizShell>
+    );
+  }
+
+  // ── Q2 · Missão ────────────────────────────────────────────────────────────
+  if (step === 2) {
     const ok = templateId != null && (templateId !== 'outra' || missionName.trim().length > 0);
     return (
       <QuizShell header={header} footer={<PrimaryBtn disabled={!ok} onClick={next}>Continuar</PrimaryBtn>}>
@@ -183,8 +217,8 @@ export default function Quiz({
     );
   }
 
-  // ── Q2 · Salário (coach + reframe) ──────────────────────────────────────────
-  if (step === 2) {
+  // ── Q3 · Salário (coach + reframe) ──────────────────────────────────────────
+  if (step === 3) {
     const hr = hourlyRate(incomeNum);
     const coffeeMin = minutesOfWork(COFFEE, hr);
     return (
@@ -222,8 +256,8 @@ export default function Quiz({
     );
   }
 
-  // ── Q3 · Valor alvo ─────────────────────────────────────────────────────────
-  if (step === 3) {
+  // ── Q4 · Valor alvo ─────────────────────────────────────────────────────────
+  if (step === 4) {
     return (
       <QuizShell
         header={header}
@@ -235,8 +269,8 @@ export default function Quiz({
     );
   }
 
-  // ── Q4 · Slider % (coach) — ou fallback R$ se salário pulado ─────────────────
-  if (step === 4) {
+  // ── Q5 · Slider % (coach) — ou fallback R$ se salário pulado ─────────────────
+  if (step === 5) {
     if (incomeSkipped) {
       const absNum = strToNumber(monthlyAbs);
       return (
@@ -279,8 +313,8 @@ export default function Quiz({
     );
   }
 
-  // ── Q5 · Dor (coach + Pular) ────────────────────────────────────────────────
-  if (step === 5) {
+  // ── Q6 · Dor (coach + Pular) ────────────────────────────────────────────────
+  if (step === 6) {
     return (
       <QuizShell
         header={header}
@@ -303,8 +337,8 @@ export default function Quiz({
     );
   }
 
-  // ── Q6 · Projeção (Pular) ───────────────────────────────────────────────────
-  if (step === 6) {
+  // ── Q7 · Projeção (Pular) ───────────────────────────────────────────────────
+  if (step === 7) {
     const proj = [1, 5, 10].map((y) => ({ y, v: projectAccumulated(monthlyTarget, y) }));
     const m = monthsToTarget(targetNum, monthlyTarget);
     return (
@@ -341,51 +375,18 @@ export default function Quiz({
     );
   }
 
-  // ── Q7 · Pacto ──────────────────────────────────────────────────────────────
-  if (step === 7) {
-    return (
-      <QuizShell header={header} footer={<PrimaryBtn onClick={next}>Eu me comprometo 🙌</PrimaryBtn>}>
-        <div style={{ textAlign: 'center', paddingTop: 12 }}>
-          <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">🤝</div>
-          <StepTitle title="Combinado?" />
-          <p style={{ font: `600 16px/1.6 ${FONT}`, color: INK_2, margin: 0 }}>
-            O segredo é constância: registrar, acompanhar e guardar um pouquinho{' '}
-            <strong style={{ color: INK }}>todo dia</strong>. Topa se comprometer com 1 ação por dia pra
-            bater <strong style={{ color: INK }}>{missionName || 'sua missão'}</strong>?
-          </p>
-        </div>
-      </QuizShell>
-    );
-  }
-
-  // ── Q8 · Nome (coach) ───────────────────────────────────────────────────────
+  // ── Q8 · Pacto (último passo → fecha o quiz) ────────────────────────────────
   return (
-    <QuizShell
-      header={header}
-      footer={<PrimaryBtn disabled={firstName.trim().length === 0} onClick={finish}>Montar meu plano →</PrimaryBtn>}
-    >
-      <Coach>Pra fechar, como posso te chamar? 😊</Coach>
-      <StepTitle title="Qual é o seu nome?" />
-      <input
-        type="text"
-        value={firstName}
-        onChange={(e) => setFirstName(e.target.value)}
-        placeholder="Seu primeiro nome"
-        autoComplete="given-name"
-        maxLength={40}
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          padding: '16px 18px',
-          borderRadius: 14,
-          border: '1.5px solid #E4E4ED',
-          background: '#fff',
-          color: INK,
-          font: `800 18px ${FONT}`,
-          outline: 'none',
-          textAlign: 'center',
-        }}
-      />
+    <QuizShell header={header} footer={<PrimaryBtn onClick={finish}>Eu me comprometo 🙌</PrimaryBtn>}>
+      <div style={{ textAlign: 'center', paddingTop: 12 }}>
+        <div style={{ fontSize: 56, marginBottom: 12 }} aria-hidden="true">🤝</div>
+        <StepTitle title="Combinado?" />
+        <p style={{ font: `600 16px/1.6 ${FONT}`, color: INK_2, margin: 0 }}>
+          O segredo é constância: registrar, acompanhar e guardar um pouquinho{' '}
+          <strong style={{ color: INK }}>todo dia</strong>. Topa se comprometer com 1 ação por dia pra
+          bater <strong style={{ color: INK }}>{missionName || 'sua missão'}</strong>?
+        </p>
+      </div>
     </QuizShell>
   );
 }
