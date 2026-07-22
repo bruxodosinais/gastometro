@@ -1,0 +1,17 @@
+# Nada aqui faz parte do build web da Vercel. Sem este arquivo o deploy pela CLI
+# tentava subir ~314 MB (2 GB no diretório) e estourava o limite de arquivos do
+# plano free ("api-upload-free", mais de 5000 uploads em 24h).
+
+# Projetos nativos do Capacitor (iOS 429 MB, Android 119 MB).
+ios
+android
+
+# Saída do export nativo (npm run build:native) e do build local do Next.
+out
+.next
+
+# Ícones e screenshots enviados à mão para App Store Connect / Play Console.
+store-assets
+
+# A Vercel instala as dependências a partir do package-lock.json.
+node_modules
