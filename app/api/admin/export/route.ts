@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
+import { isAllowedWebOrigin } from '@/lib/cors';
+
+// Origens de desenvolvimento — nunca válidas em produção.
+const DEV_ORIGINS = new Set(['http://localhost:3000', 'http://localhost:3001']);
+
+// O botão de export é <a download>, ou seja, navegação same-origin: o browser NÃO
+// manda Origin, só Referer. Por isso o Referer é reduzido à origem (ele vem com
+// caminho, ex. https://host/admin) e comparado por igualdade — a allowlist é a
+// canônica de lib/cors.ts, que tem apex e www.
+function requestOrigin(req: NextRequest): string | null {
+  const origin = req.headers.get('origin');
+  if (origin) return origin;
+  const referer = req.headers.get('referer');
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null; // Referer malformado → não permitido
+  }
+}
 
 export async function GET(req: NextRequest) {
-  const origin = req.headers.get('origin') ?? '';
-  const referer = req.headers.get('referer') ?? '';
-  const allowed = ['https://toorganizado.com.br', 'http://localhost:3000', 'http://localhost:3001'];
-  const isAllowed = allowed.some(a => origin.startsWith(a) || referer.startsWith(a));
+  const origin = requestOrigin(req);
+  const isAllowed =
+    isAllowedWebOrigin(origin) ||
+    (process.env.NODE_ENV !== 'production' && origin !== null && DEV_ORIGINS.has(origin));
   if (!isAllowed) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

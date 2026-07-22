@@ -12,6 +12,12 @@ const ALLOWED_ORIGINS = new Set<string>([
   'https://toorganizado.com.br',
 ]);
 
+// A origem `value` está na allowlist? Igualdade exata — comparar URL com
+// startsWith deixa passar host colado (ex.: https://toorganizado.com.br.malicioso.com).
+export function isAllowedWebOrigin(value: string | null): boolean {
+  return value !== null && ALLOWED_ORIGINS.has(value);
+}
+
 const ALLOW_METHODS = 'GET, POST, DELETE, OPTIONS';
 const ALLOW_HEADERS = 'Content-Type, Authorization';
 
