@@ -46,7 +46,7 @@ function emailD0Welcome(name: string): { subject: string; html: string } {
       <li>Lance seu <strong>primeiro gasto</strong> pelo botão + na home</li>
       <li>Defina uma <strong>Missão de Poupança</strong> para guardar todo mês</li>
     </ol>
-    <a href="https://toorganizado.com.br/app"
+    <a href="https://www.toorganizado.com.br/app"
        style="display:inline-block;background:#5B5BD6;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;">
       Começar agora →
     </a>
@@ -81,7 +81,7 @@ function emailD3Engage(name: string): { subject: string; html: string } {
         Defina uma meta (ex: Reserva de emergência) e o app te lembra todo mês de guardar.
       </p>
     </div>
-    <a href="https://toorganizado.com.br/app"
+    <a href="https://www.toorganizado.com.br/app"
        style="display:inline-block;background:#5B5BD6;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;">
       Ver meu painel →
     </a>
@@ -126,7 +126,7 @@ function emailD14Value(name: string): { subject: string; html: string } {
         <strong>Lançamentos ilimitados</strong> — sem o limite de 20/mês
       </li>
     </ul>
-    <a href="https://toorganizado.com.br/"
+    <a href="https://www.toorganizado.com.br/"
        style="display:inline-block;background:#5B5BD6;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;margin-bottom:14px;">
       Baixe o app e assine o Pro →
     </a>
@@ -162,7 +162,7 @@ function emailD21Convert(name: string): { subject: string; html: string } {
       <p style="font-size:20px;font-weight:900;color:#ffffff;margin:0 0 20px;">
         Tudo liberado · cancele quando quiser
       </p>
-      <a href="https://toorganizado.com.br/"
+      <a href="https://www.toorganizado.com.br/"
          style="display:inline-block;background:#ffffff;color:#5B5BD6;font-weight:900;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;">
         Baixe o app →
       </a>
@@ -198,7 +198,7 @@ function emailD21Convert(name: string): { subject: string; html: string } {
       Anderson · Fundador do TôOrganizado
     </p>
 
-    <a href="https://toorganizado.com.br/app"
+    <a href="https://www.toorganizado.com.br/app"
        style="font-size:12px;color:#B4B4AA;text-decoration:none;">
       Continuar no plano gratuito
     </a>

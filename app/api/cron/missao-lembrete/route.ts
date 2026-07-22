@@ -40,7 +40,7 @@ function emailHtml({
     <p style="font-size:14px;font-weight:700;color:#6B6B6B;margin:0 0 24px;">
       Meta deste mês: <span style="color:#1A1A1A;">${fmtBrl(monthlyTarget)}</span>
     </p>
-    <a href="https://toorganizado.com.br/missao" style="display:inline-block;background:#5B5BD6;color:#fff;font-weight:800;text-decoration:none;padding:14px 22px;border-radius:12px;font-size:15px;">
+    <a href="https://www.toorganizado.com.br/missao" style="display:inline-block;background:#5B5BD6;color:#fff;font-weight:800;text-decoration:none;padding:14px 22px;border-radius:12px;font-size:15px;">
       Registrar agora →
     </a>
     <p style="font-size:12px;color:#B4B4AA;margin:24px 0 0;">
