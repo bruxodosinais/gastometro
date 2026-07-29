@@ -161,6 +161,14 @@ export async function getCompletedMissions(userId: string): Promise<SavingsMissi
 export async function createMission(userId: string, data: NewMissionInput): Promise<SavingsMission> {
   return withCacheInvalidation('savings_missions', async () => {
     const supabase = createClient();
+    // Defesa em profundidade contra a FK savings_missions_user_id_fkey: garante a
+    // linha de profiles antes do insert (mesmo workaround do onboarding). O trigger
+    // on_auth_user_created já cria o profile no banco; aqui protege todos os call
+    // sites. Idempotente — ignoreDuplicates só insere se ainda não existir.
+    await supabase.from('profiles').upsert(
+      { id: userId, updated_at: new Date().toISOString() },
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
     const { data: row, error } = await supabase
       .from('savings_missions')
       .insert({
