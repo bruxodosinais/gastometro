@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Home, Plus, Clock, RefreshCw, UserCircle, X, CreditCard, Sparkles,
   MessageSquare, Rocket, Headphones, BarChart2, PieChart, Target, Bot,
@@ -73,7 +73,6 @@ const listIconWrap: React.CSSProperties = {
 
 export default function Navigation() {
   const pathname = usePathname();
-  const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userName, setUserName] = useState('');
@@ -145,7 +144,12 @@ export default function Navigation() {
 
   async function handleLogout() {
     await createClient().auth.signOut();
-    router.push('/auth/login');
+    // Navegação DURA (não router.push): o reload zera o cache in-memory
+    // (getCachedUser & cia). Sem isso, ao trocar de conta o app seguiria com o
+    // user.id da conta anterior por até 5 min → insert com user_id ≠ auth.uid()
+    // estoura a RLS (e arrisca misturar dados entre contas). Alinha com os outros
+    // dois pontos de logout (app/page.tsx e perfil), que já fazem hard nav.
+    window.location.href = '/auth/login';
   }
 
   const initial = userName ? userName.charAt(0).toUpperCase() : '?';
