@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Home, Plus, RefreshCw, Clock, LayoutGrid,
   Target, CreditCard, TrendingUp, LineChart, Bot, UserCircle,
@@ -79,7 +79,6 @@ const iconWrap: React.CSSProperties = {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [userName, setUserName] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -87,7 +86,12 @@ export default function Sidebar() {
 
   async function handleLogout() {
     await createClient().auth.signOut();
-    router.push('/auth/login');
+    // Navegação DURA (não router.push): o reload zera o cache in-memory
+    // (getCachedUser & cia). Sem isso, ao trocar de conta o app seguiria com o
+    // user.id da conta anterior por até 5 min → insert com user_id ≠ auth.uid()
+    // estoura a RLS (e arrisca misturar dados entre contas). Alinha com Navigation,
+    // app/page.tsx e perfil, que já fazem hard nav.
+    window.location.href = '/auth/login';
   }
   const recurringPending = useMonthlyPending();
   const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
