@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { isNativePlatform } from '@/lib/native';
+import { nativeInit, nativeRegister, nativeUnregister } from '@/lib/nativePush';
 
 export type PushPermission = 'default' | 'granted' | 'denied' | 'unsupported';
 
@@ -43,6 +45,19 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // NATIVO (Capacitor): push é FCM, não Web Push. Suportado sempre; permissão e
+    // estado vêm do plugin. O ramo web abaixo é ignorado (dynamic import guardado).
+    if (isNativePlatform()) {
+      setIsSupported(true);
+      (async () => {
+        const { permission: perm, subscribed: sub } = await nativeInit();
+        setPermission(perm);
+        setSubscribed(sub);
+      })();
+      return;
+    }
+
     const supported =
       'serviceWorker' in navigator &&
       'PushManager' in window &&
@@ -68,6 +83,20 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
+
+    // NATIVO: pede permissão via FCM e registra o token na device_tokens.
+    if (isNativePlatform()) {
+      setLoading(true);
+      try {
+        const { ok, permission: perm } = await nativeRegister();
+        setPermission(perm);
+        if (ok) setSubscribed(true);
+        return ok;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!publicKey) {
       console.error('[push] NEXT_PUBLIC_VAPID_PUBLIC_KEY ausente.');
@@ -118,6 +147,19 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
+
+    // NATIVO: deleteToken() local (sem chamada de backend nesta fase).
+    if (isNativePlatform()) {
+      setLoading(true);
+      try {
+        const ok = await nativeUnregister();
+        if (ok) setSubscribed(false);
+        return ok;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (!('serviceWorker' in navigator)) return false;
 
     setLoading(true);

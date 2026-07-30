@@ -10,6 +10,7 @@ import StreakMilestonesSection from '@/components/StreakMilestonesSection';
 import RoundUpSettings from '@/components/RoundUpSettings';
 import { getErrorMessage } from '@/lib/errors';
 import { fetchApi } from '@/lib/fetchApi';
+import { isNativePlatform } from '@/lib/native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useTheme, type Theme } from '@/lib/themeContext';
@@ -316,7 +317,12 @@ export default function PerfilPage() {
       if (ok) {
         addToast('Notificações push ativadas!');
       } else if (push.permission === 'denied') {
-        addToast('Permissão negada. Habilite nas configurações do navegador.', 'error');
+        addToast(
+          isNativePlatform()
+            ? 'Permissão negada. Habilite nas configurações do dispositivo.'
+            : 'Permissão negada. Habilite nas configurações do navegador.',
+          'error',
+        );
       } else {
         addToast('Não foi possível ativar push neste dispositivo.', 'error');
       }
@@ -813,7 +819,7 @@ export default function PerfilPage() {
                     </p>
                     {push.permission === 'denied' ? (
                       <p style={{ fontSize: 12, color: 'var(--red)', background: 'var(--red-bg)', borderRadius: 'var(--r-sm)', padding: '10px 12px', margin: 0 }}>
-                        Permissão negada. Habilite nas configurações do navegador para receber pushes.
+                        Permissão negada. Habilite nas configurações {isNativePlatform() ? 'do dispositivo' : 'do navegador'} para receber pushes.
                       </p>
                     ) : (
                       <button

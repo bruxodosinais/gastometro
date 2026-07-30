@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147263179190",
+    "project_id": "toorganizado",
+    "storage_bucket": "toorganizado.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147263179190:android:e86867c940a496ec815917",
+        "android_client_info": {
+          "package_name": "br.com.toorganizado"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYUXHHE4mHrILl6fQVzKU_34yzIByw1WY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
