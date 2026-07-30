@@ -18,6 +18,8 @@ const NATIVE_API = new Set<string>([
   '/api/export-my-data',
   '/api/feedback',
   '/api/missao/gerar-desafio',
+  '/api/push/subscribe',
+  '/api/push/unsubscribe',
   '/api/reports/weekly-summary',
   '/api/subscription/sync',
   '/api/suporte',
