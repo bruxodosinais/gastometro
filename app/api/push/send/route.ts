@@ -6,6 +6,7 @@ import {
   logPushHistory,
   sendPushToSubscriptions,
 } from '@/lib/push';
+import { getDeviceTokensForUsers, sendFcmToTokens } from '@/lib/fcm';
 
 export const maxDuration = 60;
 
@@ -89,22 +90,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sent: 0, failed: 0, total: 0 });
   }
 
-  const subscriptions = await getSubscriptionsForUsers(admin, targetUserIds);
-  const result = await sendPushToSubscriptions(admin, subscriptions, { title, message, url });
+  // Dois transportes em paralelo p/ os MESMOS destinatários: web push (VAPID) e
+  // FCM (nativo). O chunk de ≤500 do FCM vive dentro do sendFcmToTokens.
+  const [subscriptions, tokens] = await Promise.all([
+    getSubscriptionsForUsers(admin, targetUserIds),
+    getDeviceTokensForUsers(admin, targetUserIds),
+  ]);
+  const payload = { title, message, url };
+  const [webRes, fcmRes] = await Promise.all([
+    sendPushToSubscriptions(admin, subscriptions, payload),
+    sendFcmToTokens(admin, tokens, payload),
+  ]);
+  const sent = webRes.sent + fcmRes.sent;
+  const failed = webRes.failed + fcmRes.failed;
 
   await logPushHistory(admin, {
     title,
     message,
     target,
-    sent: result.sent,
-    failed: result.failed,
+    sent,
+    failed,
     createdBy: adminUserId,
   });
 
   return NextResponse.json({
-    sent: result.sent,
-    failed: result.failed,
-    total: subscriptions.length,
-    pruned: result.pruned,
+    sent,
+    failed,
+    total: subscriptions.length + tokens.length,
+    pruned: webRes.pruned + fcmRes.pruned,
+    web: { sent: webRes.sent, failed: webRes.failed },
+    fcm: { sent: fcmRes.sent, failed: fcmRes.failed },
   });
 }

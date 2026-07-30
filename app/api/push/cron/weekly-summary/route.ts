@@ -7,6 +7,7 @@ import {
   recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
+import { getDeviceTokensForUsers, sendFcmToTokens } from '@/lib/fcm';
 import { computeWeeklyReport } from '@/lib/reports';
 import { weeklySummaryCopy, type PushCopy } from '@/lib/notifications/copy';
 
@@ -120,6 +121,15 @@ export async function GET(req: NextRequest) {
     subsByUser.set(s.user_id, arr);
   }
 
+  // Tokens FCM (nativo) por usuário — segundo transporte, mesmos destinatários.
+  const deviceTokens = await getDeviceTokensForUsers(admin, targetIds);
+  const tokensByUser = new Map<string, typeof deviceTokens>();
+  for (const t of deviceTokens) {
+    const arr = tokensByUser.get(t.user_id) ?? [];
+    arr.push(t);
+    tokensByUser.set(t.user_id, arr);
+  }
+
   let totalSent = 0;
   let totalFailed = 0;
   let usersNotified = 0;
@@ -127,7 +137,8 @@ export async function GET(req: NextRequest) {
 
   for (const userId of targetIds) {
     const userSubs = subsByUser.get(userId) ?? [];
-    if (userSubs.length === 0) continue;
+    const userTokens = tokensByUser.get(userId) ?? [];
+    if (userSubs.length === 0 && userTokens.length === 0) continue;
 
     let copy: PushCopy;
     try {
@@ -150,10 +161,15 @@ export async function GET(req: NextRequest) {
       message: copy.body,
       url: '/app',
     };
-    const res = await sendPushToSubscriptions(admin, userSubs, payload);
-    totalSent += res.sent;
-    totalFailed += res.failed;
-    if (res.sent > 0) {
+    const [webRes, fcmRes] = await Promise.all([
+      sendPushToSubscriptions(admin, userSubs, payload),
+      sendFcmToTokens(admin, userTokens, payload),
+    ]);
+    totalSent += webRes.sent + fcmRes.sent;
+    totalFailed += webRes.failed + fcmRes.failed;
+    // Dedup por (user, type) vale pros DOIS transportes: loga se qualquer um
+    // entregou (senão um usuário só-nativo seria re-notificado toda rodada).
+    if (webRes.sent > 0 || fcmRes.sent > 0) {
       usersNotified += 1;
       logEntries.push({ user_id: userId, type: dedupType });
     }

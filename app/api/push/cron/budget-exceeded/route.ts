@@ -7,6 +7,7 @@ import {
   recordNotifications,
   sendPushToSubscriptions,
 } from '@/lib/push';
+import { getDeviceTokensForUsers, sendFcmToTokens } from '@/lib/fcm';
 import { budgetExceededCopy } from '@/lib/notifications/copy';
 
 export const maxDuration = 60;
@@ -224,6 +225,15 @@ export async function GET(req: NextRequest) {
     subsByUser.set(s.user_id, arr);
   }
 
+  // Tokens FCM (nativo) por usuário — segundo transporte, mesmos destinatários.
+  const deviceTokens = await getDeviceTokensForUsers(admin, targetUserIds);
+  const tokensByUser = new Map<string, typeof deviceTokens>();
+  for (const t of deviceTokens) {
+    const arr = tokensByUser.get(t.user_id) ?? [];
+    arr.push(t);
+    tokensByUser.set(t.user_id, arr);
+  }
+
   // Tie-to-Missão: 1 query batched só pra saber QUEM tem missão ativa (a copy
   // só alterna o fecho com/sem missão — não precisa do progresso).
   const { data: missionRows } = await admin
@@ -240,7 +250,8 @@ export async function GET(req: NextRequest) {
 
   for (const [userId, items] of groupedByUser.entries()) {
     const userSubs = subsByUser.get(userId) ?? [];
-    if (userSubs.length === 0) continue;
+    const userTokens = tokensByUser.get(userId) ?? [];
+    if (userSubs.length === 0 && userTokens.length === 0) continue;
 
     // Ordena por % decrescente para mostrar a mais crítica primeiro.
     const sorted = [...items].sort((a, b) => b.percentage - a.percentage);
@@ -255,10 +266,15 @@ export async function GET(req: NextRequest) {
       message: copy.body,
       url: '/categorias',
     };
-    const res = await sendPushToSubscriptions(admin, userSubs, payload);
-    totalSent += res.sent;
-    totalFailed += res.failed;
-    if (res.sent > 0) {
+    const [webRes, fcmRes] = await Promise.all([
+      sendPushToSubscriptions(admin, userSubs, payload),
+      sendFcmToTokens(admin, userTokens, payload),
+    ]);
+    totalSent += webRes.sent + fcmRes.sent;
+    totalFailed += webRes.failed + fcmRes.failed;
+    // Dedup por (user, type) vale pros DOIS transportes: loga se qualquer um
+    // entregou (senão um usuário só-nativo seria re-notificado toda rodada).
+    if (webRes.sent > 0 || fcmRes.sent > 0) {
       usersNotified += 1;
       // Marca o gate semanal por usuário…
       logEntries.push({ user_id: userId, type: 'budget_exceeded' });
