@@ -1,14 +1,18 @@
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { fetchApi } from '@/lib/fetchApi';
 import { isNativePlatform } from '@/lib/native';
 
 // Registro de push NATIVO (FCM), em paralelo ao Web Push (VAPID) que segue na web.
-// 🔴 WEB-SAFE: o @capacitor-firebase/messaging entra SÓ por import dinâmico dentro
-// de guard isNativePlatform() — nunca por import estático de topo. Assim ele vira
-// um chunk lazy que a web NUNCA carrega (o bundle web sai byte-idêntico).
+// 🔴 WEB-SAFE: o import do plugin é ESTÁTICO, mas só puxa o proxy leve do
+// registerPlugin. O firebase (pesado) vive no web.js do plugin, que o PRÓPRIO
+// Capacitor carrega por dynamic import (`web: () => import('./web')`) apenas na
+// web e só quando um método é chamado. Como todas as chamadas aqui são guardadas
+// por isNativePlatform(), o firebase nunca é carregado na web → bundle eager limpo.
+// (O import() dinâmico que tínhamos antes travava dentro do WKWebView.)
 
 type PermState = 'default' | 'granted' | 'denied' | 'unsupported';
 
-// Só liga o listener de refresh de token uma vez por sessão do app.
+// Liga o listener de refresh de token uma vez por sessão do app.
 let refreshListenerBound = false;
 
 // Plataforma pelo global do Capacitor (sem importar @capacitor/core estático).
@@ -17,11 +21,6 @@ function nativePlatform(): 'ios' | 'android' | 'web' {
   const cap = (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor;
   const p = typeof cap?.getPlatform === 'function' ? cap.getPlatform() : 'web';
   return p === 'ios' || p === 'android' ? p : 'web';
-}
-
-async function loadMessaging() {
-  const mod = await import('@capacitor-firebase/messaging');
-  return mod.FirebaseMessaging;
 }
 
 function mapPerm(receive: string): PermState {
@@ -42,12 +41,11 @@ async function postToken(token: string): Promise<boolean> {
   return res.ok;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function bindRefreshListener(FirebaseMessaging: any): Promise<void> {
+// Token pode rodar (reinstall, restore, etc.) — re-registra o novo no backend.
+async function bindRefreshListener(): Promise<void> {
   if (refreshListenerBound) return;
   refreshListenerBound = true;
-  // Token pode rodar (reinstall, restore, etc.) — re-registra o novo no backend.
-  await FirebaseMessaging.addListener('tokenReceived', async (event: { token?: string }) => {
+  await FirebaseMessaging.addListener('tokenReceived', async (event) => {
     if (event?.token) {
       try { await postToken(event.token); } catch { /* re-tenta no próximo boot */ }
     }
@@ -55,9 +53,8 @@ async function bindRefreshListener(FirebaseMessaging: any): Promise<void> {
 }
 
 // Pega o token atual e registra no backend + liga o listener de refresh.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function ensureTokenRegistered(FirebaseMessaging: any): Promise<boolean> {
-  await bindRefreshListener(FirebaseMessaging);
+async function ensureTokenRegistered(): Promise<boolean> {
+  await bindRefreshListener();
   const { token } = await FirebaseMessaging.getToken();
   if (!token) return false;
   return postToken(token);
@@ -68,11 +65,10 @@ async function ensureTokenRegistered(FirebaseMessaging: any): Promise<boolean> {
 export async function nativeInit(): Promise<{ permission: PermState; subscribed: boolean }> {
   if (!isNativePlatform()) return { permission: 'unsupported', subscribed: false };
   try {
-    const FirebaseMessaging = await loadMessaging();
     const { receive } = await FirebaseMessaging.checkPermissions();
     const permission = mapPerm(receive);
     if (permission !== 'granted') return { permission, subscribed: false };
-    const subscribed = await ensureTokenRegistered(FirebaseMessaging);
+    const subscribed = await ensureTokenRegistered();
     return { permission, subscribed };
   } catch (err) {
     console.error('[nativePush] init falhou:', err);
@@ -84,11 +80,10 @@ export async function nativeInit(): Promise<{ permission: PermState; subscribed:
 export async function nativeRegister(): Promise<{ ok: boolean; permission: PermState }> {
   if (!isNativePlatform()) return { ok: false, permission: 'unsupported' };
   try {
-    const FirebaseMessaging = await loadMessaging();
     const { receive } = await FirebaseMessaging.requestPermissions();
     const permission = mapPerm(receive);
     if (permission !== 'granted') return { ok: false, permission };
-    const ok = await ensureTokenRegistered(FirebaseMessaging);
+    const ok = await ensureTokenRegistered();
     return { ok, permission };
   } catch (err) {
     console.error('[nativePush] register falhou:', err);
@@ -102,7 +97,6 @@ export async function nativeRegister(): Promise<{ ok: boolean; permission: PermS
 export async function nativeUnregister(): Promise<boolean> {
   if (!isNativePlatform()) return false;
   try {
-    const FirebaseMessaging = await loadMessaging();
     await FirebaseMessaging.deleteToken();
     return true;
   } catch (err) {
