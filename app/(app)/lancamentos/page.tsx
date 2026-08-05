@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, CalendarDays, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react';
 import {
@@ -8,13 +8,17 @@ import {
   addExpenseInstallments,
   addRecurringExpense,
   deleteExpense,
+  getBudgets,
   getCreditCards,
   getExpenses,
   recordActivityToday,
+  upsertBudget,
 } from '@/lib/storage';
 import { maybeRoundUpExpense } from '@/lib/mission/roundup';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import DuplicateWarningModal from '@/components/DuplicateWarningModal';
+import BudgetLimitHint from '@/components/BudgetLimitHint';
+import BudgetWarningModal from '@/components/BudgetWarningModal';
 import LoadingButton from '@/components/ui/LoadingButton';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { detectDuplicate, DuplicateCandidate } from '@/lib/utils/detectDuplicate';
@@ -22,9 +26,10 @@ import CategoryPickerSheet from '@/components/CategoryPickerSheet';
 import CurrencyInput from '@/components/CurrencyInput';
 import { ToastContainer, useToast } from '@/components/Toast';
 import { getErrorMessage } from '@/lib/errors';
-import { formatCurrency, getBillingMonthOptions, getMonthKey } from '@/lib/calculations';
+import { formatCurrency, getBillingMonthOptions, getMonthKey, getMonthLabel } from '@/lib/calculations';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
-import { CreditCard as CreditCardType, EntryType, Expense } from '@/lib/types';
+import { evaluateBudget } from '@/lib/budgetAlerts';
+import { Budget, CreditCard as CreditCardType, EntryType, Expense, ExpenseCategory } from '@/lib/types';
 import { useCategorySelector } from '@/hooks/useCategorySelector';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -409,6 +414,29 @@ export default function LancamentosPage() {
   const [duplicateCandidates, setDuplicateCandidates] = useState<DuplicateCandidate[]>([]);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
+  // ── Alerta de orçamento ───────────────────────────────────────────────────
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  // Só true quando getBudgets voltou de fato: sem isso, uma falha de rede
+  // faria TODA categoria parecer "sem limite" e dispararia o nudge à toa.
+  const [budgetsLoaded, setBudgetsLoaded] = useState(false);
+  const [amountDebounced, setAmountDebounced] = useState(0);
+  const [budgetModal, setBudgetModal] = useState<
+    | {
+        mode: 'limit';
+        status: 'danger' | 'over';
+        category: string;
+        limit: number;
+        spent: number;
+        extra: number;
+        projected: number;
+        projectedPct: number;
+        overBy: number;
+        monthLabel: string | null;
+      }
+    | { mode: 'no-budget'; category: string }
+    | null
+  >(null);
+
   const amountRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { toasts, addToast, removeToast } = useToast();
@@ -426,8 +454,24 @@ export default function LancamentosPage() {
     }).catch(() => {
       // cartões são opcionais; falha silenciosa é aceitável
     });
+    getBudgets()
+      .then((b) => {
+        setBudgets(b);
+        setBudgetsLoaded(true);
+      })
+      .catch(() => {
+        // Orçamento é enriquecimento: se falhar, a tela lança normalmente
+        // (budgetsLoaded fica false e nenhum aviso é calculado).
+      });
     amountRef.current?.focus();
   }, []);
+
+  // Debounce só do VALOR: sem isso o aviso pisca a cada dígito do
+  // CurrencyInput. Trocar de categoria/tipo recalcula na hora.
+  useEffect(() => {
+    const t = setTimeout(() => setAmountDebounced(amount), 350);
+    return () => clearTimeout(t);
+  }, [amount]);
 
   useEffect(() => {
     if (showDatePicker) dateInputRef.current?.focus();
@@ -456,6 +500,107 @@ export default function LancamentosPage() {
   const hasDescription = description.trim().length > 0;
   const isValid = hasAmount && !!category && hasDescription;
 
+  // O balde do gasto é o mês da DATA do lançamento (`date.slice(0,7)`) — é
+  // assim que a Home filtra e é onde o registro vai cair. NÃO usar o período
+  // financeiro aqui: ele responde "que mês o usuário está olhando", o que
+  // erraria em data retroativa e todo dia para quem tem financial_start_day > 1.
+  const expenseMonthKey = date.slice(0, 7);
+  // Só nomeia o mês quando o gasto NÃO é do mês corrente — aí "neste mês"
+  // seria mentira. getMonthLabel devolve "Julho de 2026"; no meio da frase
+  // usamos só o nome, minúsculo.
+  const monthLabel = useMemo(() => {
+    if (expenseMonthKey === getMonthKey(new Date())) return null;
+    const full = getMonthLabel(expenseMonthKey); // "Julho de 2026"
+    const [name, year] = full.split(' de ');
+    const lower = name.toLowerCase();
+    // Ano diferente do corrente entra explícito, senão "dezembro" fica ambíguo.
+    return year === String(new Date().getFullYear()) ? lower : `${lower} de ${year}`;
+  }, [expenseMonthKey]);
+
+  // Avaliação do orçamento para o aviso em TEMPO REAL (faixa inline).
+  // `extraAmount` é uma parcela: addExpenseInstallments grava base.amount por
+  // mês, então parcelado 10x de R$100 projeta R$100 no mês do lançamento.
+  const budgetHint = useMemo(() => {
+    if (entryType !== 'expense') return null;
+    if (!budgetsLoaded) return null;
+    if (amountDebounced <= 0 || !category) return null;
+    try {
+      return evaluateBudget({
+        budgets,
+        expenses,
+        category,
+        periodKey: expenseMonthKey,
+        extraAmount: amountDebounced,
+      });
+    } catch {
+      return null;
+    }
+  }, [entryType, budgetsLoaded, amountDebounced, category, budgets, expenses, expenseMonthKey]);
+
+  // Convite para definir limite: no máximo 1× por categoria por mês de
+  // orçamento, senão vira spam em toda categoria sem limite.
+  function nudgeKey(cat: string) {
+    return `budgetNudge:${expenseMonthKey}:${cat}`;
+  }
+
+  // Etapa 3 do fluxo de salvamento (depois da validação e da duplicata).
+  // Nunca pode impedir o salvamento: qualquer erro cai direto no doSave().
+  async function checkBudgetThenSave() {
+    if (entryType === 'expense' && budgetsLoaded) {
+      try {
+        // Offline: getBudgets pode ter voltado vazio/velho — não dá para
+        // afirmar que a categoria está sem limite.
+        const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+        if (online) {
+          const ev = evaluateBudget({
+            budgets,
+            expenses,
+            category,
+            periodKey: expenseMonthKey,
+            extraAmount: numAmount,
+          });
+
+          if (ev.status === 'danger' || ev.status === 'over') {
+            setBudgetModal({
+              mode: 'limit',
+              status: ev.status,
+              category,
+              limit: ev.limit,
+              spent: ev.spent,
+              extra: numAmount,
+              projected: ev.projected,
+              projectedPct: ev.projectedPct,
+              overBy: ev.overBy,
+              monthLabel,
+            });
+            return;
+          }
+
+          if (ev.status === 'no-budget') {
+            let alreadyNudged = true;
+            try {
+              alreadyNudged = localStorage.getItem(nudgeKey(category)) !== null;
+            } catch {
+              // Sem localStorage (modo privado/webview) → não insiste.
+            }
+            if (!alreadyNudged) {
+              // Grava na EXIBIÇÃO, não na aceitação.
+              try {
+                localStorage.setItem(nudgeKey(category), '1');
+              } catch {}
+              setBudgetModal({ mode: 'no-budget', category });
+              return;
+            }
+          }
+        }
+      } catch {
+        // Falha no cálculo do orçamento não bloqueia o lançamento.
+      }
+    }
+
+    await doSave();
+  }
+
   async function handleSubmit() {
     if (saving) return;
     if (!description.trim()) {
@@ -483,7 +628,7 @@ export default function LancamentosPage() {
       }
     }
 
-    await doSave();
+    await checkBudgetThenSave();
   }
 
   async function doSave() {
@@ -579,7 +724,32 @@ export default function LancamentosPage() {
   function handleConfirmDuplicate() {
     setShowDuplicateModal(false);
     setDuplicateCandidates([]);
+    // O aviso de orçamento vem DEPOIS do de duplicata — nenhum dos dois é pulado.
+    checkBudgetThenSave();
+  }
+
+  function handleConfirmBudget() {
+    setBudgetModal(null);
     doSave();
+  }
+
+  function handleAdjustBudget() {
+    // Cancela sem salvar: formulário intacto, foco de volta no valor.
+    setBudgetModal(null);
+    amountRef.current?.focus();
+  }
+
+  async function handleDefineBudget(amountLimit: number) {
+    const cat = budgetModal?.category ?? category;
+    await upsertBudget(cat as ExpenseCategory, amountLimit);
+    // Recarrega para o hint/estouro já usarem o limite recém-criado.
+    try {
+      setBudgets(await getBudgets());
+    } catch {
+      // Cache já foi invalidado pelo upsert; o próximo load pega.
+    }
+    setBudgetModal(null);
+    await doSave();
   }
 
   function handleCancelDuplicate() {
@@ -833,6 +1003,22 @@ export default function LancamentosPage() {
                   />
                 </div>
               </div>
+
+              {/* 2a. AVISO DE LIMITE (tempo real) */}
+              {budgetHint && (
+                <BudgetLimitHint
+                  status={budgetHint.status}
+                  limit={budgetHint.limit}
+                  spent={budgetHint.spent}
+                  extra={amountDebounced}
+                  projected={budgetHint.projected}
+                  projectedPct={budgetHint.projectedPct}
+                  overBy={budgetHint.overBy}
+                  category={category}
+                  categoryIcon={getCategoryDisplay(category, allCustomCategories).icon}
+                  monthLabel={monthLabel}
+                />
+              )}
 
               {/* 2b. CARTÃO DE CRÉDITO */}
               {entryType === 'expense' && (
@@ -1358,6 +1544,31 @@ export default function LancamentosPage() {
           onConfirm={handleConfirmDuplicate}
           onCancel={handleCancelDuplicate}
         />
+      )}
+      {budgetModal && (
+        budgetModal.mode === 'limit' ? (
+          <BudgetWarningModal
+            mode="limit"
+            status={budgetModal.status}
+            category={budgetModal.category}
+            limit={budgetModal.limit}
+            spent={budgetModal.spent}
+            extra={budgetModal.extra}
+            projected={budgetModal.projected}
+            projectedPct={budgetModal.projectedPct}
+            overBy={budgetModal.overBy}
+            monthLabel={budgetModal.monthLabel}
+            onConfirm={handleConfirmBudget}
+            onAdjust={handleAdjustBudget}
+          />
+        ) : (
+          <BudgetWarningModal
+            mode="no-budget"
+            category={budgetModal.category}
+            onSkip={handleConfirmBudget}
+            onDefine={handleDefineBudget}
+          />
+        )
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 

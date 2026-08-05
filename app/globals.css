@@ -19,6 +19,11 @@
   --yellow: #FFB800;
   --yellow-bg: #FFF8E6;
   --yellow-text: #996B00;
+  /* Laranja = degrau entre amarelo (atenção) e vermelho (estourou) nos
+     alertas de orçamento — ver lib/budgetAlerts.ts (status 'danger'). */
+  --orange: #FF8A3D;
+  --orange-bg: #FFF3E9;
+  --orange-text: #B04A00;
   --accent: #5B5BD6;
   --accent-bg: #EDEDFC;
   --accent-soft: rgba(91,91,214,0.15);
@@ -73,6 +78,11 @@
   --yellow: #FFB800;
   --yellow-bg: #FFF8E6;
   --yellow-text: #996B00;
+  /* Laranja = degrau entre amarelo (atenção) e vermelho (estourou) nos
+     alertas de orçamento — ver lib/budgetAlerts.ts (status 'danger'). */
+  --orange: #FF8A3D;
+  --orange-bg: #FFF3E9;
+  --orange-text: #B04A00;
   --accent: #5B5BD6;
   --accent-bg: #EDEDFC;
   --accent-soft: rgba(91,91,214,0.15);
@@ -102,6 +112,9 @@
   --yellow: #FFC629;
   --yellow-bg: rgba(255,198,41,0.13);
   --yellow-text: #FFD466;
+  --orange: #FF9F5A;
+  --orange-bg: rgba(255,159,90,0.14);
+  --orange-text: #FFBB86;
   --accent: #7D7DE8;
   --accent-bg: rgba(125,125,232,0.13);
   --accent-soft: rgba(125,125,232,0.22);
@@ -150,6 +163,9 @@
     --yellow: #FFC629;
     --yellow-bg: rgba(255,198,41,0.13);
     --yellow-text: #FFD466;
+    --orange: #FF9F5A;
+    --orange-bg: rgba(255,159,90,0.14);
+    --orange-text: #FFBB86;
     --accent: #7D7DE8;
     --accent-bg: rgba(125,125,232,0.13);
     --accent-soft: rgba(125,125,232,0.22);
@@ -247,6 +263,21 @@ input[type='date']::-webkit-calendar-picker-indicator {
 @keyframes notif-slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+/* Entrada do aviso de limite na tela de lançar (BudgetLimitHint): suave,
+   sem "pop" — a faixa aparece enquanto o usuário digita. */
+@keyframes budget-hint-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.budget-hint-in {
+  animation: budget-hint-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .budget-hint-in { animation: none; }
 }
 
 /* ── Layout responsivo desktop ────────────────────────────────────────── */

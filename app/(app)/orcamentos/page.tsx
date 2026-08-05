@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PieChart, Pencil, Trash2, Plus, X, Loader2 } from 'lucide-react';
 import { getBudgets, upsertBudget, deleteBudget, getExpenses } from '@/lib/storage';
-import { formatCurrency, getMonthKey } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/calculations';
+import { BUDGET_DANGER, BUDGET_OVER, BUDGET_WARN, spentForCategory, statusFromPct } from '@/lib/budgetAlerts';
+import { budgetStatusStyles } from '@/components/BudgetLimitHint';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCategorySelector } from '@/hooks/useCategorySelector';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
+import { useFinancialPeriod } from '@/hooks/useFinancialPeriod';
 import CurrencyInput from '@/components/CurrencyInput';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { getErrorMessage } from '@/lib/errors';
@@ -14,20 +17,9 @@ import type { Budget, ExpenseCategory, Expense } from '@/lib/types';
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; budget: Budget } | null;
 
-// Mesma convenção da Home (periodExpenses) e da /categorias: conta TODOS os
-// gastos type='expense' da categoria no mês corrente (inclui recorrentes
-// auto-lançados). Mantém o "gasto" desta página idêntico ao OrcamentoCard.
-function spentForCategory(expenses: Expense[], category: string, monthKey: string): number {
-  return expenses
-    .filter((e) => e.type === 'expense' && e.date.slice(0, 7) === monthKey && e.category === category)
-    .reduce((s, e) => s + e.amount, 0);
-}
-
-function barColorFor(pct: number): string {
-  if (pct >= 100) return 'var(--red)';
-  if (pct >= 70) return 'var(--yellow)';
-  return 'var(--green)';
-}
+// spentForCategory, statusFromPct e budgetStatusStyles vêm do mesmo lugar que
+// o aviso pré-lançamento da tela de Lançar — mesmo número, mesmo degrau e
+// mesma cor nas duas telas (92% é laranja aqui e lá).
 
 export default function OrcamentosPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -36,6 +28,9 @@ export default function OrcamentosPage() {
   const [error, setError] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const { categories: customs } = useCustomCategories();
+  // Período FINANCEIRO (respeita financial_start_day) — antes esta tela usava
+  // mês de calendário puro e discordava da Home nos dias da virada.
+  const { periodKey, loading: periodLoading } = useFinancialPeriod();
 
   async function load() {
     setLoading(true);
@@ -55,17 +50,19 @@ export default function OrcamentosPage() {
     load();
   }, []);
 
-  const monthKey = getMonthKey(new Date());
-
   const rows = useMemo(() => {
     return budgets
       .map((b) => {
-        const spent = spentForCategory(expenses, b.category, monthKey);
+        const spent = spentForCategory(expenses, b.category, periodKey);
         const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
         return { budget: b, spent, pct };
       })
       .sort((a, b) => b.pct - a.pct);
-  }, [budgets, expenses, monthKey]);
+  }, [budgets, expenses, periodKey]);
+
+  // Enquanto o período financeiro não resolveu, o periodKey é provisório —
+  // mostrar as barras aqui faria os números pularem na virada do mês.
+  const showSkeleton = loading || periodLoading;
 
   const budgetedCategories = useMemo(
     () => new Set(budgets.map((b) => b.category as string)),
@@ -84,11 +81,17 @@ export default function OrcamentosPage() {
       </header>
 
       {/* Pills de saúde — só quando há orçamentos com atenção ou estourados */}
-      {!loading && !error && rows.length > 0 && (() => {
-        const countYellow = rows.filter(r => r.pct >= 70 && r.pct < 100).length;
-        const countRed = rows.filter(r => r.pct >= 100).length;
-        const countGreen = rows.filter(r => r.pct < 70).length;
-        if (countYellow === 0 && countRed === 0) return null;
+      {!showSkeleton && !error && rows.length > 0 && (() => {
+        const countGreen = rows.filter(r => r.pct < BUDGET_WARN).length;
+        const countYellow = rows.filter(r => r.pct >= BUDGET_WARN && r.pct < BUDGET_DANGER).length;
+        const countOrange = rows.filter(r => r.pct >= BUDGET_DANGER && r.pct < BUDGET_OVER).length;
+        const redRows = rows.filter(r => r.pct >= BUDGET_OVER);
+        const countRed = redRows.length;
+        if (countYellow === 0 && countOrange === 0 && countRed === 0) return null;
+        // Quem empatou com o limite não "estourou" — não chamar de estourado.
+        const redLabel = redRows.every(r => r.spent <= r.budget.amount)
+          ? `${countRed} no limite`
+          : `${countRed} estourado${countRed > 1 ? 's' : ''}`;
         return (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
             {countGreen > 0 && (
@@ -101,16 +104,21 @@ export default function OrcamentosPage() {
                 {countYellow} em atenção
               </span>
             )}
+            {countOrange > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--orange-bg)', color: 'var(--orange-text)', fontSize: 12, fontWeight: 700 }}>
+                {countOrange} quase no limite
+              </span>
+            )}
             {countRed > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--red-bg)', color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>
-                {countRed} estourado{countRed > 1 ? 's' : ''}
+                {redLabel}
               </span>
             )}
           </div>
         );
       })()}
 
-      {loading ? (
+      {showSkeleton ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <div
@@ -206,9 +214,12 @@ export default function OrcamentosPage() {
         <div className="space-y-3">
           {rows.map(({ budget, spent, pct }) => {
             const { icon } = getCategoryDisplay(budget.category, customs);
-            const barColor = barColorFor(pct);
-            const overflow = pct >= 100;
-            const warning = pct >= 80 && pct < 100;
+            const status = statusFromPct(pct);
+            const barColor = budgetStatusStyles(status).bar;
+            // "Estourado" é passar do limite; empatar é "atingido".
+            // Limite 0 (defensivo, a UI não deixa criar) nunca acende faixa.
+            const overflow = budget.amount > 0 && spent > budget.amount;
+            const atLimit = status === 'over' && spent <= budget.amount;
             return (
               <div
                 key={budget.id}
@@ -220,14 +231,21 @@ export default function OrcamentosPage() {
                   boxShadow: 'var(--card-shadow)',
                 }}
               >
-                {overflow && (
+                {(overflow || atLimit) && (
                   <div style={{ background: 'var(--red-bg)', padding: '6px 16px' }}>
                     <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', margin: 0 }}>
-                      Limite estourado
+                      {overflow ? 'Limite estourado' : 'Limite atingido'}
                     </p>
                   </div>
                 )}
-                {warning && (
+                {status === 'danger' && (
+                  <div style={{ background: 'var(--orange-bg)', padding: '6px 16px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange-text)', margin: 0 }}>
+                      Quase no limite: {Math.round(pct)}% usado
+                    </p>
+                  </div>
+                )}
+                {status === 'warn' && (
                   <div style={{ background: 'var(--yellow-bg)', padding: '6px 16px' }}>
                     <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--yellow-text)', margin: 0 }}>
                       Atenção: {Math.round(pct)}% usado
@@ -335,7 +353,7 @@ export default function OrcamentosPage() {
       )}
 
       {/* FAB — só quando há orçamentos (o estado vazio já tem o CTA) */}
-      {!loading && !error && budgets.length > 0 && (
+      {!showSkeleton && !error && budgets.length > 0 && (
         <button
           type="button"
           aria-label="Criar orçamento"
