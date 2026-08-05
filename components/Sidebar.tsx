@@ -44,7 +44,7 @@ const SECTIONS: Section[] = [
     items: [
       { href: '/missao',      label: 'Missão de Poupança 🎯', Icon: Rocket,    newKey: MISSAO_FEATURE_KEY },
       { href: '/categorias',  label: 'Categorias',           Icon: LayoutGrid  },
-      { href: '/orcamentos',  label: 'Orçamentos',           Icon: PieChart    },
+      { href: '/orcamentos',  label: 'Orçamento',            Icon: PieChart    },
       { href: '/analise',     label: 'Análise',              Icon: BarChart2   },
       { href: '/previsoes',   label: 'Previsões',            Icon: LineChart   },
       { href: '/metas',       label: 'Metas',                Icon: Target      },

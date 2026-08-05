@@ -6,9 +6,96 @@ import { formatCurrency } from '@/lib/calculations';
 import type { MonthlyObligation, MonthlyPlan } from '@/lib/types';
 import { coachBudget } from '@/lib/insights/coach';
 import { useMissionContext } from '@/lib/insights/useMissionContext';
+import BudgetStatusPills, { BudgetStatusRow } from '../orcamento/BudgetStatusPills';
 import { anim, hidden } from './_anim';
 
 type BudgetOverflow = { category: string; spent: number; limit: number };
+
+const summaryLinkStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 2,
+  flexShrink: 0,
+  fontSize: 12,
+  fontWeight: 700,
+  color: 'var(--accent)',
+  whiteSpace: 'nowrap',
+};
+
+// Passo NUMERADO do card da conta nova. Sem checkbox de propósito: o card
+// sai do ar assim que o plano é salvo (quem já tem plano precisa ver os
+// números), então uma caixinha prometeria um ✓ que ninguém veria marcar.
+function StepItem({
+  n,
+  label,
+  href,
+  onClick,
+}: {
+  n: number;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <>
+      <span
+        aria-hidden
+        style={{
+          width: 20,
+          height: 20,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 13,
+          fontWeight: 900,
+          color: 'var(--accent)',
+        }}
+      >
+        {n}.
+      </span>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: 13,
+          fontWeight: 700,
+          color: 'var(--text)',
+          textAlign: 'left',
+        }}
+      >
+        {label}
+      </span>
+      <ChevronRight size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+    </>
+  );
+
+  const style: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 'var(--r-sm)',
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
+    cursor: 'pointer',
+    fontFamily: 'Nunito, sans-serif',
+  };
+
+  if (href) {
+    return (
+      <Link href={href} style={style}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} style={style}>
+      {inner}
+    </button>
+  );
+}
 
 type Props = {
   valorLivreParaGastarPlanejado: number;
@@ -19,6 +106,8 @@ type Props = {
   isCurrentMonth: boolean;
   daysRemaining: number;
   budgetOverflows: BudgetOverflow[];
+  /** Uma linha por limite de categoria ativo — alimenta o resumo e as pills. */
+  limitRows: BudgetStatusRow[];
   pendingObligations: MonthlyObligation[];
   pendingTotal: number;
   mounted: boolean;
@@ -39,6 +128,7 @@ export default function OrcamentoCard({
   isCurrentMonth,
   daysRemaining,
   budgetOverflows,
+  limitRows,
   pendingObligations,
   pendingTotal,
   mounted,
@@ -57,6 +147,11 @@ export default function OrcamentoCard({
   // anterior.
   const showNudge = isCurrentMonth && !hasSavedPlan;
   const showNeutral = !hasBudget && debitSpent === 0;
+  const hasLimits = limitRows.length > 0;
+  // Conta nova: nem plano do mês, nem limite nenhum. Em vez do convite solto,
+  // o card vira um passo a passo de 2 itens. Assim que o plano é salvo o card
+  // volta ao normal (e o convite de limites aparece como linha-resumo).
+  const showChecklist = showNudge && !hasLimits;
   const barColor = isZeroed ? 'var(--red)' : 'var(--green)';
   const availableValue = Math.max(orcamentoRestante, 0);
 
@@ -72,7 +167,36 @@ export default function OrcamentoCard({
         ...(mounted ? anim(300) : hidden),
       }}
     >
-      {showNudge ? (
+      {showChecklist ? (
+        <>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--text-3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 4,
+            }}
+          >
+            ORÇAMENTO LIVRE
+          </p>
+          <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '8px 0 4px' }}>
+            {hasPrevPlan ? 'Novo mês começou 👋' : 'Bem-vindo ao TôOrganizado 👋'}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 12 }}>
+            Dois passos para o app avisar você antes de estourar.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <StepItem
+              n={1}
+              label={`Definir a renda de ${monthName}`}
+              onClick={onOpenBudgetModal}
+            />
+            <StepItem n={2} label="Criar limites por categoria" href="/orcamentos" />
+          </div>
+        </>
+      ) : showNudge ? (
         <>
           <p
             style={{
@@ -94,7 +218,7 @@ export default function OrcamentoCard({
           <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 14 }}>
             {hasPrevPlan
               ? `Vamos definir seu orçamento de ${monthName}? Já deixamos sugerido o valor do mês passado — é só ajustar.`
-              : `Configure seu orçamento de ${monthName} para acompanhar seus gastos.`}
+              : `Defina seu orçamento de ${monthName} para acompanhar seus gastos.`}
           </p>
           <button
             type="button"
@@ -113,7 +237,7 @@ export default function OrcamentoCard({
               cursor: 'pointer',
             }}
           >
-            Configurar orçamento
+            Definir orçamento
           </button>
         </>
       ) : showNeutral ? (
@@ -131,10 +255,10 @@ export default function OrcamentoCard({
             ORÇAMENTO LIVRE
           </p>
           <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: '8px 0 4px' }}>
-            Configure seu orçamento
+            Defina seu orçamento do mês
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, marginBottom: 14 }}>
-            Informe sua renda mensal para acompanhar seus gastos.
+            Informe sua renda para saber quanto sobra pra gastar.
           </p>
           <button
             type="button"
@@ -153,7 +277,7 @@ export default function OrcamentoCard({
               cursor: 'pointer',
             }}
           >
-            Configurar agora
+            Definir orçamento
           </button>
         </>
       ) : (
@@ -255,6 +379,34 @@ export default function OrcamentoCard({
             />
           </div>
 
+          {/* Resumo dos LIMITES POR CATEGORIA — o outro lado do orçamento.
+              Mesmas pills da tela /orcamentos. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              flexWrap: 'wrap',
+              marginTop: 12,
+            }}
+          >
+            {hasLimits ? (
+              <>
+                <BudgetStatusPills rows={limitRows} />
+                <Link href="/orcamentos" style={summaryLinkStyle}>
+                  Ver orçamento
+                  <ChevronRight size={13} />
+                </Link>
+              </>
+            ) : (
+              <Link href="/orcamentos" style={summaryLinkStyle}>
+                Defina limites por categoria
+                <ChevronRight size={13} />
+              </Link>
+            )}
+          </div>
+
           {isZeroed ? (
             <div
               style={{
@@ -292,8 +444,8 @@ export default function OrcamentoCard({
             >
               <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', margin: 0 }}>
                 {budgetOverflows.length === 1
-                  ? '⚠️ 1 categoria com orçamento estourado'
-                  : `⚠️ ${budgetOverflows[0].category} e ${budgetOverflows[1].category} estouraram o orçamento`}
+                  ? '⚠️ 1 categoria passou do limite'
+                  : `⚠️ ${budgetOverflows[0].category} e ${budgetOverflows[1].category} passaram do limite`}
               </p>
               <Link
                 href="/orcamentos"
@@ -308,7 +460,7 @@ export default function OrcamentoCard({
                   whiteSpace: 'nowrap',
                 }}
               >
-                Ver orçamentos
+                Ver orçamento
                 <ChevronRight size={13} />
               </Link>
             </div>

@@ -102,14 +102,14 @@ function ruleUnbudgetedRecurring(
     id: 'unbudgeted-recurring',
     variant: 'info',
     icon: <Lightbulb size={15} />,
-    title: `Você gasta em ${cat} todo mês mas não tem orçamento`,
+    title: `Você gasta em ${cat} todo mês mas não tem limite`,
     description: (
       <>
         {cfg?.icon} <strong>{cat}</strong> apareceu em {set.size} meses do
         período. Que tal criar um limite mensal pra acompanhar?
       </>
     ),
-    cta: { label: 'Criar orçamento', href: '/categorias' },
+    cta: { label: 'Definir limite', href: '/orcamentos' },
   };
 }
 

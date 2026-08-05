@@ -837,7 +837,7 @@ export default function PerfilPage() {
                   <>
                     {([
                       { key: 'due_tomorrow' as const, label: '🔔 Conta vencendo amanhã' },
-                      { key: 'budget_exceeded' as const, label: '⚠️ Orçamento estourado' },
+                      { key: 'budget_exceeded' as const, label: '⚠️ Limite de categoria estourado' },
                       { key: 'weekly_summary' as const, label: '📊 Resumo semanal push' },
                     ] as const).map(({ key, label }) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderTop: rowBorder }}>

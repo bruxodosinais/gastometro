@@ -1,11 +1,27 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { PieChart, Pencil, Trash2, Plus, X, Loader2 } from 'lucide-react';
-import { getBudgets, upsertBudget, deleteBudget, getExpenses } from '@/lib/storage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PieChart, Pencil, Trash2, Plus, X, Wallet } from 'lucide-react';
+import {
+  getBudgets,
+  upsertBudget,
+  deleteBudget,
+  getExpenses,
+  getMonthlyPlan,
+  getRecurringExpenses,
+  upsertMonthlyPlan,
+} from '@/lib/storage';
 import { formatCurrency } from '@/lib/calculations';
-import { BUDGET_DANGER, BUDGET_OVER, BUDGET_WARN, spentForCategory, statusFromPct } from '@/lib/budgetAlerts';
+import { spentForCategory, statusFromPct } from '@/lib/budgetAlerts';
+import {
+  aggregatePeriod,
+  computeMonthlyBudget,
+  getDaysRemaining,
+  sumFixedCosts,
+} from '@/lib/monthlyBudget';
 import { budgetStatusStyles } from '@/components/BudgetLimitHint';
+import BudgetStatusPills from '../_components/orcamento/BudgetStatusPills';
+import PlanoMensalModal from '../_components/orcamento/PlanoMensalModal';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { useCategorySelector } from '@/hooks/useCategorySelector';
 import { useCustomCategories } from '@/hooks/useCustomCategories';
@@ -13,42 +29,63 @@ import { useFinancialPeriod } from '@/hooks/useFinancialPeriod';
 import CurrencyInput from '@/components/CurrencyInput';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { getErrorMessage } from '@/lib/errors';
-import type { Budget, ExpenseCategory, Expense } from '@/lib/types';
+import type { Budget, ExpenseCategory, Expense, MonthlyPlan, RecurringExpense } from '@/lib/types';
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; budget: Budget } | null;
 
-// spentForCategory, statusFromPct e budgetStatusStyles vêm do mesmo lugar que
-// o aviso pré-lançamento da tela de Lançar — mesmo número, mesmo degrau e
-// mesma cor nas duas telas (92% é laranja aqui e lá).
+// Esta tela é a CASA do assunto orçamento e tem duas seções:
+//   A. "Orçamento livre do mês" — plano mensal (renda − fixos − meta). Os
+//      números saem de lib/monthlyBudget, a MESMA função que a Home usa, para
+//      as duas telas nunca divergirem no centavo.
+//   B. "Limites por categoria" — tabela budgets. Degrau e cor vêm de
+//      lib/budgetAlerts + budgetStatusStyles, iguais ao aviso da tela de Lançar.
 
-export default function OrcamentosPage() {
+export default function OrcamentoPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [recurring, setRecurring] = useState<RecurringExpense[]>([]);
+  const [plan, setPlan] = useState<MonthlyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const { categories: customs } = useCustomCategories();
-  // Período FINANCEIRO (respeita financial_start_day) — antes esta tela usava
-  // mês de calendário puro e discordava da Home nos dias da virada.
+  // Período FINANCEIRO (respeita financial_start_day) — mesmo período da Home.
   const { periodKey, loading: periodLoading } = useFinancialPeriod();
 
-  async function load() {
+  // Plano mensal (Seção A)
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planIncome, setPlanIncome] = useState(0);
+  const [planGoal, setPlanGoal] = useState(0);
+  const [planError, setPlanError] = useState('');
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const [b, e] = await Promise.all([getBudgets(), getExpenses()]);
+      const [b, e, r, p] = await Promise.all([
+        getBudgets(),
+        getExpenses(),
+        getRecurringExpenses(),
+        getMonthlyPlan(periodKey),
+      ]);
       setBudgets(b);
       setExpenses(e);
+      setRecurring(r);
+      setPlan(p);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }
+  }, [periodKey]);
 
   useEffect(() => {
+    // Só busca depois que o período financeiro resolveu: getMonthlyPlan é por
+    // mês e um periodKey provisório traria o plano errado.
+    if (periodLoading) return;
     load();
-  }, []);
+  }, [periodLoading, load]);
 
   const rows = useMemo(() => {
     return budgets
@@ -60,8 +97,6 @@ export default function OrcamentosPage() {
       .sort((a, b) => b.pct - a.pct);
   }, [budgets, expenses, periodKey]);
 
-  // Enquanto o período financeiro não resolveu, o periodKey é provisório —
-  // mostrar as barras aqui faria os números pularem na virada do mês.
   const showSkeleton = loading || periodLoading;
 
   const budgetedCategories = useMemo(
@@ -69,66 +104,60 @@ export default function OrcamentosPage() {
     [budgets],
   );
 
+  // ── Seção A: mesmos números da Home (lib/monthlyBudget) ───────────────────
+  const totals = aggregatePeriod(expenses, periodKey);
+  const monthlyBudget = computeMonthlyBudget({
+    income: totals.income,
+    fixedCosts: sumFixedCosts(recurring),
+    debitSpent: totals.debitSpent,
+    monthlyPlan: plan,
+  });
+  // Esta tela mostra sempre o período financeiro CORRENTE.
+  const daysRemaining = getDaysRemaining(periodKey, true);
+  const isZeroed = monthlyBudget.planned > 0 ? monthlyBudget.remaining <= 0 : totals.debitSpent > 0;
+  const availableValue = Math.max(monthlyBudget.remaining, 0);
+
+  function openPlanModal() {
+    setPlanError('');
+    setPlanIncome(plan?.expectedIncome ?? 0);
+    setPlanGoal(plan?.savingsGoal ?? 0);
+    setPlanModalOpen(true);
+  }
+
+  async function handleSavePlan() {
+    setPlanError('');
+    if (!planIncome || planIncome <= 0) {
+      setPlanError('Informe uma renda mensal maior que zero.');
+      return;
+    }
+    if ((planGoal || 0) > planIncome) {
+      setPlanError('A meta de poupança não pode ser maior que a renda.');
+      return;
+    }
+    setSavingPlan(true);
+    try {
+      const saved = await upsertMonthlyPlan(periodKey, planIncome, planGoal || 0);
+      setPlan(saved);
+      setPlanModalOpen(false);
+    } catch (err) {
+      setPlanError(getErrorMessage(err));
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
   return (
-    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-28">
+    <main className="max-w-lg md:max-w-[1100px] mx-auto px-4 md:px-8 pt-8 pb-36 md:pb-28">
       <header className="mb-5">
         <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-          Orçamentos
+          Orçamento
         </h1>
         <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
-          Defina um limite mensal por categoria e acompanhe o quanto já gastou.
+          Seu teto do mês e os limites de cada categoria.
         </p>
       </header>
 
-      {/* Pills de saúde — só quando há orçamentos com atenção ou estourados */}
-      {!showSkeleton && !error && rows.length > 0 && (() => {
-        const countGreen = rows.filter(r => r.pct < BUDGET_WARN).length;
-        const countYellow = rows.filter(r => r.pct >= BUDGET_WARN && r.pct < BUDGET_DANGER).length;
-        const countOrange = rows.filter(r => r.pct >= BUDGET_DANGER && r.pct < BUDGET_OVER).length;
-        const redRows = rows.filter(r => r.pct >= BUDGET_OVER);
-        const countRed = redRows.length;
-        if (countYellow === 0 && countOrange === 0 && countRed === 0) return null;
-        // Quem empatou com o limite não "estourou" — não chamar de estourado.
-        const redLabel = redRows.every(r => r.spent <= r.budget.amount)
-          ? `${countRed} no limite`
-          : `${countRed} estourado${countRed > 1 ? 's' : ''}`;
-        return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-            {countGreen > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--green-bg)', color: 'var(--green-text)', fontSize: 12, fontWeight: 700 }}>
-                {countGreen} no controle
-              </span>
-            )}
-            {countYellow > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--yellow-bg)', color: 'var(--yellow-text)', fontSize: 12, fontWeight: 700 }}>
-                {countYellow} em atenção
-              </span>
-            )}
-            {countOrange > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--orange-bg)', color: 'var(--orange-text)', fontSize: 12, fontWeight: 700 }}>
-                {countOrange} quase no limite
-              </span>
-            )}
-            {countRed > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--red-bg)', color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>
-                {redLabel}
-              </span>
-            )}
-          </div>
-        );
-      })()}
-
-      {showSkeleton ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="skeleton"
-              style={{ height: 96, borderRadius: 'var(--r)' }}
-            />
-          ))}
-        </div>
-      ) : error ? (
+      {error && !showSkeleton && (
         <div
           style={{
             background: 'var(--surface)',
@@ -136,10 +165,11 @@ export default function OrcamentosPage() {
             borderRadius: 'var(--r)',
             padding: '24px',
             textAlign: 'center',
+            marginBottom: 24,
           }}
         >
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-            Não foi possível carregar seus orçamentos
+            Não foi possível carregar seu orçamento
           </p>
           <button
             type="button"
@@ -159,226 +189,328 @@ export default function OrcamentosPage() {
             Tentar novamente
           </button>
         </div>
-      ) : budgets.length === 0 ? (
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px dashed var(--border)',
-            borderRadius: 'var(--r)',
-            padding: '40px 24px',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: 'var(--accent-bg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 14px',
-            }}
-          >
-            <PieChart size={26} color="var(--accent)" />
-          </div>
-          <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-            Nenhum orçamento definido
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6, marginBottom: 18 }}>
-            Escolha uma categoria e defina um limite mensal
-          </p>
-          <button
-            type="button"
-            onClick={() => setModal({ mode: 'create' })}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 'var(--r-sm)',
-              padding: '12px 22px',
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={16} />
-            Criar orçamento
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map(({ budget, spent, pct }) => {
-            const { icon } = getCategoryDisplay(budget.category, customs);
-            const status = statusFromPct(pct);
-            const barColor = budgetStatusStyles(status).bar;
-            // "Estourado" é passar do limite; empatar é "atingido".
-            // Limite 0 (defensivo, a UI não deixa criar) nunca acende faixa.
-            const overflow = budget.amount > 0 && spent > budget.amount;
-            const atLimit = status === 'over' && spent <= budget.amount;
-            return (
+      )}
+
+      {!error && (
+        <>
+          {/* ── SEÇÃO A — ORÇAMENTO LIVRE DO MÊS ───────────────────────────── */}
+          <SectionTitle>Orçamento livre do mês</SectionTitle>
+
+          {showSkeleton ? (
+            <div className="skeleton" style={{ height: 140, borderRadius: 'var(--r)' }} />
+          ) : plan == null ? (
+            <EmptyState
+              icon={<Wallet size={26} color="var(--accent)" />}
+              title="Defina seu orçamento do mês"
+              text="Informe sua renda para saber quanto sobra pra gastar"
+              ctaLabel="Definir orçamento"
+              onClick={openPlanModal}
+            />
+          ) : (
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r)',
+                padding: '18px 20px',
+                boxShadow: 'var(--card-shadow)',
+              }}
+            >
               <div
-                key={budget.id}
                 style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--r)',
-                  overflow: 'hidden',
-                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: 4,
                 }}
               >
-                {(overflow || atLimit) && (
-                  <div style={{ background: 'var(--red-bg)', padding: '6px 16px' }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', margin: 0 }}>
-                      {overflow ? 'Limite estourado' : 'Limite atingido'}
-                    </p>
-                  </div>
-                )}
-                {status === 'danger' && (
-                  <div style={{ background: 'var(--orange-bg)', padding: '6px 16px' }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange-text)', margin: 0 }}>
-                      Quase no limite: {Math.round(pct)}% usado
-                    </p>
-                  </div>
-                )}
-                {status === 'warn' && (
-                  <div style={{ background: 'var(--yellow-bg)', padding: '6px 16px' }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--yellow-text)', margin: 0 }}>
-                      Atenção: {Math.round(pct)}% usado
-                    </p>
-                  </div>
-                )}
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--text-3)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    margin: 0,
+                  }}
+                >
+                  ORÇAMENTO LIVRE
+                </p>
+                <button
+                  type="button"
+                  onClick={openPlanModal}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: 'var(--accent)',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Editar
+                </button>
+              </div>
 
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: 14,
-                        fontWeight: 800,
-                        color: 'var(--text)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {budget.category}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 800,
-                        color: barColor,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {Math.round(pct)}%
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Editar orçamento"
-                      onClick={() => setModal({ mode: 'edit', budget })}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 7,
-                        background: 'var(--bg)',
-                        border: 'none',
-                        color: 'var(--text-3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Excluir orçamento"
-                      onClick={() => setModal({ mode: 'edit', budget })}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 7,
-                        background: 'var(--bg)',
-                        border: 'none',
-                        color: 'var(--text-3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-
-                  <div
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p
                     style={{
-                      height: 8,
-                      background: 'var(--border-2)',
-                      borderRadius: 4,
-                      marginTop: 12,
-                      overflow: 'hidden',
+                      fontSize: 26,
+                      fontWeight: 900,
+                      color: isZeroed ? 'var(--red)' : 'var(--green)',
+                      margin: 0,
+                      lineHeight: 1.1,
                     }}
                   >
-                    <div
-                      style={{
-                        height: '100%',
-                        borderRadius: 4,
-                        width: `${Math.min(pct, 100)}%`,
-                        background: barColor,
-                        transition: 'width 500ms ease',
-                      }}
-                    />
-                  </div>
-
-                  <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>
-                    {formatCurrency(spent)} gastos de {formatCurrency(budget.amount)}
+                    {formatCurrency(availableValue)}
+                  </p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
+                    disponível
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 800,
+                      color: isZeroed ? 'var(--red)' : 'var(--text-2)',
+                      margin: 0,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {Math.round(Math.min(monthlyBudget.pct, 100))}%
+                  </p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginTop: 2 }}>
+                    usado
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    {daysRemaining} dia{daysRemaining !== 1 ? 's' : ''} restante
+                    {daysRemaining !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              <div
+                style={{
+                  height: 6,
+                  background: 'var(--border-2)',
+                  borderRadius: 3,
+                  marginTop: 14,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: 3,
+                    width: `${Math.min(monthlyBudget.pct, 100)}%`,
+                    background: isZeroed ? 'var(--red)' : 'var(--green)',
+                    transition: 'width 600ms ease',
+                  }}
+                />
+              </div>
+
+              <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 10 }}>
+                Renda esperada {formatCurrency(plan.expectedIncome)}
+                {plan.savingsGoal > 0 ? ` · meta de poupança ${formatCurrency(plan.savingsGoal)}` : ''}
+              </p>
+            </div>
+          )}
+
+          {/* ── SEÇÃO B — LIMITES POR CATEGORIA ────────────────────────────── */}
+          <div style={{ marginTop: 28 }}>
+            <SectionTitle>Limites por categoria</SectionTitle>
+          </div>
+
+          {!showSkeleton && rows.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <BudgetStatusPills
+                rows={rows.map((r) => ({ pct: r.pct, spent: r.spent, limit: r.budget.amount }))}
+                hideWhenAllGreen
+              />
+            </div>
+          )}
+
+          {showSkeleton ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skeleton" style={{ height: 96, borderRadius: 'var(--r)' }} />
+              ))}
+            </div>
+          ) : budgets.length === 0 ? (
+            <EmptyState
+              icon={<PieChart size={26} color="var(--accent)" />}
+              title="Nenhum limite definido"
+              text="Defina um teto por categoria e receba um aviso antes de estourar"
+              ctaLabel="Criar primeiro limite"
+              onClick={() => setModal({ mode: 'create' })}
+            />
+          ) : (
+            <div className="space-y-3">
+              {rows.map(({ budget, spent, pct }) => {
+                const { icon } = getCategoryDisplay(budget.category, customs);
+                const status = statusFromPct(pct);
+                const barColor = budgetStatusStyles(status).bar;
+                // "Estourado" é passar do limite; empatar é "atingido".
+                // Limite 0 (defensivo, a UI não deixa criar) nunca acende faixa.
+                const overflow = budget.amount > 0 && spent > budget.amount;
+                const atLimit = status === 'over' && spent <= budget.amount;
+                return (
+                  <div
+                    key={budget.id}
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r)',
+                      overflow: 'hidden',
+                      boxShadow: 'var(--card-shadow)',
+                    }}
+                  >
+                    {(overflow || atLimit) && (
+                      <div style={{ background: 'var(--red-bg)', padding: '6px 16px' }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--red)', margin: 0 }}>
+                          {overflow ? 'Limite estourado' : 'Limite atingido'}
+                        </p>
+                      </div>
+                    )}
+                    {status === 'danger' && (
+                      <div style={{ background: 'var(--orange-bg)', padding: '6px 16px' }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange-text)', margin: 0 }}>
+                          Quase no limite: {Math.round(pct)}% usado
+                        </p>
+                      </div>
+                    )}
+                    {status === 'warn' && (
+                      <div style={{ background: 'var(--yellow-bg)', padding: '6px 16px' }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--yellow-text)', margin: 0 }}>
+                          Atenção: {Math.round(pct)}% usado
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
+                        <span
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: 'var(--text)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {budget.category}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 800,
+                            color: barColor,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {Math.round(pct)}%
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Editar limite"
+                          onClick={() => setModal({ mode: 'edit', budget })}
+                          style={iconButtonStyle}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Excluir limite"
+                          onClick={() => setModal({ mode: 'edit', budget })}
+                          style={iconButtonStyle}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          height: 8,
+                          background: 'var(--border-2)',
+                          borderRadius: 4,
+                          marginTop: 12,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            borderRadius: 4,
+                            width: `${Math.min(pct, 100)}%`,
+                            background: barColor,
+                            transition: 'width 500ms ease',
+                          }}
+                        />
+                      </div>
+
+                      <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>
+                        {formatCurrency(spent)} gastos de {formatCurrency(budget.amount)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {/* FAB — só quando há orçamentos (o estado vazio já tem o CTA) */}
+      {/* Botão flutuante ROTULADO — o "+" redondo azul é o de lançar gasto
+          (bottom-nav); dois iguais na mesma tela confundiam. */}
       {!showSkeleton && !error && budgets.length > 0 && (
         <button
           type="button"
-          aria-label="Criar orçamento"
           onClick={() => setModal({ mode: 'create' })}
           style={{
             position: 'fixed',
             right: 20,
             bottom: 'calc(76px + env(safe-area-inset-bottom))',
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            background: 'var(--accent)',
-            color: '#fff',
-            border: 'none',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 6,
+            padding: '11px 16px',
+            borderRadius: 999,
+            background: 'var(--surface)',
+            color: 'var(--accent)',
+            border: '1.5px solid var(--accent)',
+            fontSize: 13,
+            fontWeight: 800,
+            fontFamily: 'Nunito, sans-serif',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px var(--plus-shadow)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
             zIndex: 30,
           }}
         >
-          <Plus size={24} strokeWidth={2.5} />
+          <Plus size={16} strokeWidth={2.6} />
+          Novo limite
         </button>
       )}
+
+      <PlanoMensalModal
+        open={planModalOpen}
+        period={periodKey}
+        income={planIncome}
+        goal={planGoal}
+        onIncomeChange={setPlanIncome}
+        onGoalChange={setPlanGoal}
+        error={planError}
+        saving={savingPlan}
+        onCancel={() => setPlanModalOpen(false)}
+        onSave={handleSavePlan}
+      />
 
       {modal && (
         <BudgetModal
@@ -393,6 +525,100 @@ export default function OrcamentosPage() {
         />
       )}
     </main>
+  );
+}
+
+const iconButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 7,
+  background: 'var(--bg)',
+  border: 'none',
+  color: 'var(--text-3)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  flexShrink: 0,
+};
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      style={{
+        fontSize: 13,
+        fontWeight: 800,
+        color: 'var(--text-2)',
+        margin: '0 0 10px',
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+// Estado vazio compartilhado pelas duas seções — mesmo tamanho de ícone, mesma
+// tipografia, mesmo botão. Só mudam ícone, título, texto e rótulo do CTA.
+function EmptyState({
+  icon,
+  title,
+  text,
+  ctaLabel,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+  ctaLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px dashed var(--border)',
+        borderRadius: 'var(--r)',
+        padding: '40px 24px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          background: 'var(--accent-bg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 14px',
+        }}
+      >
+        {icon}
+      </div>
+      <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{title}</p>
+      <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6, marginBottom: 18 }}>{text}</p>
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          background: 'var(--accent)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 'var(--r-sm)',
+          padding: '12px 22px',
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: 'pointer',
+        }}
+      >
+        {ctaLabel}
+      </button>
+    </div>
   );
 }
 
@@ -433,7 +659,7 @@ function BudgetModal({
     };
   }, [onClose]);
 
-  // Em "adicionar": só categorias sem orçamento. Em "editar": fixa a atual.
+  // Em "adicionar": só categorias sem limite. Em "editar": fixa a atual.
   const available = useMemo(
     () => categories.filter((c) => !budgetedCategories.has(c.value)),
     [categories, budgetedCategories],
@@ -497,7 +723,7 @@ function BudgetModal({
           }}
         >
           <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-            {mode === 'edit' ? 'Editar orçamento' : 'Novo orçamento'}
+            {mode === 'edit' ? 'Editar limite' : 'Novo limite'}
           </h2>
           <button
             type="button"
@@ -552,7 +778,7 @@ function BudgetModal({
             >
               {available.length === 0 ? (
                 <p style={{ gridColumn: 'span 2', fontSize: 13, color: 'var(--text-3)', margin: '8px 0' }}>
-                  Todas as categorias já têm orçamento.
+                  Todas as categorias já têm limite.
                 </p>
               ) : (
                 available.map((c) => {
@@ -646,7 +872,7 @@ function BudgetModal({
               opacity: !category || amount <= 0 ? 0.5 : 1,
             }}
           >
-            {mode === 'edit' ? 'Salvar alterações' : 'Criar orçamento'}
+            {mode === 'edit' ? 'Salvar alterações' : 'Criar limite'}
           </LoadingButton>
 
           {mode === 'edit' && budget && (
@@ -666,7 +892,7 @@ function BudgetModal({
                 cursor: 'pointer',
               }}
             >
-              Excluir orçamento
+              Excluir limite
             </LoadingButton>
           )}
         </div>

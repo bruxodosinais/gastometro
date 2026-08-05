@@ -35,6 +35,13 @@ import {
   getMonthKey,
 } from '@/lib/calculations';
 import { getFinancialCurrentPeriod, getFinancialPeriodLabel } from '@/lib/financialPeriod';
+import {
+  aggregatePeriod,
+  computeMonthlyBudget,
+  getDaysRemaining,
+  sumFixedCosts,
+} from '@/lib/monthlyBudget';
+import { evaluateBudget } from '@/lib/budgetAlerts';
 import { usePeriod } from '@/lib/periodContext';
 import { useAccessStreak } from '@/lib/hooks/useAccessStreak';
 import { useStreakFreezes } from '@/lib/gamification/useStreakFreezes';
@@ -119,7 +126,7 @@ export default function HomePage() {
   const [showMonthlyClose, setShowMonthlyClose] = useState(false);
   const [prevMonthlyPlan, setPrevMonthlyPlan] = useState<MonthlyPlan | null>(null);
   // Plano do mês ANTERIOR ao período selecionado — usado só para pré-preencher
-  // o modal "Configurar orçamento" quando o mês atual ainda não tem plano.
+  // o modal "Definir orçamento" quando o mês atual ainda não tem plano.
   // Não persiste nada: é apenas sugestão de valores (evita "plano fantasma").
   const [budgetPrefillPlan, setBudgetPrefillPlan] = useState<MonthlyPlan | null>(null);
   // Guarda contra reexecução do check de fechamento (o efeito depende de
@@ -444,27 +451,15 @@ export default function HomePage() {
   const [periodYear, periodMonth] = period.split('-').map(Number);
   const totalDaysInMonth = new Date(periodYear, periodMonth, 0).getDate();
   const todayDay = isCurrentMonth ? now.getDate() : totalDaysInMonth;
-  const daysRemaining = isCurrentMonth ? totalDaysInMonth - todayDay : 0;
+  const daysRemaining = getDaysRemaining(period, isCurrentMonth);
   const daysForLimit = isCurrentMonth
     ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1
     : 0;
 
-  // 'Saldo inicial' é uma âncora de sistema (positiva ou negativa) que ajusta
-  // o saldo cumulativo para bater com o que o user informou no onboarding —
-  // não é um movimento real do mês e portanto fica de fora de ENTROU/SAIU.
-  const periodEntries = expenses.filter(
-    (e) => e.date.slice(0, 7) === period && e.category !== 'Saldo inicial',
-  );
-  const income = calculateTotalByType(periodEntries, 'income');
-  const spent = calculateTotalByType(periodEntries, 'expense');
-  // Soma das COMPRAS no crédito do período. NÃO incluir o pagamento de
-  // fatura aqui: este valor é usado em debitSpent para tirar as compras de
-  // crédito do gasto em caixa (compra no crédito não move caixa até a fatura
-  // ser paga; o pagamento, esse sim, entra como débito).
-  const periodCreditTotal = periodEntries
-    .filter((e) => e.type === 'expense' && e.isCredit === true)
-    .reduce((s, e) => s + e.amount, 0);
-  const debitSpent = spent - periodCreditTotal;
+  // Agregação do período (exclui a âncora de sistema 'Saldo inicial' e separa
+  // compra no crédito de gasto em caixa). Mora em lib/monthlyBudget porque a
+  // tela /orcamentos precisa exatamente dos mesmos números.
+  const { entries: periodEntries, income, spent, debitSpent } = aggregatePeriod(expenses, period);
   const periodExpenses = periodEntries.filter((e) => e.type === 'expense');
   const periodIncomes = periodEntries.filter((e) => e.type === 'income');
 
@@ -539,18 +534,24 @@ export default function HomePage() {
       ? `/cartoes/detalhe?id=${cardsComFatura[0].card.id}`
       : '/cartoes';
 
-  // Categorias que estouraram o orçamento no período selecionado.
-  // Defensivo: só considera budgets com limite > 0 (orçamento zerado ou
-  // ausente não conta como estourado). Ordenado pelo maior excedente.
-  const budgetOverflows = budgets
+  // ÚNICO lugar da Home que decide "quanto gastei nessa categoria": uma
+  // passada por limite ativo, via evaluateBudget (mesma fonte da /orcamentos e
+  // do aviso da tela de Lançar). As pills e o bloco de estouro derivam daqui.
+  // Defensivo: limite <= 0 (orçamento zerado ou ausente) fica de fora dos dois.
+  const limitStatus = budgets
     .filter((b) => b.amount > 0)
     .map((b) => {
-      const categorySpent = periodExpenses
-        .filter((e) => e.category === b.category)
-        .reduce((s, e) => s + e.amount, 0);
-      return { category: b.category, spent: categorySpent, limit: b.amount };
-    })
+      const ev = evaluateBudget({ budgets, expenses, category: b.category, periodKey: period });
+      return { category: b.category, spent: ev.spent, limit: ev.limit, pct: ev.pct };
+    });
+
+  // Resumo dos limites por categoria para as pills do card da Home.
+  const limitRows = limitStatus.map(({ pct, spent, limit }) => ({ pct, spent, limit }));
+
+  // Categorias que estouraram o limite no período, maior excedente primeiro.
+  const budgetOverflows = limitStatus
     .filter((b) => b.spent > b.limit)
+    .map(({ category, spent, limit }) => ({ category, spent, limit }))
     .sort((a, b) => (b.spent - b.limit) - (a.spent - a.limit));
 
   // Top gastos do período, agrupados por descrição
@@ -586,9 +587,7 @@ export default function HomePage() {
     });
   const pendingTotal = pendingObligations.reduce((s, o) => s + o.amount, 0);
 
-  const fixedCosts = recurringExpenses
-    .filter((r) => r.active && r.type === 'expense')
-    .reduce((sum, r) => sum + r.amount, 0);
+  const fixedCosts = sumFixedCosts(recurringExpenses);
   const recurringIncome = recurringExpenses
     .filter((r) => r.active && r.type === 'income')
     .reduce((sum, r) => sum + r.amount, 0);
@@ -630,22 +629,13 @@ export default function HomePage() {
     return days.length > 0 ? Math.min(...days) : null;
   })();
 
-  const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const heroBase = (monthlyPlan?.expectedIncome ?? 0) > 0 ? monthlyPlan!.expectedIncome : income;
   const effectiveIncome = Math.max(recurringIncome, income);
-  // Base do orçamento livre: receita real lançada (income). Quando ainda não há
-  // receita no mês, cai pro planejado (heroBase − fixedCosts) para o user que
-  // configurou renda esperada mas ainda não recebeu / lançou nada.
-  const valorLivreParaGastarPlanejado =
-    income > 0 ? income - savingsGoal : heroBase - fixedCosts - savingsGoal;
-  const orcamentoRestante = valorLivreParaGastarPlanejado - debitSpent;
-
-  const budgetPct =
-    valorLivreParaGastarPlanejado > 0
-      ? Math.min((debitSpent / valorLivreParaGastarPlanejado) * 100, 100)
-      : debitSpent > 0
-      ? 100
-      : 0;
+  // Fórmula do orçamento livre: compartilhada com /orcamentos (lib/monthlyBudget).
+  const monthlyBudget = computeMonthlyBudget({ income, fixedCosts, debitSpent, monthlyPlan });
+  const valorLivreParaGastarPlanejado = monthlyBudget.planned;
+  const orcamentoRestante = monthlyBudget.remaining;
+  const budgetPct = monthlyBudget.pct;
 
 
   // ── Previous month data (for hint / fechamento) ───────────────────────────
@@ -1193,6 +1183,7 @@ export default function HomePage() {
         isCurrentMonth={isCurrentMonth}
         daysRemaining={daysRemaining}
         budgetOverflows={budgetOverflows}
+        limitRows={limitRows}
         pendingObligations={pendingObligations}
         pendingTotal={pendingTotal}
         mounted={mounted}

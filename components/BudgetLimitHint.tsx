@@ -177,7 +177,7 @@ export default function BudgetLimitHint({
         </span>
       </div>
 
-      {/* Mini-barra — mesmo padrão da tela de Orçamentos, altura 6. */}
+      {/* Mini-barra — mesmo padrão da tela de Orçamento, altura 6. */}
       <div
         style={{
           height: 6,

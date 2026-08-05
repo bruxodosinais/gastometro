@@ -1,8 +1,8 @@
 'use client';
 
-import LoadingButton from '@/components/ui/LoadingButton';
 import CurrencyInput from '@/components/CurrencyInput';
-import { formatCurrency, getMonthLabel } from '@/lib/calculations';
+import PlanoMensalModal from '../orcamento/PlanoMensalModal';
+import { formatCurrency } from '@/lib/calculations';
 import type { CreditCard as CreditCardType } from '@/lib/types';
 
 type VariablePayModalState = { obligationId: string; estimatedAmount: number } | null;
@@ -153,153 +153,21 @@ export default function HomeModals({
         </div>
       )}
 
-      {/* ── MODAL: Configurar orçamento (P5) ─────────────────────────────────── */}
-      {budgetModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          style={{ padding: 16 }}
-          onClick={() => !savingBudget && onCancelBudget()}
-        >
-          <div
-            style={{
-              background: 'var(--surface)',
-              borderRadius: 20,
-              width: '90%',
-              maxWidth: 400,
-              padding: 24,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>
-              Configurar orçamento
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
-              {getMonthLabel(period)}
-            </p>
-
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--text-2)',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              Renda esperada (R$)
-            </label>
-            <CurrencyInput
-              autoFocus
-              value={budgetIncomeInput}
-              onChange={onBudgetIncomeChange}
-              placeholder="0,00"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: 14,
-              }}
-            />
-
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--text-2)',
-                display: 'block',
-                marginBottom: 6,
-              }}
-            >
-              Meta de poupança (R$){' '}
-              <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>· opcional</span>
-            </label>
-            <CurrencyInput
-              value={budgetGoalInput}
-              onChange={onBudgetGoalChange}
-              placeholder="0,00"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: 14,
-              }}
-            />
-
-            {budgetError && (
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'var(--red)',
-                  background: 'var(--red-bg)',
-                  borderRadius: 'var(--r-sm)',
-                  padding: '10px 14px',
-                  textAlign: 'center',
-                  marginBottom: 14,
-                }}
-              >
-                {budgetError}
-              </p>
-            )}
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={onCancelBudget}
-                disabled={savingBudget}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-2)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: savingBudget ? 'default' : 'pointer',
-                  opacity: savingBudget ? 0.6 : 1,
-                }}
-              >
-                Cancelar
-              </button>
-              <LoadingButton
-                onClick={onSaveBudget}
-                loading={savingBudget}
-                style={{
-                  flex: 1,
-                  padding: '12px 0',
-                  borderRadius: 12,
-                  background: 'var(--accent)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: savingBudget ? 'default' : 'pointer',
-                  opacity: savingBudget ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                Salvar
-              </LoadingButton>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── MODAL: Plano do mês (renda + meta) ───────────────────────────────
+          O formulário mora em _components/orcamento/PlanoMensalModal porque a
+          tela /orcamentos abre exatamente o mesmo. */}
+      <PlanoMensalModal
+        open={budgetModalOpen}
+        period={period}
+        income={budgetIncomeInput}
+        goal={budgetGoalInput}
+        onIncomeChange={onBudgetIncomeChange}
+        onGoalChange={onBudgetGoalChange}
+        error={budgetError}
+        saving={savingBudget}
+        onCancel={onCancelBudget}
+        onSave={onSaveBudget}
+      />
 
       {/* ── MODAL: Fatura vence hoje ─────────────────────────────────────────── */}
       {cardVencimentoAlert && (
