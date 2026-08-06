@@ -204,10 +204,19 @@ export function coachSavingsRate(args: {
 // ── Margem livre do orçamento (OrcamentoCard) ───────────────────────────────
 // freeMargin = renda − contas fixas − meta (o "orçamento livre planejado").
 // > 0: sobra estrutural → bom aporte. <= 0: o plano não fecha → tom de ajuda.
+// O card mostra "R$ 0,00 disponível" quando a sobra do mês acabou. Falar de
+// margem livre planejada ao lado disso lê como contradição — então cala.
+export function budgetCoachIsSilent(a: { freeMargin: number; remaining: number }) {
+  return a.freeMargin > 0 && a.remaining <= 0;
+}
+
 export function coachBudget(args: {
   freeMargin: number;
+  remaining: number;
   mission: MissionContext | null;
-}): CoachOutput {
+}): CoachOutput | null {
+  if (budgetCoachIsSilent(args)) return null;
+
   const { freeMargin, mission } = args;
   const st = missionState(mission);
 

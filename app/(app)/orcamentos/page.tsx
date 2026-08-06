@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PieChart, Pencil, Trash2, Plus, X, Wallet } from 'lucide-react';
+import { PieChart, Pencil, Plus, X, Wallet } from 'lucide-react';
 import {
   getBudgets,
   upsertBudget,
@@ -254,7 +254,7 @@ export default function OrcamentoPage() {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div>
                   <p
                     style={{
@@ -263,6 +263,7 @@ export default function OrcamentoPage() {
                       color: isZeroed ? 'var(--red)' : 'var(--green)',
                       margin: 0,
                       lineHeight: 1.1,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {formatCurrency(availableValue)}
@@ -271,7 +272,7 @@ export default function OrcamentoPage() {
                     disponível
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <p
                     style={{
                       fontSize: 20,
@@ -321,8 +322,47 @@ export default function OrcamentoPage() {
           )}
 
           {/* ── SEÇÃO B — LIMITES POR CATEGORIA ────────────────────────────── */}
-          <div style={{ marginTop: 28 }}>
-            <SectionTitle>Limites por categoria</SectionTitle>
+          {/* "Novo limite" é inline aqui, não flutuante: como pill rotulada ele
+              tapava o percentual e o lápis dos cards durante o scroll. Continua
+              rotulado (o "+" redondo azul da bottom-nav é o de lançar gasto) e
+              só aparece quando já existem limites — com a lista vazia quem
+              convida é o EmptyState, pra não ter dois CTAs concorrentes. */}
+          <div
+            style={{
+              marginTop: 28,
+              marginBottom: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <SectionTitle flush>Limites por categoria</SectionTitle>
+            {!showSkeleton && !error && budgets.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setModal({ mode: 'create' })}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  background: 'var(--surface)',
+                  color: 'var(--accent)',
+                  border: '1.5px solid var(--accent)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  fontFamily: 'Nunito, sans-serif',
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={16} strokeWidth={2.6} />
+                Novo limite
+              </button>
+            )}
           </div>
 
           {!showSkeleton && rows.length > 0 && (
@@ -426,14 +466,6 @@ export default function OrcamentoPage() {
                         >
                           <Pencil size={13} />
                         </button>
-                        <button
-                          type="button"
-                          aria-label="Excluir limite"
-                          onClick={() => setModal({ mode: 'edit', budget })}
-                          style={iconButtonStyle}
-                        >
-                          <Trash2 size={13} />
-                        </button>
                       </div>
 
                       <div
@@ -468,37 +500,6 @@ export default function OrcamentoPage() {
         </>
       )}
 
-      {/* Botão flutuante ROTULADO — o "+" redondo azul é o de lançar gasto
-          (bottom-nav); dois iguais na mesma tela confundiam. */}
-      {!showSkeleton && !error && budgets.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setModal({ mode: 'create' })}
-          style={{
-            position: 'fixed',
-            right: 20,
-            bottom: 'calc(76px + env(safe-area-inset-bottom))',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '11px 16px',
-            borderRadius: 999,
-            background: 'var(--surface)',
-            color: 'var(--accent)',
-            border: '1.5px solid var(--accent)',
-            fontSize: 13,
-            fontWeight: 800,
-            fontFamily: 'Nunito, sans-serif',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-            zIndex: 30,
-          }}
-        >
-          <Plus size={16} strokeWidth={2.6} />
-          Novo limite
-        </button>
-      )}
-
       <PlanoMensalModal
         open={planModalOpen}
         period={periodKey}
@@ -529,9 +530,9 @@ export default function OrcamentoPage() {
 }
 
 const iconButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  borderRadius: 7,
+  width: 40,
+  height: 40,
+  borderRadius: 10,
   background: 'var(--bg)',
   border: 'none',
   color: 'var(--text-3)',
@@ -542,14 +543,16 @@ const iconButtonStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+// `flush` zera a margem inferior pra quando o título divide uma linha flex com
+// um botão — aí o espaçamento é do wrapper, senão o botão desalinha.
+function SectionTitle({ children, flush }: { children: React.ReactNode; flush?: boolean }) {
   return (
     <h2
       style={{
         fontSize: 13,
         fontWeight: 800,
         color: 'var(--text-2)',
-        margin: '0 0 10px',
+        margin: flush ? 0 : '0 0 10px',
       }}
     >
       {children}

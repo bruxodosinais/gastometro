@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { MonthlyObligation, MonthlyPlan } from '@/lib/types';
-import { coachBudget } from '@/lib/insights/coach';
+import { budgetCoachIsSilent, coachBudget } from '@/lib/insights/coach';
 import { useMissionContext } from '@/lib/insights/useMissionContext';
 import BudgetStatusPills, { BudgetStatusRow } from '../orcamento/BudgetStatusPills';
 import { anim, hidden } from './_anim';
@@ -138,7 +138,17 @@ export default function OrcamentoCard({
   onOpenBudgetModal,
 }: Props) {
   const { context: mission, loading: missionLoading } = useMissionContext();
-  const budgetCoach = coachBudget({ freeMargin: valorLivreParaGastarPlanejado, mission });
+  const budgetCoach = coachBudget({
+    freeMargin: valorLivreParaGastarPlanejado,
+    remaining: orcamentoRestante,
+    mission,
+  });
+  // Mesmo predicado que faz o coach retornar null — o card precisa dele antes do
+  // fetch da missão pra não piscar o skeleton de algo que não vai renderizar.
+  const coachSilent = budgetCoachIsSilent({
+    freeMargin: valorLivreParaGastarPlanejado,
+    remaining: orcamentoRestante,
+  });
   const hasBudget = valorLivreParaGastarPlanejado > 0;
   const isZeroed = hasBudget ? orcamentoRestante <= 0 : debitSpent > 0;
   // Convite proativo na virada (item B): mês corrente ainda sem plano salvo.
@@ -475,13 +485,13 @@ export default function OrcamentoCard({
           {/* Coach (Item 7b): margem livre ligada à Missão. Loading-aware pra
               não piscar o CTA "Criar Missão" pra quem já tem missão. Só no mês
               corrente ("esse mês"). */}
-          {isCurrentMonth &&
+          {isCurrentMonth && !coachSilent &&
             (missionLoading ? (
               <span
                 className="skeleton"
                 style={{ display: 'block', height: 14, width: '90%', borderRadius: 4, marginTop: 10 }}
               />
-            ) : (
+            ) : budgetCoach ? (
               <>
                 <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginTop: 10, lineHeight: 1.4 }}>
                   {budgetCoach.emoji} {budgetCoach.message}
@@ -504,7 +514,7 @@ export default function OrcamentoCard({
                   </Link>
                 )}
               </>
-            ))}
+            ) : null)}
           {/* P4: contas fixas pendentes não entram no cálculo do
               Orçamento Livre. Apenas informa — não mexe na barra nem
               no percentual. Só aparece com despesas recorrentes não
