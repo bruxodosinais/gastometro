@@ -17,24 +17,12 @@ import { useTheme, type Theme } from '@/lib/themeContext';
 import LoadingButton from '@/components/ui/LoadingButton';
 import { openSupport } from '@/components/SupportButton';
 
-// Vinculação de WhatsApp (W2). Enquanto a feature está em desenvolvimento,
-// um banner "Em breve" é renderizado por cima dos estados A/B/C.
-// Trocar para `true` quando lançar.
-// Mantém só dígitos e formata como telefone brasileiro: (11) 99999-9999.
-function maskBrazilPhone(value: string): string {
-  const d = value.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : '';
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-}
-
-// Recebe número salvo com DDI (5511999999999) e exibe (11) 99999-9999.
-function formatStoredPhone(stored: string): string {
-  const d = stored.replace(/\D/g, '');
-  const local = d.startsWith('55') ? d.slice(2) : d;
-  return maskBrazilPhone(local);
-}
+// Vinculação de WhatsApp (W2): a UI foi retirada do perfil — o produto não oferece
+// mais vincular/alterar/remover número por aqui. A feature continua de pé por baixo:
+// as rotas `app/api/whatsapp/link-otp` e `verify-otp`, as colunas `whatsapp_phone` /
+// `whatsapp_verified` em `profiles` e o VPS (Evolution API) seguem existindo, e o
+// cadastro (`app/auth/cadastro`) ainda grava o número. Aposentar a feature de vez é
+// uma decisão separada, ainda não tomada.
 
 const AVATAR_EMOJIS = [
   '🧑','👨','👩','🧔','👱','🧕','👴','👵','🧒','👦','👧','🧑‍💻',
@@ -129,12 +117,6 @@ export default function PerfilPage() {
   const [savingPush, setSavingPush] = useState(false);
   const [activatingPush, setActivatingPush] = useState(false);
 
-  // WhatsApp
-  const [whatsappPhone, setWhatsappPhone] = useState<string | null>(null);
-  const [waInput, setWaInput] = useState('');
-  const [waEditing, setWaEditing] = useState(false);
-  const [waSaving, setWaSaving] = useState(false);
-
   // Financial period
   const [financialStartDay, setFinancialStartDay] = useState<number | ''>('');
 
@@ -172,7 +154,7 @@ export default function PerfilPage() {
 
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, whatsapp_phone, financial_start_day')
+          .select('avatar_url, avatar_emoji, notification_preferences, email_report_weekly, email_report_monthly, push_due_tomorrow, push_budget_exceeded, push_weekly_summary, financial_start_day')
           .eq('id', user.id)
           .single();
 
@@ -192,7 +174,6 @@ export default function PerfilPage() {
             budget_exceeded: profile.push_budget_exceeded !== false,
             weekly_summary: profile.push_weekly_summary !== false,
           });
-          setWhatsappPhone(profile.whatsapp_phone ?? null);
           setFinancialStartDay((profile.financial_start_day as number | null) ?? '');
         }
       } catch (err) {
@@ -382,47 +363,6 @@ export default function PerfilPage() {
       addToast('Erro ao salvar preferência.', 'error');
     } finally {
       setSavingEmail(false);
-    }
-  }
-
-  async function handleSaveWhatsapp() {
-    const digits = waInput.replace(/\D/g, '');
-    if (digits.length < 10) return;
-    setWaSaving(true);
-    try {
-      const supabase = createClient();
-      await supabase.from('profiles').upsert({
-        id: userId,
-        whatsapp_phone: `55${digits}`,
-        whatsapp_verified: false,
-        updated_at: new Date().toISOString(),
-      });
-      setWhatsappPhone(`55${digits}`);
-      setWaEditing(false);
-      setWaInput('');
-      addToast('WhatsApp salvo!');
-    } catch {
-      addToast('Erro ao salvar. Tente novamente.', 'error');
-    } finally {
-      setWaSaving(false);
-    }
-  }
-
-  async function handleRemoveWhatsapp() {
-    try {
-      const supabase = createClient();
-      await supabase.from('profiles').upsert({
-        id: userId,
-        whatsapp_phone: null,
-        whatsapp_verified: false,
-        updated_at: new Date().toISOString(),
-      });
-      setWhatsappPhone(null);
-      setWaEditing(false);
-      setWaInput('');
-      addToast('WhatsApp removido.');
-    } catch {
-      addToast('Erro ao remover. Tente novamente.', 'error');
     }
   }
 
@@ -865,82 +805,6 @@ export default function PerfilPage() {
 
         {/* ── COLUNA DIREITA ────────────────────────────────────────────────── */}
         <div>
-
-          {/* WHATSAPP */}
-          <div style={{ marginBottom: 12 }}>
-            <span style={secLabel}>WhatsApp</span>
-            <div style={cardStyle}>
-              {whatsappPhone && !waEditing ? (
-                /* Número já cadastrado */
-                <div style={{ padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>
-                    {formatStoredPhone(whatsappPhone)}
-                  </p>
-                  <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '0 0 12px' }}>
-                    Número vinculado
-                  </p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => { setWaInput(''); setWaEditing(true); }}
-                      style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      Alterar número
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRemoveWhatsapp}
-                      style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--red)', background: 'transparent', fontSize: 13, fontWeight: 700, color: 'var(--red)', cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Sem número ou editando */
-                <div style={{ padding: 16 }}>
-                  {!whatsappPhone && (
-                    <>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 8px' }}>
-                        Adicionar WhatsApp
-                      </p>
-                      <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '0 0 12px' }}>
-                        Para receber notificações e relatórios pelo WhatsApp.
-                      </p>
-                    </>
-                  )}
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    value={waInput}
-                    onChange={(e) => setWaInput(maskBrazilPhone(e.target.value))}
-                    placeholder="(11) 99999-9999"
-                    style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '12px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text)', outline: 'none' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    {waEditing && (
-                      <button
-                        type="button"
-                        onClick={() => { setWaEditing(false); setWaInput(''); }}
-                        style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', border: '1.5px solid var(--border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSaveWhatsapp}
-                      disabled={waSaving}
-                      style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--r-sm)', background: 'var(--accent)', border: 'none', fontSize: 13, fontWeight: 800, color: 'white', cursor: waSaving ? 'default' : 'pointer', opacity: waSaving ? 0.7 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    >
-                      {waSaving ? <Loader2 size={14} className="animate-spin" /> : null}
-                      {waSaving ? 'Salvando…' : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* INSTALAÇÃO */}
           {!isStandalone && (
