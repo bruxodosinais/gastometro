@@ -202,8 +202,23 @@ export function coachSavingsRate(args: {
 }
 
 // ── Margem livre do orçamento (OrcamentoCard) ───────────────────────────────
-// freeMargin = renda − contas fixas − meta (o "orçamento livre planejado").
-// > 0: sobra estrutural → bom aporte. <= 0: o plano não fecha → tom de ajuda.
+// DUAS grandezas entram aqui, e elas NÃO são intercambiáveis:
+//
+//   freeMargin = `planned` do computeMonthlyBudget (lib/monthlyBudget.ts)
+//   remaining  = planned − debitSpent — a sobra REAL do mês, o "disponível"
+//                que o card já mostra em cima desta linha.
+//
+// ⚠️ `planned` só desconta as contas fixas no caminho SEM renda lançada
+// (`heroBase − fixedCosts − savingsGoal`). Com renda lançada — o caso normal de
+// quem usa o app — ele é só `income − savingsGoal`, então as fixas continuam
+// DENTRO dele. Por isso a fala de sobra usa `remaining`, que é verdadeiro nos
+// dois caminhos, e NUNCA volta a creditar essa sobra ao pagamento das fixas:
+// era factualmente falso e o número ainda competia com o do card.
+//
+// `freeMargin` fica restrito ao que ele de fato responde: o plano fecha? Daí os
+// ramos ℹ️ (≈ 0) e ⚠️ (< 0) seguirem usando ele — ali é diagnóstico do plano,
+// não sobra do mês.
+//
 // O card mostra "R$ 0,00 disponível" quando a sobra do mês acabou. Falar de
 // margem livre planejada ao lado disso lê como contradição — então cala.
 export function budgetCoachIsSilent(a: { freeMargin: number; remaining: number }) {
@@ -217,7 +232,7 @@ export function coachBudget(args: {
 }): CoachOutput | null {
   if (budgetCoachIsSilent(args)) return null;
 
-  const { freeMargin, mission } = args;
+  const { freeMargin, remaining, mission } = args;
   const st = missionState(mission);
 
   // Margem ≈ 0 (renda cobre exatamente fixas + meta).
@@ -233,17 +248,17 @@ export function coachBudget(args: {
       case 'open':
         return {
           emoji: '✅',
-          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas — daria um bom aporte na sua Missão.`,
+          message: `Sobraram ~${fmt(remaining)} do seu orçamento esse mês — daria um bom aporte na sua Missão.`,
         };
       case 'full':
         return {
           emoji: '✅',
-          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas. Tá voando!`,
+          message: `Sobraram ~${fmt(remaining)} do seu orçamento esse mês. Tá voando!`,
         };
       default:
         return {
           emoji: '✅',
-          message: `Você tem ~${fmt(freeMargin)} livres esse mês depois das contas fixas — daria pra começar a guardar.`,
+          message: `Sobraram ~${fmt(remaining)} do seu orçamento esse mês — daria pra começar a guardar.`,
           cta: CTA_CRIAR,
         };
     }
