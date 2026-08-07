@@ -55,7 +55,6 @@ import {
   MonthlyPlan,
   RecurringExpense,
 } from '@/lib/types';
-import PlanningSection from '@/components/PlanningSection';
 import MonthlyCloseModal from '@/components/MonthlyCloseModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { anim, hidden } from '../_components/home/_anim';
