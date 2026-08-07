@@ -204,20 +204,21 @@ export function coachSavingsRate(args: {
 // ── Margem livre do orçamento (OrcamentoCard) ───────────────────────────────
 // DUAS grandezas entram aqui, e elas NÃO são intercambiáveis:
 //
-//   freeMargin = `planned` do computeMonthlyBudget (lib/monthlyBudget.ts)
+//   freeMargin = `structuralMargin` do computeMonthlyBudget (lib/monthlyBudget)
+//                = renda − contas fixas − meta. Responde "o plano fecha?" e só
+//                isso: não desconta nada do que já foi gasto.
 //   remaining  = planned − debitSpent — a sobra REAL do mês, o "disponível"
 //                que o card já mostra em cima desta linha.
 //
-// ⚠️ `planned` só desconta as contas fixas no caminho SEM renda lançada
-// (`heroBase − fixedCosts − savingsGoal`). Com renda lançada — o caso normal de
-// quem usa o app — ele é só `income − savingsGoal`, então as fixas continuam
-// DENTRO dele. Por isso a fala de sobra usa `remaining`, que é verdadeiro nos
-// dois caminhos, e NUNCA volta a creditar essa sobra ao pagamento das fixas:
-// era factualmente falso e o número ainda competia com o do card.
+// A fala de sobra usa `remaining`, nunca `freeMargin`: o `planned` que gera o
+// `remaining` NÃO pré-reserva as contas fixas (elas entram como gasto quando
+// pagas), então creditar a sobra ao pagamento das fixas seria falso — e o
+// número ainda competiria com o do card, que é o bug que fechamos.
 //
-// `freeMargin` fica restrito ao que ele de fato responde: o plano fecha? Daí os
-// ramos ℹ️ (≈ 0) e ⚠️ (< 0) seguirem usando ele — ali é diagnóstico do plano,
-// não sobra do mês.
+// `freeMargin` fica restrito ao diagnóstico do plano: os ramos ℹ️ (≈ 0) e
+// ⚠️ (< 0) seguem em cima dele. Quem chamar esta função tem que passar a MESMA
+// grandeza nos dois lugares (aqui e no `budgetCoachIsSilent` do componente) —
+// misturar as duas cala o ⚠️ de plano estourado.
 //
 // O card mostra "R$ 0,00 disponível" quando a sobra do mês acabou. Falar de
 // margem livre planejada ao lado disso lê como contradição — então cala.

@@ -1177,6 +1177,7 @@ export default function HomePage() {
       <OrcamentoCard
         valorLivreParaGastarPlanejado={valorLivreParaGastarPlanejado}
         orcamentoRestante={orcamentoRestante}
+        structuralMargin={monthlyBudget.structuralMargin}
         debitSpent={debitSpent}
         budgetPct={budgetPct}
         monthlyPlan={monthlyPlan}

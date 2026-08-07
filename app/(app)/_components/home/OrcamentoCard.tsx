@@ -100,6 +100,11 @@ function StepItem({
 type Props = {
   valorLivreParaGastarPlanejado: number;
   orcamentoRestante: number;
+  /**
+   * Diagnóstico do plano (renda − fixas − meta), não saldo do mês. Só o coach
+   * usa — a barra, o "disponível" e o zerado seguem em cima do `planned`.
+   */
+  structuralMargin: number;
   debitSpent: number;
   budgetPct: number;
   monthlyPlan: MonthlyPlan | null;
@@ -123,6 +128,7 @@ type Props = {
 export default function OrcamentoCard({
   valorLivreParaGastarPlanejado,
   orcamentoRestante,
+  structuralMargin,
   debitSpent,
   budgetPct,
   isCurrentMonth,
@@ -138,15 +144,19 @@ export default function OrcamentoCard({
   onOpenBudgetModal,
 }: Props) {
   const { context: mission, loading: missionLoading } = useMissionContext();
+  // O coach recebe `structuralMargin` como freeMargin: a pergunta dele é se o
+  // plano fecha, não quanto sobrou (isso é `remaining`). O resto do card segue
+  // em `valorLivreParaGastarPlanejado` (= planned).
   const budgetCoach = coachBudget({
-    freeMargin: valorLivreParaGastarPlanejado,
+    freeMargin: structuralMargin,
     remaining: orcamentoRestante,
     mission,
   });
-  // Mesmo predicado que faz o coach retornar null — o card precisa dele antes do
-  // fetch da missão pra não piscar o skeleton de algo que não vai renderizar.
+  // Mesmo predicado E MESMOS ARGUMENTOS que fazem o coach retornar null — o card
+  // precisa dele antes do fetch da missão pra não piscar o skeleton de algo que
+  // não vai renderizar. Passar `planned` aqui calaria o ⚠️ de plano estourado.
   const coachSilent = budgetCoachIsSilent({
-    freeMargin: valorLivreParaGastarPlanejado,
+    freeMargin: structuralMargin,
     remaining: orcamentoRestante,
   });
   const hasBudget = valorLivreParaGastarPlanejado > 0;

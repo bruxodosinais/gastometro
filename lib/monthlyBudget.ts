@@ -48,11 +48,28 @@ export interface MonthlyBudgetSummary {
   remaining: number;
   /** budgetPct — % do teto já usado, limitado a 100. */
   pct: number;
+  /**
+   * base − fixedCosts − savingsGoal. Diagnóstico do PLANO ("o plano fecha?"),
+   * NUNCA saldo do mês: não desconta nada do que já foi gasto e por isso não
+   * responde "quanto sobrou" — para isso existe `remaining`. Serve ao alerta
+   * "suas contas fixas + meta passam da renda em ~X", que precisa comparar o
+   * compromisso estrutural com a renda, não com o caixa do momento.
+   */
+  structuralMargin: number;
 }
 
-// Base do orçamento livre: receita real lançada (income). Quando ainda não há
-// receita no mês, cai pro planejado (renda esperada − custos fixos) para quem
-// configurou o plano mas ainda não recebeu / lançou nada.
+// Base do orçamento livre: receita real lançada (income); sem receita no mês,
+// cai pra renda esperada do plano.
+//
+// As contas fixas NÃO são pré-reservadas do `planned`. Elas já entram como
+// gasto quando pagas (`debitSpent` soma todos os lançamentos do período,
+// inclusive os que quitam fixas), então subtraí-las antes descontava o mesmo
+// dinheiro duas vezes: com plano de 4.500 / fixas 1.645 / meta 450, pagar
+// exatamente as fixas derrubava o disponível de 2.405 para 760 — e o MESMO
+// estado factual voltava a 2.405 assim que a receita era lançada, porque o
+// caminho com renda nunca reservou nada. Os dois caminhos agora convergem no
+// comportamento do dominante. Quem precisa da pergunta estrutural ("o plano
+// fecha?") usa `structuralMargin`, não `planned`.
 export function computeMonthlyBudget({
   income,
   fixedCosts,
@@ -66,12 +83,13 @@ export function computeMonthlyBudget({
 }): MonthlyBudgetSummary {
   const savingsGoal = monthlyPlan?.savingsGoal ?? 0;
   const expected = monthlyPlan?.expectedIncome ?? 0;
-  const heroBase = expected > 0 ? expected : income;
-  const planned = income > 0 ? income - savingsGoal : heroBase - fixedCosts - savingsGoal;
+  const base = income > 0 ? income : expected;
+  const planned = base - savingsGoal;
+  const structuralMargin = base - fixedCosts - savingsGoal;
   const remaining = planned - debitSpent;
   const pct =
     planned > 0 ? Math.min((debitSpent / planned) * 100, 100) : debitSpent > 0 ? 100 : 0;
-  return { savingsGoal, planned, remaining, pct };
+  return { savingsGoal, planned, remaining, pct, structuralMargin };
 }
 
 // Custos fixos = recorrentes de despesa ativas (mesma definição da Home).
