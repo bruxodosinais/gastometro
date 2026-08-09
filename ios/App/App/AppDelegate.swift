@@ -35,6 +35,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    // Token do APNs → Capacitor → @capacitor-firebase/messaging, que observa
+    // .capacitorDidRegisterForRemoteNotifications e faz o
+    // `Messaging.messaging().apnsToken = deviceToken`. Sem estes dois métodos o
+    // plugin nunca recebe o token e o registro depende só do method swizzling do
+    // Firebase — implícito e sem diagnóstico quando falha. É o boilerplate padrão
+    // do template iOS do Capacitor, que faltava aqui.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
