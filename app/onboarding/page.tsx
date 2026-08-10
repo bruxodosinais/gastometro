@@ -48,6 +48,8 @@ import {
 import { OnboardingStep4Meta } from './_components/OnboardingStep4Meta';
 import { OnboardingStep5Financeiro } from './_components/OnboardingStep5Financeiro';
 import { OnboardingResumo } from './_components/OnboardingResumo';
+import { OnboardingNotificacoes } from './_components/OnboardingNotificacoes';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 // 5 passos visíveis: renda, contas fixas, cartões, meta, situação financeira.
 // A situação financeira tem 3 sub-etapas (A/B/C) mas conta como 1 passo.
@@ -69,7 +71,9 @@ function Wordmark() {
 
 // 0 boas-vindas · 1 renda · 2 contas fixas · 3 cartões · 4 meta
 // 5 sit. financeira A · 6 sit. financeira B · 7 sit. financeira C (resumo final)
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// 8 convite de notificações — fora da contagem de passos, igual ao resumo, e
+//   só entra no fluxo quando a permissão ainda pode ser pedida (ver canOfferPush).
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -77,6 +81,16 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>(0);
   const [visible, setVisible] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Push (step 8). O hook despacha sozinho web=VAPID / nativo=FCM — nada de
+  // gate por plataforma aqui. `subscribe()` SÓ é chamado no toque do botão.
+  const {
+    isSupported: pushSupported,
+    permission: pushPermission,
+    subscribe: pushSubscribe,
+    loading: pushLoading,
+  } = usePushNotifications();
+  const [pushDenied, setPushDenied] = useState(false);
 
   const [userName, setUserName] = useState('');
 
@@ -292,7 +306,39 @@ export default function OnboardingPage() {
     router.refresh();
   }
 
-  // Tela 0 — pular tudo
+  // Só vale mostrar o convite se a permissão ainda PODE ser pedida. Sem suporte
+  // (navegador antigo) ou já decidida ('granted'/'denied'), a tela não faria
+  // nada — e tela que não faz nada é pior que tela nenhuma.
+  const canOfferPush = pushSupported && pushPermission === 'default';
+
+  async function finishAndMaybeAskPush() {
+    if (canOfferPush) {
+      // Diferente do completeOnboarding, o step 8 mantém a página montada — sem
+      // soltar o committing o botão do resumo ficaria preso em loading se o
+      // usuário voltasse. (No-op quando vem do handleSkipFinance.)
+      setCommitting(false);
+      goTo(8);
+      return;
+    }
+    await completeOnboarding();
+  }
+
+  // O prompt do sistema só sai daqui — nunca de um efeito. No iOS ele aparece
+  // uma vez na vida do app; se disparasse sozinho ao montar, quem não estivesse
+  // convencido queimaria a única chance.
+  async function handleEnablePush() {
+    const ok = await pushSubscribe();
+    if (ok) {
+      await completeOnboarding();
+      return;
+    }
+    // Recusou (ou falhou o registro): fica na tela, agora só com a saída.
+    setPushDenied(true);
+  }
+
+  // Tela 0 — pular tudo. Segue indo direto pra home: quem pula tudo aqui está
+  // dizendo que quer sair, e pedir permissão sem contexto é o que essa tela
+  // existe pra evitar.
   async function handleSkipAll() {
     await completeOnboarding();
   }
@@ -300,9 +346,10 @@ export default function OnboardingPage() {
   // Situação financeira — "Pular por agora": vai direto pra home sem gravar
   // nada do passo financeiro (saldo, reserva, contas pagas, salário recebido).
   // Os passos anteriores já persistiram seus dados; o plano mensal (renda/meta)
-  // segue salvo via completeOnboarding.
+  // segue salvo via completeOnboarding. Quem pulou só o financeiro cadastrou o
+  // resto — recebe o convite de notificações.
   async function handleSkipFinance() {
-    await completeOnboarding();
+    await finishAndMaybeAskPush();
   }
 
   // Tela 1 — renda
@@ -680,8 +727,9 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Sem setCommitting(false): completeOnboarding navega para fora da página.
-    await completeOnboarding();
+    // Ou navega pra fora (completeOnboarding) ou vai pro step 8 — que solta o
+    // committing lá dentro, porque nesse caminho a página continua montada.
+    await finishAndMaybeAskPush();
   }
 
   function togglePaidObligation(id: string) {
@@ -865,6 +913,15 @@ export default function OnboardingPage() {
             onBack={goBack}
             onFinish={handleFinish}
             onSkip={handleSkipFinance}
+          />
+        )}
+
+        {step === 8 && (
+          <OnboardingNotificacoes
+            loading={pushLoading}
+            denied={pushDenied}
+            onEnable={handleEnablePush}
+            onSkip={completeOnboarding}
           />
         )}
       </div>

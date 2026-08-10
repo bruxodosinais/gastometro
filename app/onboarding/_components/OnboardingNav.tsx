@@ -4,6 +4,9 @@ type PrimaryButtonProps = {
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
+  /** Rótulo do estado de carregamento. Nem toda espera é uma gravação — o
+   *  convite de notificações espera o diálogo de permissão do sistema. */
+  loadingLabel?: string;
   children: React.ReactNode;
 };
 
@@ -11,6 +14,7 @@ export function PrimaryButton({
   onClick,
   disabled,
   loading,
+  loadingLabel = 'Salvando...',
   children,
 }: PrimaryButtonProps) {
   return (
@@ -20,7 +24,7 @@ export function PrimaryButton({
       className="w-full py-3.5 rounded-xl font-semibold text-white transition-opacity disabled:opacity-50"
       style={{ background: 'var(--accent)' }}
     >
-      {loading ? 'Salvando...' : children}
+      {loading ? loadingLabel : children}
     </button>
   );
 }
