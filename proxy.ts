@@ -59,7 +59,12 @@ export default async function proxy(request: NextRequest) {
     pathname === '/privacidade' ||
     pathname === '/excluir-conta' ||
     pathname === '/suporte' ||
-    pathname === '/instalar';
+    pathname === '/instalar' ||
+    // Fallback offline: é a ÚNICA entrada do precache do Serwist, buscada pelo
+    // service worker durante a instalação — sem sessão e sem contexto. Atrás do
+    // gate ela devolvia 307, o precache falhava e o SW nunca ativava, deixando
+    // o navigator.serviceWorker.ready pendente pra sempre. Página estática.
+    pathname === '/offline';
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isPublicWebhook = pathname.startsWith('/api/webhooks/');
   // Endpoints chamados pelo cron do Vercel: autenticados via Bearer CRON_SECRET na própria rota.
@@ -181,6 +186,10 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // sw.js fica de fora junto do manifest: um service worker precisa ser
+    // servido publicamente, e sem isso o gate de onboarding (e o de sessão)
+    // devolvia 307 no register() — "script resource is behind a redirect".
+    // Era o que impedia o convite de push do onboarding de gravar a inscrição.
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
