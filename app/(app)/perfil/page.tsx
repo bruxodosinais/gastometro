@@ -129,10 +129,14 @@ export default function PerfilPage() {
   const [exporting, setExporting] = useState(false);
 
   // PWA: esconde o link "Instalar no celular" quando o app já roda em standalone.
+  // No app das lojas ele também não faz sentido — mas o WKWebView do Capacitor
+  // não casa com display-mode:standalone e navigator.standalone é do Safari,
+  // então as duas checagens davam false e o link aparecia pra quem já instalou.
   const [isStandalone, setIsStandalone] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const standalone =
+      isNativePlatform() ||
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
