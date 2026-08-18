@@ -13,7 +13,7 @@ export default function PrivacidadePage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Política de Privacidade</h1>
-            <p className="text-gray-500 text-sm mt-1">Tô Organizado — Última atualização: 30 de junho de 2026</p>
+            <p className="text-gray-500 text-sm mt-1">Tô Organizado — Última atualização: 18 de agosto de 2026</p>
           </div>
 
           <section className="space-y-2">
@@ -61,7 +61,14 @@ export default function PrivacidadePage() {
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
               <strong>Não coletamos</strong> número de cartão, dados bancários ou de Open Finance,
-              localização, contatos, biometria, nem realizamos rastreamento para publicidade.
+              localização, contatos nem biometria.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              <strong>Navegação no site:</strong> com o seu consentimento no banner de cookies,
+              coletamos dados de navegação e de mensuração de anúncios (páginas visitadas, origem da
+              visita, tipo de dispositivo e identificadores de cookie). Esses dados são de
+              navegação, <strong>não incluem os seus lançamentos financeiros</strong> e estão
+              detalhados na seção 9.
             </p>
           </section>
 
@@ -73,13 +80,15 @@ export default function PrivacidadePage() {
             </p>
             <ul className="list-disc list-inside text-gray-600 text-sm leading-relaxed space-y-1 pl-2">
               <li><strong>Execução do contrato (Art. 7º, V):</strong> criar e manter sua conta, armazenar seus lançamentos e fornecer as funcionalidades do app.</li>
-              <li><strong>Consentimento (Art. 7º, I):</strong> envio de notificações push, e-mails de relatório e lembretes, e eventuais cookies analíticos — ativados apenas mediante sua autorização.</li>
+              <li><strong>Consentimento (Art. 7º, I):</strong> envio de notificações push, e-mails de relatório e lembretes, e os cookies analíticos e de publicidade — ativados apenas mediante sua autorização no banner de cookies (ver seção 9).</li>
               <li><strong>Legítimo interesse (Art. 7º, IX):</strong> segurança da conta, prevenção a fraude e melhoria do produto.</li>
               <li><strong>Cumprimento de obrigação legal (Art. 7º, II):</strong> quando exigido por lei ou autoridade competente.</li>
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
-              Não utilizamos seus dados para publicidade direcionada nem para criação de perfis de
-              comportamento fora do escopo do serviço.
+              <strong>Não utilizamos os seus dados financeiros</strong> (lançamentos, saldos, metas,
+              orçamentos) para publicidade — eles nunca são enviados às ferramentas de anúncios. A
+              mensuração de campanhas descrita na seção 9 usa apenas dados de navegação e depende do
+              seu consentimento.
             </p>
           </section>
 
@@ -99,11 +108,12 @@ export default function PrivacidadePage() {
               <li><strong>RevenueCat:</strong> gerencia as assinaturas do aplicativo (validação da compra e status da assinatura Pro). Recebemos apenas o identificador da conta e o status da assinatura.</li>
               <li><strong>Apple (App Store):</strong> processa os pagamentos das assinaturas feitas dentro do aplicativo. Os dados de pagamento são tratados pela Apple; recebemos apenas a confirmação e o status da compra.</li>
               <li><strong>Apple e Google:</strong> distribuição dos aplicativos pelas respectivas lojas.</li>
+              <li><strong>Google (Tag Manager, Analytics e Ads), Meta e TikTok:</strong> somente com o seu consentimento no banner de cookies — medição de audiência do site e do resultado dos nossos anúncios. Recebem dados de navegação, nunca os seus dados financeiros (ver seção 9).</li>
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
-              <strong>Não exibimos anúncios</strong> e <strong>não utilizamos ferramentas de
-              analytics ou telemetria de terceiros</strong> (como Google Analytics, Sentry ou pixels
-              de rastreamento).
+              <strong>Não exibimos anúncios dentro do app</strong> e não vendemos espaço
+              publicitário. As ferramentas acima servem para divulgar o Tô Organizado fora dele e
+              medir o resultado dessa divulgação.
             </p>
             <p className="text-gray-600 text-sm leading-relaxed">
               <strong>Transferência internacional:</strong> os prestadores acima operam servidores
@@ -157,7 +167,7 @@ export default function PrivacidadePage() {
               <li><strong>Acesso e portabilidade:</strong> em <strong>Perfil → "Exportar meus dados"</strong>, você baixa um arquivo com todos os seus dados em formato estruturado (JSON).</li>
               <li><strong>Exclusão:</strong> em <strong>Perfil → "Excluir minha conta"</strong>, sua conta e todos os dados associados são apagados definitivamente.</li>
               <li><strong>Correção:</strong> edite seus registros e dados de perfil a qualquer momento dentro do app.</li>
-              <li><strong>Revogação de consentimento:</strong> desative notificações push e e-mails nas preferências, sem prejuízo do tratamento já realizado.</li>
+              <li><strong>Revogação de consentimento:</strong> desative notificações push e e-mails nas preferências; para os cookies analíticos e de publicidade, veja a seção 9. Sem prejuízo do tratamento já realizado.</li>
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
               Você também pode exercer esses direitos ou tirar dúvidas pelo e-mail{' '}
@@ -184,12 +194,24 @@ export default function PrivacidadePage() {
           <section className="space-y-2">
             <h2 className="text-base font-semibold text-gray-900">9. Cookies e armazenamento local</h2>
             <ul className="list-disc list-inside text-gray-600 text-sm leading-relaxed space-y-1 pl-2">
-              <li><strong>Na web:</strong> utilizamos um cookie estritamente necessário para manter a sessão autenticada.</li>
-              <li><strong>No aplicativo nativo (iOS/Android):</strong> a sessão é guardada no armazenamento local (localStorage) do app, e não em cookies.</li>
-              <li><strong>Consentimento de cookies:</strong> sua escolha no banner ("Só essenciais" ou "Aceitar todos") fica salva localmente. Cookies analíticos só seriam ativados com o seu consentimento — e, atualmente, o app não possui nenhuma ferramenta de analytics ativa.</li>
+              <li><strong>Essenciais (na web):</strong> utilizamos um cookie estritamente necessário para manter a sessão autenticada. Esses não dependem de consentimento, pois sem eles o serviço não funciona.</li>
+              <li><strong>Analíticos:</strong> usamos o <strong>Google Analytics</strong>, carregado por meio do <strong>Google Tag Manager</strong>, para entender de forma agregada como as pessoas usam o site (páginas visitadas, origem da visita, dispositivo) e melhorar o produto.</li>
+              <li><strong>Publicidade:</strong> podemos carregar, também pelo Google Tag Manager, tags de mensuração da <strong>Meta</strong> (Facebook e Instagram), do <strong>TikTok</strong> e do <strong>Google Ads</strong>. Elas servem para medir o resultado dos nossos anúncios (por exemplo, saber que uma visita ou um cadastro veio de um anúncio específico) e otimizar as campanhas.</li>
+              <li><strong>No aplicativo nativo (iOS/Android):</strong> a sessão é guardada no armazenamento local (localStorage) do app, e não em cookies. O aplicativo das lojas <strong>não carrega</strong> cookies analíticos nem de publicidade.</li>
             </ul>
             <p className="text-gray-600 text-sm leading-relaxed">
-              Não utilizamos cookies de rastreamento ou de publicidade.
+              <strong>Nada além dos essenciais é ativado sem o seu consentimento.</strong> Os cookies
+              analíticos e de publicidade só passam a funcionar depois que você escolhe "Aceitar
+              todos" no banner de cookies; até lá, e se você escolher "Só essenciais", eles ficam
+              bloqueados (usamos o Consent Mode do Google, que impede a gravação desses cookies).
+              Sua escolha fica salva localmente no seu navegador.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              <strong>Como mudar de ideia:</strong> você pode revogar o consentimento a qualquer
+              momento limpando os dados do site no seu navegador — o banner voltará a aparecer na
+              próxima visita e você poderá escolher novamente. Também é possível bloquear ou apagar
+              cookies diretamente nas configurações do seu navegador, sem prejuízo do tratamento já
+              realizado.
             </p>
           </section>
 

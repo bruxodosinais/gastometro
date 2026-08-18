@@ -57,7 +57,9 @@ export default function CookieBanner() {
     >
       <div className="max-w-2xl mx-auto flex flex-col gap-3">
         <p className="text-sm text-slate-700">
-          Usamos cookies essenciais para o funcionamento do app. Cookies analíticos são ativados apenas com sua autorização.{' '}
+          Usamos cookies essenciais para o funcionamento do site e, com sua autorização, cookies
+          analíticos e de publicidade — para medir resultados e melhorar nossas campanhas. Saiba
+          mais na nossa{' '}
           <Link href="/privacidade" className="text-indigo-600 underline">
             Política de Privacidade
           </Link>
