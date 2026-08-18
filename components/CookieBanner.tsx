@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { CONSENT_STORAGE_KEY, updateGtmConsent } from '@/lib/gtm';
 
-const STORAGE_KEY = 'cookie_consent';
+const STORAGE_KEY = CONSENT_STORAGE_KEY;
 
 export type CookieConsent = {
   essential: true;
@@ -40,6 +41,9 @@ export default function CookieBanner() {
     } catch {
       // ignore storage errors (private mode etc.)
     }
+    // Libera (ou nega explicitamente) as tags do GTM. Sem isso o contêiner ficaria
+    // preso no default negado do bootstrap até o próximo page load.
+    updateGtmConsent(analytics);
     setVisible(false);
   };
 

@@ -1,12 +1,20 @@
 import type { Metadata, Viewport } from 'next';
 import { Nunito } from 'next/font/google';
+import { GoogleTagManager } from '@next/third-parties/google';
 import './globals.css';
+import { GTM_ID, CONSENT_BOOTSTRAP } from '@/lib/gtm';
 import OfflineBanner from '@/components/OfflineBanner';
 import CookieBanner from '@/components/CookieBanner';
 import CouponCapture from '@/components/CouponCapture';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 import IOSInstallBanner from '@/components/IOSInstallBanner';
 import { ThemeProvider } from '@/lib/themeContext';
+
+// GTM só no build WEB. No build nativo (BUILD_TARGET=native, Capacitor) o
+// contêiner ficaria carregando script remoto dentro do webview do app das lojas
+// — nada de tracking lá. A env é avaliada em build time, então o `out/` estático
+// do app sai literalmente sem as tags.
+const gtmEnabled = process.env.BUILD_TARGET !== 'native';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -63,7 +71,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`h-full ${nunito.className}`} suppressHydrationWarning>
+      {gtmEnabled && <GoogleTagManager gtmId={GTM_ID} />}
       <body className="min-h-full" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+        {/* Consent Mode v2: nega todos os storages ANTES de qualquer tag do GTM.
+            Inline de propósito (não <Script beforeInteractive>): esse roda no parse
+            do HTML, enquanto o gtm.js só é injetado na hidratação — a ordem fica
+            garantida sem depender da fila interna do next/script. */}
+        {gtmEnabled && (
+          <script dangerouslySetInnerHTML={{ __html: CONSENT_BOOTSTRAP }} />
+        )}
         {/* Anti-FOUC: aplica o data-theme ANTES da primeira pintura. Sem isso, o
             padrão claro só valeria após a hidratação e o aparelho com o SO no
             escuro piscaria escuro→claro a cada abertura (globals.css escurece via
