@@ -51,6 +51,12 @@ export const metadata: Metadata = {
     title: 'TôOrganizado',
     description,
   },
+  // Verificação de domínio do Meta Business (Gerenciador de Negócios). Vai via
+  // `other` porque não é uma meta conhecida do Next — e precisa sair no HTML do
+  // servidor: injetada por JS no cliente a verificação falha.
+  other: {
+    'facebook-domain-verification': '3ilgvgpgdwrkerph1825lst8nsujke',
+  },
 };
 
 export const viewport: Viewport = {
