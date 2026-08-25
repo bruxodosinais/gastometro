@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await admin
     .from('subscriptions')
-    .select('plan, status, billing_cycle, current_period_end, kiwify_order_id, kiwify_subscription_id, updated_at')
+    .select('plan, status, billing_cycle, current_period_end, store, revenuecat_app_user_id, kiwify_order_id, kiwify_subscription_id, updated_at')
     .eq('user_id', id)
     .maybeSingle();
 
@@ -31,6 +31,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       status: 'active',
       billing_cycle: null,
       current_period_end: null,
+      store: null,
+      revenuecat_app_user_id: null,
       kiwify_order_id: null,
       kiwify_subscription_id: null,
       updated_at: null,
@@ -81,7 +83,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   if (sub && sub.billing_cycle && sub.billing_cycle !== 'manual') {
     return NextResponse.json(
-      { error: 'Esta assinatura não foi concedida manualmente. Revogue via Kiwify.' },
+      { error: 'Esta assinatura veio de uma loja (App Store ou Play Store) e não pode ser revogada aqui. O cancelamento é feito pelo próprio usuário na loja.' },
       { status: 400 },
     );
   }

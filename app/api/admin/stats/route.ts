@@ -10,17 +10,25 @@ import { getCategoryDisplay } from '@/lib/categoryConfig';
 // cada usuário escolheu.
 
 const MONTHLY_PRICE = 19.9;
-const ANNUAL_PRICE = 147;
+const ANNUAL_PRICE = 129.9;
 
-// Taxa Kiwify (fixa) descontada por transação cobrada via Kiwify.
-const KIWIFY_FEE = 3.88;
-const kiwifyNet = (gross: number) => Math.max(0, gross - KIWIFY_FEE);
+// Comissão das lojas (App Store / Play Store), aplicada como PERCENTUAL sobre o
+// bruto — diferente da antiga taxa fixa da Kiwify, que saiu junto com o checkout
+// web (a Kiwify virou código morto; ninguém assina fora das lojas).
+//
+// 0.15 = 15%, que é o que o Google Play cobra automaticamente no primeiro milhão
+// de dólares por ano e o que a Apple cobra para quem está no Small Business
+// Program. ⚠️ Se a AIWA NÃO estiver inscrita no programa da Apple, a comissão de
+// lá é 30% no primeiro ano de cada assinatura (cai para 15% depois) — nesse caso
+// troque para 0.30 ou passe a diferenciar por `subscriptions.store`.
+const STORE_COMMISSION = 0.15;
+const storeNet = (gross: number) => Math.max(0, gross * (1 - STORE_COMMISSION));
 
-// Aplicam-se à Kiwify (monthly / annual / NULL inferido como pago).
-// 'manual' / 'beta' / 'coupon' não passam por Kiwify — não recebem o desconto
+// Aplicam-se às assinaturas de loja (monthly / annual / NULL inferido como pago).
+// 'manual' / 'beta' / 'coupon' não passam por loja nenhuma — não sofrem comissão
 // (já entram com valor 0 no MRR, então isso só importa em listagens futuras).
-const MONTHLY_NET_PER_MONTH = kiwifyNet(MONTHLY_PRICE);          // 19.90 - 3.88 = 16.02
-const ANNUAL_NET_PER_MONTH  = kiwifyNet(ANNUAL_PRICE) / 12;      // (147 - 3.88)/12 ≈ 11.9266…
+const MONTHLY_NET_PER_MONTH = storeNet(MONTHLY_PRICE);           // 19.90 - 15% = 16.915
+const ANNUAL_NET_PER_MONTH  = storeNet(ANNUAL_PRICE) / 12;       // (129.90 - 15%)/12 ≈ 9.2013…
 
 type BillingCycle = 'monthly' | 'annual' | 'manual' | 'beta' | 'coupon';
 
@@ -226,7 +234,7 @@ export async function GET() {
     prevMonthWithCycle.filter(c => c === 'monthly').length * MONTHLY_NET_PER_MONTH +
     prevMonthWithCycle.filter(c => c === 'annual').length * ANNUAL_NET_PER_MONTH;
 
-  // Lista de Pro ativos (ordenada por valor mensal líquido após taxa Kiwify)
+  // Lista de Pro ativos (ordenada por valor mensal líquido após comissão da loja)
   const proList = proActiveWithCycle.map(s => ({
     user_id: s.user_id,
     email: userEmailMap.get(s.user_id) ?? '—',

@@ -526,11 +526,19 @@ export default function AdminPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border-2)', paddingBottom: 8 }}>
                   <span style={{ color: '#374151' }}>Plano atual</span>
-                  <PlanBadge plan={subscription.plan} billingCycle={subscription.billing_cycle} />
+                  <PlanBadge plan={subscription.plan} billingCycle={subscription.billing_cycle} store={subscription.store} />
                 </div>
                 <Row label="Status" value={subscription.status} />
                 <Row label="Ciclo de cobrança" value={subscription.billing_cycle ?? '—'} />
                 <Row label="Vence em" value={fmt(subscription.current_period_end)} />
+                <Row
+                  label="Origem"
+                  value={
+                    subscription.store === 'app_store' ? 'App Store (iOS)'
+                      : subscription.store === 'play_store' ? 'Play Store (Android)'
+                        : subscription.plan === 'pro' ? '—' : '—'
+                  }
+                />
               </div>
 
               {subMsg && (

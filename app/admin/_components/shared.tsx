@@ -36,17 +36,54 @@ export function Chip({ label, color, bg }: { label: string; color: string; bg: s
   );
 }
 
-export function PlanBadge({ plan, billingCycle }: { plan: string; billingCycle: string | null }) {
-  if (plan === 'pro' && billingCycle === 'beta') {
-    return <Chip label="BETA" color="#ffffff" bg="#6366F1" />;
+// Rótulo do plano. Pro pagante mostra a LOJA de origem (`subscriptions.store`,
+// gravado pelo webhook do RevenueCat). O rótulo antigo era "PRO Kiwify" para
+// qualquer pagante — herança do checkout web, que não existe mais: hoje só se
+// assina dentro do app, pela App Store ou pela Play Store.
+export function PlanBadge({
+  plan,
+  billingCycle,
+  store,
+}: {
+  plan: string;
+  billingCycle: string | null;
+  store?: string | null;
+}) {
+  if (plan !== 'pro') return <Chip label="FREE" color="#4b5563" bg="#E5E7EB" />;
+
+  if (billingCycle === 'beta') return <Chip label="BETA" color="#ffffff" bg="#6366F1" />;
+  if (billingCycle === 'manual') return <Chip label="PRO manual" color="#7a5d00" bg="#FFF4CC" />;
+  if (billingCycle === 'coupon') return <Chip label="PRO cupom" color="#7a5d00" bg="#FFF4CC" />;
+
+  if (store === 'app_store') return <Chip label="PRO App Store" color="#1f2937" bg="#E5E7EB" />;
+  if (store === 'play_store') return <Chip label="PRO Play Store" color="#065f46" bg="#D1FAE5" />;
+
+  // Pagante sem loja identificada: assinatura antiga (gravada antes da coluna
+  // `store` existir) ou webhook que não conseguiu determinar a origem.
+  return <Chip label="PRO" color="#3730a3" bg="#E0E7FF" />;
+}
+
+// Canais de push ativos do usuário. As três fontes são independentes e um mesmo
+// usuário pode ter mais de uma. Vazio = nunca ativou notificação em lugar nenhum.
+export function PushBadges({
+  ios,
+  android,
+  web,
+}: {
+  ios: boolean;
+  android: boolean;
+  web: boolean;
+}) {
+  if (!ios && !android && !web) {
+    return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
   }
-  if (plan === 'pro' && billingCycle === 'manual') {
-    return <Chip label="PRO manual" color="#7a5d00" bg="#FFF4CC" />;
-  }
-  if (plan === 'pro') {
-    return <Chip label="PRO Kiwify" color="#3730a3" bg="#E0E7FF" />;
-  }
-  return <Chip label="FREE" color="#4b5563" bg="#E5E7EB" />;
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+      {ios && <Chip label="iOS" color="#1f2937" bg="#E5E7EB" />}
+      {android && <Chip label="Android" color="#065f46" bg="#D1FAE5" />}
+      {web && <Chip label="Web" color="#1e40af" bg="#DBEAFE" />}
+    </span>
+  );
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {

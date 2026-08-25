@@ -39,12 +39,35 @@ export async function GET(req: NextRequest) {
   const { data: recentExpenses } = await admin.from('expenses').select('user_id, date').gte('date', sevenDaysAgo.toISOString().split('T')[0]);
   const activeSet = new Set(recentExpenses?.map(e => e.user_id) ?? []);
 
-  // Assinaturas
-  const { data: subs } = await admin.from('subscriptions').select('user_id, plan, billing_cycle');
-  const subMap = new Map<string, { plan: string; billing_cycle: string | null }>();
+  // Assinaturas. `store` ('app_store' | 'play_store') é gravado pelo webhook do
+  // RevenueCat e é o que diz de qual loja veio o Pro — o antigo rótulo "Kiwify"
+  // não existe mais (checkout web foi removido; só se assina dentro do app).
+  const { data: subs } = await admin
+    .from('subscriptions')
+    .select('user_id, plan, billing_cycle, store');
+  const subMap = new Map<string, { plan: string; billing_cycle: string | null; store: string | null }>();
   for (const s of (subs ?? [])) {
-    subMap.set(s.user_id, { plan: s.plan, billing_cycle: s.billing_cycle ?? null });
+    subMap.set(s.user_id, {
+      plan: s.plan,
+      billing_cycle: s.billing_cycle ?? null,
+      store: (s as { store?: string | null }).store ?? null,
+    });
   }
+
+  // Push. Duas fontes distintas e independentes:
+  //   device_tokens     → push NATIVO (FCM), com `platform` = 'ios' | 'android'
+  //   push_subscriptions → push WEB (VAPID), sem plataforma
+  // Um mesmo usuário pode ter as duas (instalou o app E ativou no navegador).
+  const { data: deviceTokens } = await admin.from('device_tokens').select('user_id, platform');
+  const pushIosSet = new Set<string>();
+  const pushAndroidSet = new Set<string>();
+  for (const d of (deviceTokens ?? [])) {
+    if (d.platform === 'ios') pushIosSet.add(d.user_id);
+    else if (d.platform === 'android') pushAndroidSet.add(d.user_id);
+  }
+
+  const { data: webPush } = await admin.from('push_subscriptions').select('user_id');
+  const pushWebSet = new Set(webPush?.map(r => r.user_id) ?? []);
 
   let users = allUsers.map(u => {
     const sub = subMap.get(u.id);
@@ -61,6 +84,10 @@ export async function GET(req: NextRequest) {
       is_active: activeSet.has(u.id),
       plan: sub?.plan ?? 'free',
       billing_cycle: sub?.billing_cycle ?? null,
+      store: sub?.store ?? null,
+      push_ios: pushIosSet.has(u.id),
+      push_android: pushAndroidSet.has(u.id),
+      push_web: pushWebSet.has(u.id),
     };
   });
 
@@ -71,6 +98,19 @@ export async function GET(req: NextRequest) {
   if (filter === 'active') users = users.filter(u => u.is_active);
   if (filter === 'inactive') users = users.filter(u => !u.is_active);
   if (filter === 'blocked') users = users.filter(u => u.is_blocked);
+  if (filter === 'pro') users = users.filter(u => u.plan === 'pro');
+  if (filter === 'free') users = users.filter(u => u.plan !== 'pro');
+  // Push ligado = tem QUALQUER canal (nativo iOS/Android ou web).
+  if (filter === 'push_on') users = users.filter(u => u.push_ios || u.push_android || u.push_web);
+  if (filter === 'push_off') users = users.filter(u => !u.push_ios && !u.push_android && !u.push_web);
+  // "Usou o app" é inferido de push nativo OU assinatura feita na loja. Quem
+  // instalou e recusou notificação sem assinar NÃO aparece aqui — é o limite
+  // de não gravarmos a plataforma no perfil.
+  if (filter === 'ios') users = users.filter(u => u.push_ios || u.store === 'app_store');
+  if (filter === 'android') users = users.filter(u => u.push_android || u.store === 'play_store');
+  if (filter === 'web_only') {
+    users = users.filter(u => !u.push_ios && !u.push_android && u.store !== 'app_store' && u.store !== 'play_store');
+  }
 
   // Ordenação
   users.sort((a, b) => {

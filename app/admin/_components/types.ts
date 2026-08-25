@@ -102,6 +102,14 @@ export interface UserRow {
   is_blocked: boolean;
   plan: string;
   billing_cycle: string | null;
+  /** Loja de origem do Pro, gravada pelo webhook do RevenueCat. */
+  store: 'app_store' | 'play_store' | string | null;
+  /** Push nativo (FCM) ativo em algum aparelho iOS. */
+  push_ios: boolean;
+  /** Push nativo (FCM) ativo em algum aparelho Android. */
+  push_android: boolean;
+  /** Push web (VAPID) ativo em algum navegador. */
+  push_web: boolean;
 }
 
 export type UserDetail = UserRow;
@@ -111,6 +119,12 @@ export interface Subscription {
   status: string;
   billing_cycle: string | null;
   current_period_end: string | null;
+  /** Loja de origem ('app_store' | 'play_store'). Null em manual/beta/cupom. */
+  store: string | null;
+  /** App User ID do RevenueCat (= user.id do Supabase). */
+  revenuecat_app_user_id: string | null;
+  /** Legado do checkout web da Kiwify, que não é mais usado. Mantidos só para
+   *  não quebrar assinaturas antigas gravadas antes da virada app-first. */
   kiwify_order_id: string | null;
   kiwify_subscription_id: string | null;
   updated_at: string | null;
