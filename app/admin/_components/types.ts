@@ -63,6 +63,32 @@ export interface ChurnListItem {
   billing_cycle: string | null;
 }
 
+/** Contagens de UM dia do calendário brasileiro (rota /api/admin/day). */
+export interface DayTotals {
+  /** Contas criadas no dia. */
+  signups: number;
+  /** E-mails confirmados no dia (pode incluir quem se cadastrou antes). */
+  confirmed: number;
+  /** Pessoas que abriram o app no dia (base do streak). */
+  activeUsers: number;
+  /** Lançamentos registrados no dia. */
+  launches: number;
+  /** Quantas pessoas distintas fizeram esses lançamentos. */
+  launchUsers: number;
+  upgrades: number;
+  cancels: number;
+  pushIos: number;
+  pushAndroid: number;
+  feedbacks: number;
+}
+
+export interface DaySummary {
+  date: string;
+  window: { startUtc: string; endUtc: string };
+  totals: DayTotals;
+  events: ActivityItem[];
+}
+
 export type ActivityType = 'signup' | 'upgrade' | 'cancel' | 'feedback';
 
 export interface ActivityItem {

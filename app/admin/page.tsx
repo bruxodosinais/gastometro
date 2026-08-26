@@ -12,7 +12,7 @@ import { AdminComunicacao } from './_components/AdminComunicacao';
 import { Modal, PlanBadge, Row } from './_components/shared';
 import { fmt } from './_components/utils';
 import type {
-  ActivityItem, Coupon, EmailSegment, FeedbackCategory, FeedbackItem,
+  ActivityItem, Coupon, DaySummary, EmailSegment, FeedbackCategory, FeedbackItem,
   PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
   TabKey, UserDetail, UserRow,
 } from './_components/types';
@@ -64,6 +64,11 @@ export default function AdminPage() {
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityVisible, setActivityVisible] = useState(20);
+
+  // Resumo de um dia específico. dayDate vazio = feed dos últimos 30 dias.
+  const [dayDate, setDayDate] = useState('');
+  const [daySummary, setDaySummary] = useState<DaySummary | null>(null);
+  const [dayLoading, setDayLoading] = useState(false);
 
   // E-mail em massa
   const [emailSegment, setEmailSegment] = useState<EmailSegment>('all');
@@ -144,6 +149,19 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { if (tab === 'activity') fetchActivity(); }, [tab, fetchActivity]);
+
+  /* Fetch do dia selecionado */
+  useEffect(() => {
+    if (!dayDate) { setDaySummary(null); return; }
+    let cancelled = false;
+    setDayLoading(true);
+    fetch(`/api/admin/day?date=${dayDate}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setDaySummary(d?.totals ? d : null); })
+      .catch(() => { if (!cancelled) setDaySummary(null); })
+      .finally(() => { if (!cancelled) setDayLoading(false); });
+    return () => { cancelled = true; };
+  }, [dayDate]);
 
   /* Fetch coupons */
   const fetchCoupons = useCallback(() => {
@@ -423,6 +441,10 @@ export default function AdminPage() {
             activityVisible={activityVisible}
             setActivityVisible={setActivityVisible}
             onFetchActivity={fetchActivity}
+            dayDate={dayDate}
+            setDayDate={setDayDate}
+            daySummary={daySummary}
+            dayLoading={dayLoading}
           />
         )}
 
