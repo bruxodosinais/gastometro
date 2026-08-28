@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { initRevenueCat, loginRevenueCat, syncSubscriptionFromStore } from '@/lib/revenuecat';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 // Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada em AMBAS as
@@ -36,6 +37,11 @@ function ConfirmarCodigoContent() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // Telemetria: chegou na tela do código. Montagem, fire-and-forget.
+  useEffect(() => {
+    trackOnboarding('confirm_view');
+  }, []);
 
   useEffect(() => {
     const fromUrl = searchParams.get('email');
@@ -116,6 +122,9 @@ function ConfirmarCodigoContent() {
       setLoading(false);
       return;
     }
+
+    // Código ACEITO (verifyOtp sem erro): a conta está confirmada.
+    trackOnboarding('confirm_ok', 'complete');
 
     // Aliasa a compra ANÔNIMA do RevenueCat (feita no paywall pré-cadastro) a
     // ESTA conta e sincroniza a assinatura no backend NA HORA (o alias não

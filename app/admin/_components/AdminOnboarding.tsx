@@ -111,7 +111,6 @@ export function AdminOnboarding({ data, loading, cohort, setCohort, onRefresh }:
   // Só passos com evento entram no desenho do funil real — passo zerado é
   // "não instrumentado ou ninguém passou", não uma queda de 100%.
   const liveSteps = events.steps.filter(s => s.reached > 0);
-  const topEvent = liveSteps[0]?.reached ?? 0;
   const worst = [...liveSteps].sort((a, b) => b.dropPct - a.dropPct)[0];
 
   const tabBtn = (active: boolean): React.CSSProperties => ({
@@ -215,6 +214,9 @@ export function AdminOnboarding({ data, loading, cohort, setCohort, onRefresh }:
           {(['pre', 'post'] as const).map(phase => {
             const rows = liveSteps.filter(s => s.phase === phase);
             if (rows.length === 0) return null;
+            // Barra proporcional ao topo DA FASE. Com o topo global, a fase pós-
+            // cadastro desenharia tracinhos contra o carrossel inteiro.
+            const topPhase = rows[0].reached;
             return (
               <div key={phase} style={{ marginBottom: 20 }}>
                 <div style={{
@@ -228,7 +230,7 @@ export function AdminOnboarding({ data, loading, cohort, setCohort, onRefresh }:
                     key={s.key}
                     label={s.label}
                     count={s.reached}
-                    top={topEvent}
+                    top={topPhase}
                     dropped={s.droppedFromPrev}
                     dropPct={s.dropPct}
                     note={s.skipped > 0 ? `${s.skipped} pularam` : undefined}

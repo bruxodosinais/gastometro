@@ -7,7 +7,8 @@
 // PresignupMission estendido e devolve via onComplete (o orquestrador salva +
 // navega pro cadastro).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import { BigCurrencyInput, numberToStr, strToNumber } from '../../onboarding/_components/CurrencyInput';
 import type { PresignupMission } from '@/lib/onboarding/presignupMission';
 import { hourlyRate, minutesOfWork, projectAccumulated, monthsToTarget, formatMonths } from '@/lib/onboarding/reframe';
@@ -28,6 +29,20 @@ import {
 
 const TOTAL = 8;
 const COFFEE = 8; // R$ de referência do reframe (café)
+
+// Telemetria: passo interno → chave do funil (lib/onboarding/steps.ts). Chave
+// fora do allowlist = 400 na rota e evento perdido em silêncio, então mexer
+// aqui é mexer lá também.
+const TRACK_KEY: Record<number, string> = {
+  1: 'quiz_nome',
+  2: 'quiz_missao',
+  3: 'quiz_renda',
+  4: 'quiz_meta',
+  5: 'quiz_aporte',
+  6: 'quiz_dor',
+  7: 'quiz_projecao',
+  8: 'quiz_pacto',
+};
 
 type Template = { id: string; emoji: string; name: string; targetAmount: number; months: number };
 
@@ -63,6 +78,14 @@ export default function Quiz({
   onComplete: (mission: PresignupMission) => void;
 }) {
   const [step, setStep] = useState(1);
+
+  // View do passo na MONTAGEM dele (não no clique do anterior): quem clica e a
+  // tela quebra no meio não chegou no passo. O tracker deduplica por carga de
+  // página, então voltar e avançar de novo não conta duas vezes.
+  useEffect(() => {
+    const key = TRACK_KEY[step];
+    if (key) trackOnboarding(key);
+  }, [step]);
 
   // Respostas
   const [templateId, setTemplateId] = useState<string | null>(null);
@@ -104,6 +127,7 @@ export default function Quiz({
   }
 
   function skipIncome() {
+    trackOnboarding('quiz_renda', 'skip');
     setIncomeSkipped(true);
     setIncome('');
     next();
@@ -117,6 +141,7 @@ export default function Quiz({
   }
 
   function finish() {
+    trackOnboarding('quiz_pacto', 'complete');
     const mission: PresignupMission = {
       templateId: templateId ?? 'outra',
       name: missionName.trim() || 'Minha missão',
@@ -133,12 +158,19 @@ export default function Quiz({
     onComplete(mission);
   }
 
+  // Pular dos passos 6 e 7: mesma navegação de antes (next), só com o evento.
+  function skipStep() {
+    const key = TRACK_KEY[step];
+    if (key) trackOnboarding(key, 'skip');
+    next();
+  }
+
   const header = (
     <QuizHeader
       step={step}
       total={TOTAL}
       onBack={back}
-      onSkip={step === 6 || step === 7 ? next : undefined}
+      onSkip={step === 6 || step === 7 ? skipStep : undefined}
     />
   );
 

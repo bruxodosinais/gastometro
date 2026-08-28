@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { readLocalPresignup } from '@/lib/onboarding/presignupMission';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import { fetchApi } from '@/lib/fetchApi';
 import LoadingButton from '@/components/ui/LoadingButton';
 
@@ -114,6 +115,11 @@ function CadastroContent() {
     if (first) setName((prev) => prev || first);
   }, []);
 
+  // Telemetria: abriu o cadastro. Montagem, fire-and-forget.
+  useEffect(() => {
+    trackOnboarding('signup_view');
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -165,6 +171,10 @@ function CadastroContent() {
       setLoading(false);
       return;
     }
+
+    // Conta ACEITA pelo Supabase (passou do erro e do guard do e-mail já
+    // cadastrado) — só aqui o cadastro é real. Não conta no clique do botão.
+    trackOnboarding('signup_submit', 'complete');
 
     const userId = data.user?.id;
     if (userId) {

@@ -6,7 +6,8 @@
 // "Já tenho conta" → onLogin (marca intro vista + vai pro login). Assim, quem
 // abandona o quiz revê o carousel no relaunch em vez de cair direto no login.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import { ACCENT, ACCENT_DARK, BG, INK, INK_2, FONT } from './ui';
 
 type Slide = { emoji: string; title: string; body: string };
@@ -39,6 +40,14 @@ export default function IntroCarousel({
   onLogin: () => void;
 }) {
   const [index, setIndex] = useState(0);
+
+  // Telemetria: 1º passo do funil. Na montagem (não no clique de quem veio
+  // antes) — quem não chega aqui não conta. Fire-and-forget: se sumisse, a tela
+  // seguiria idêntica.
+  useEffect(() => {
+    trackOnboarding('intro_view');
+  }, []);
+
   const dragStartX = useRef<number | null>(null);
   const dragDX = useRef(0);
   const [drag, setDrag] = useState(0);
@@ -203,7 +212,10 @@ export default function IntroCarousel({
           <>
             <button
               type="button"
-              onClick={onStart}
+              onClick={() => {
+                trackOnboarding('intro_start', 'complete');
+                onStart();
+              }}
               style={{
                 height: 54,
                 borderRadius: 16,

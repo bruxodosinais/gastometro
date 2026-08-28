@@ -26,13 +26,15 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
   // ── Pré-cadastro (app nativo, rota /inicio) ──────────────────────────────
   { key: 'intro_view',       label: 'Abriu o app (carrossel)',   phase: 'pre' },
   { key: 'intro_start',      label: 'Tocou em "Começar"',        phase: 'pre' },
-  { key: 'quiz_1',           label: 'Quiz 1 · objetivo',         phase: 'pre' },
-  { key: 'quiz_2',           label: 'Quiz 2 · quanto',           phase: 'pre' },
-  { key: 'quiz_3',           label: 'Quiz 3 · aporte',           phase: 'pre' },
-  { key: 'quiz_4',           label: 'Quiz 4 · compromisso',      phase: 'pre' },
-  { key: 'quiz_5',           label: 'Quiz 5 · prazo',            phase: 'pre' },
-  { key: 'quiz_6',           label: 'Quiz 6 · renda',            phase: 'pre', skippable: true },
-  { key: 'quiz_7',           label: 'Quiz 7 · perfil',           phase: 'pre', skippable: true },
+  // Os 8 passos do Quiz.tsx, na ordem em que a tela os mostra (TOTAL = 8).
+  { key: 'quiz_nome',        label: 'Quiz 1 · nome',             phase: 'pre' },
+  { key: 'quiz_missao',      label: 'Quiz 2 · missão',           phase: 'pre' },
+  { key: 'quiz_renda',       label: 'Quiz 3 · renda',            phase: 'pre', skippable: true },
+  { key: 'quiz_meta',        label: 'Quiz 4 · meta',             phase: 'pre' },
+  { key: 'quiz_aporte',      label: 'Quiz 5 · aporte',           phase: 'pre' },
+  { key: 'quiz_dor',         label: 'Quiz 6 · dor',              phase: 'pre', skippable: true },
+  { key: 'quiz_projecao',    label: 'Quiz 7 · projeção',         phase: 'pre', skippable: true },
+  { key: 'quiz_pacto',       label: 'Quiz 8 · pacto',            phase: 'pre' },
   { key: 'plan_ready',       label: 'Viu o plano pronto',        phase: 'pre' },
   { key: 'plan_cta',         label: 'Tocou "Criar conta"',       phase: 'pre' },
   { key: 'paywall_view',     label: 'Viu o paywall',             phase: 'pre', skippable: true },
@@ -44,13 +46,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
 
   // ── Pós-cadastro (rota /onboarding) ──────────────────────────────────────
   { key: 'onb_welcome',      label: 'Boas-vindas',               phase: 'post', skippable: true },
-  { key: 'onb_income',       label: '1 · Renda',                 phase: 'post' },
+  { key: 'onb_income',       label: '1 · Renda',                 phase: 'post', skippable: true },
   { key: 'onb_recurring',    label: '2 · Contas fixas',          phase: 'post', skippable: true },
   { key: 'onb_cards',        label: '3 · Cartões',               phase: 'post', skippable: true },
   { key: 'onb_goal',         label: '4 · Meta de poupança',      phase: 'post', skippable: true },
   { key: 'onb_finance_a',    label: '5a · Saldo em conta',       phase: 'post', skippable: true },
   { key: 'onb_finance_b',    label: '5b · Contas já pagas',      phase: 'post', skippable: true },
-  { key: 'onb_finance_c',    label: '5c · Resumo',               phase: 'post' },
+  { key: 'onb_finance_c',    label: '5c · Resumo',               phase: 'post', skippable: true },
   { key: 'onb_push',         label: 'Convite de notificações',   phase: 'post', skippable: true },
   { key: 'onb_done',         label: 'Entrou no app',             phase: 'post' },
 ];

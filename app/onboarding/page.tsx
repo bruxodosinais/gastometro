@@ -50,6 +50,21 @@ import { OnboardingStep5Financeiro } from './_components/OnboardingStep5Financei
 import { OnboardingResumo } from './_components/OnboardingResumo';
 import { OnboardingNotificacoes } from './_components/OnboardingNotificacoes';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { trackOnboarding } from '@/lib/onboarding/track';
+
+// Telemetria: step interno → chave do funil (lib/onboarding/steps.ts). Chave
+// fora do allowlist = 400 na rota e evento perdido em silêncio.
+const TRACK_KEY: Record<number, string> = {
+  0: 'onb_welcome',
+  1: 'onb_income',
+  2: 'onb_recurring',
+  3: 'onb_cards',
+  4: 'onb_goal',
+  5: 'onb_finance_a',
+  6: 'onb_finance_b',
+  7: 'onb_finance_c',
+  8: 'onb_push',
+};
 
 // 5 passos visíveis: renda, contas fixas, cartões, meta, situação financeira.
 // A situação financeira tem 3 sub-etapas (A/B/C) mas conta como 1 passo.
@@ -81,6 +96,13 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>(0);
   const [visible, setVisible] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // View do passo quando ele entra em cena (não no clique do anterior). O
+  // tracker deduplica por carga de página → voltar e avançar não conta 2x.
+  useEffect(() => {
+    const key = TRACK_KEY[step];
+    if (key) trackOnboarding(key);
+  }, [step]);
 
   // Push (step 8). O hook despacha sozinho web=VAPID / nativo=FCM — nada de
   // gate por plataforma aqui. `subscribe()` SÓ é chamado no toque do botão.
@@ -291,6 +313,10 @@ export default function OnboardingPage() {
   }
 
   async function completeOnboarding() {
+    // Fim do funil: entrou no app. Fire-and-forget com keepalive — sobrevive à
+    // navegação que vem logo abaixo.
+    trackOnboarding('onb_done', 'complete');
+
     // Cria o plano mensal consolidando os valores dos passos 1 e 4
     if (savedIncome > 0 || savedSavings > 0) {
       try {
@@ -336,10 +362,18 @@ export default function OnboardingPage() {
     setPushDenied(true);
   }
 
+  // Passo 8 — "agora não": pula o convite de push E entra no app. São dois
+  // eventos: o skip do passo e o complete do funil (dentro de completeOnboarding).
+  async function handleSkipPush() {
+    trackOnboarding('onb_push', 'skip');
+    await completeOnboarding();
+  }
+
   // Tela 0 — pular tudo. Segue indo direto pra home: quem pula tudo aqui está
   // dizendo que quer sair, e pedir permissão sem contexto é o que essa tela
   // existe pra evitar.
   async function handleSkipAll() {
+    trackOnboarding('onb_welcome', 'skip');
     await completeOnboarding();
   }
 
@@ -349,6 +383,8 @@ export default function OnboardingPage() {
   // segue salvo via completeOnboarding. Quem pulou só o financeiro cadastrou o
   // resto — recebe o convite de notificações.
   async function handleSkipFinance() {
+    const key = TRACK_KEY[step];
+    if (key) trackOnboarding(key, 'skip');
     await finishAndMaybeAskPush();
   }
 
@@ -795,7 +831,7 @@ export default function OnboardingPage() {
             saving={saving}
             onBack={goBack}
             onContinue={handleStep1Continue}
-            onSkip={() => goTo(2)}
+            onSkip={() => { trackOnboarding('onb_income', 'skip'); goTo(2); }}
           />
         )}
 
@@ -819,7 +855,7 @@ export default function OnboardingPage() {
             saving={saving}
             onBack={goBack}
             onContinue={handleStep2Continue}
-            onSkip={() => goTo(3)}
+            onSkip={() => { trackOnboarding('onb_recurring', 'skip'); goTo(3); }}
           />
         )}
 
@@ -835,7 +871,7 @@ export default function OnboardingPage() {
             saving={saving}
             onBack={goBack}
             onContinue={handleStep3Continue}
-            onSkip={() => { setUseCredit(false); goTo(4); }}
+            onSkip={() => { trackOnboarding('onb_cards', 'skip'); setUseCredit(false); goTo(4); }}
           />
         )}
 
@@ -849,7 +885,7 @@ export default function OnboardingPage() {
             saving={saving}
             onBack={goBack}
             onContinue={handleStep4Continue}
-            onSkip={() => goTo(5)}
+            onSkip={() => { trackOnboarding('onb_goal', 'skip'); goTo(5); }}
           />
         )}
 
@@ -921,7 +957,7 @@ export default function OnboardingPage() {
             loading={pushLoading}
             denied={pushDenied}
             onEnable={handleEnablePush}
-            onSkip={completeOnboarding}
+            onSkip={handleSkipPush}
           />
         )}
       </div>

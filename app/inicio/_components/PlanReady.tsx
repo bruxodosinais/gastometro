@@ -9,6 +9,8 @@
 // "Incluído" (✓). O bloco de preço/pagamento é o <PricingSlot/> isolado, que só
 // renderiza na web ({!isNativePlatform()}). No v1 ele é um stub (null).
 
+import { useEffect } from 'react';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import type { PresignupMission } from '@/lib/onboarding/presignupMission';
 import { monthsToTarget, formatMonths } from '@/lib/onboarding/reframe';
 import { isNativePlatform } from '@/lib/native';
@@ -49,9 +51,23 @@ export default function PlanReady({
   const months = monthsToTarget(mission.targetAmount, mission.monthlyTarget);
   const painLine = mission.painPoint ? PAIN_LINES[mission.painPoint] : undefined;
 
+  // Telemetria: chegou no payoff. Montagem, fire-and-forget.
+  useEffect(() => {
+    trackOnboarding('plan_ready');
+  }, []);
+
   return (
     <QuizShell
-      footer={<PrimaryBtn onClick={onCreateAccount}>Criar conta grátis</PrimaryBtn>}
+      footer={
+        <PrimaryBtn
+          onClick={() => {
+            trackOnboarding('plan_cta', 'complete');
+            onCreateAccount();
+          }}
+        >
+          Criar conta grátis
+        </PrimaryBtn>
+      }
     >
       <h1 style={{ font: `800 24px/1.25 ${FONT}`, color: INK, margin: '4px 0 0', letterSpacing: '-.4px' }}>
         {mission.userFirstName ? `${mission.userFirstName}, seu plano está pronto 🎉` : 'Seu plano está pronto 🎉'}

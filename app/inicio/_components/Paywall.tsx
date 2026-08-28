@@ -10,8 +10,9 @@
 // NÃO flipa isPro. O backend (webhook RevenueCat) segue fonte de verdade do Pro;
 // esta tela só dispara a compra via StoreKit.
 
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { purchasePackage, restorePurchases, type Offerings } from '@/lib/revenuecat';
+import { trackOnboarding } from '@/lib/onboarding/track';
 import {
   ACCENT, INK, INK_2, INK_3, FONT, formatBRL, QuizShell, PrimaryBtn, GhostBtn,
 } from './ui';
@@ -55,6 +56,11 @@ export default function Paywall({
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
 
+  // Telemetria: viu o paywall. Montagem, fire-and-forget.
+  useEffect(() => {
+    trackOnboarding('paywall_view');
+  }, []);
+
   // Preços numéricos da loja (podem ser null se o produto vier incompleto).
   const monthlyNum = monthly?.pkg.product.price ?? null;
   const annualNum = annual?.pkg.product.price ?? null;
@@ -84,6 +90,7 @@ export default function Paywall({
         setPurchasing(false); // usuário desistiu na folha da loja — fica no paywall
         return;
       }
+      trackOnboarding('paywall_subscribe', 'complete'); // só depois da compra concluída
       onDone(); // sucesso: o webhook confirma o Pro; segue pro cadastro
     } catch {
       setError('Não foi possível concluir a compra. Tente de novo.');
@@ -120,7 +127,14 @@ export default function Paywall({
           <PrimaryBtn onClick={handleSubscribe} disabled={purchasing || !selected}>
             {purchasing ? 'Processando…' : 'Assinar Pro'}
           </PrimaryBtn>
-          <GhostBtn onClick={onDone}>Continuar no grátis</GhostBtn>
+          <GhostBtn
+            onClick={() => {
+              trackOnboarding('paywall_view', 'skip');
+              onDone();
+            }}
+          >
+            Continuar no grátis
+          </GhostBtn>
 
           <p style={{ font: `500 11px/1.5 ${FONT}`, color: INK_3, textAlign: 'center', margin: '10px 0 0' }}>
             {renewalPrice

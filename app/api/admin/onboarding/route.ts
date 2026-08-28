@@ -103,8 +103,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // A queda é medida DENTRO da fase. Em linha reta, o 1º passo pós-cadastro
+  // seria comparado com o último passo pré-cadastro e TODO mundo que nunca criou
+  // conta apareceria como vazamento das boas-vindas. Troca de fase → base zerada,
+  // e o primeiro passo da fase abre sem queda.
   let prevReached: number | null = null;
+  let prevPhase: 'pre' | 'post' | null = null;
   const eventFunnel = ONBOARDING_STEPS.map(def => {
+    if (def.phase !== prevPhase) {
+      prevReached = null;
+      prevPhase = def.phase;
+    }
     const s = stepStats.get(def.key);
     const reached = s?.reached.size ?? 0;
     const dropped = prevReached === null ? 0 : Math.max(0, prevReached - reached);
