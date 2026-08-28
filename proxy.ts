@@ -18,6 +18,9 @@ const NATIVE_API = new Set<string>([
   '/api/export-my-data',
   '/api/feedback',
   '/api/missao/gerar-desafio',
+  // Funil de onboarding: chamada ANTES de existir sessão (carrossel/quiz/paywall).
+  // Precisa estar aqui pra não cair no redirect pra /auth/login sem cookie.
+  '/api/onboarding/track',
   '/api/push/subscribe',
   '/api/push/unsubscribe',
   '/api/reports/weekly-summary',

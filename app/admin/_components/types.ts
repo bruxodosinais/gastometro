@@ -168,8 +168,74 @@ export interface FeedbackItem {
   created_at: string;
 }
 
+// ── Funil de onboarding (/api/admin/onboarding) ────────────────────────────
+export interface OnboardingFunnelStep {
+  key: string;
+  label: string;
+  phase: 'pre' | 'post';
+  skippable: boolean;
+  reached: number;
+  skipped: number;
+  identified: number;
+  droppedFromPrev: number;
+  dropPct: number;
+}
+
+export interface OnboardingStats {
+  cohort: {
+    mode: 'real' | 'all';
+    startDay: string;
+    users: number;
+    legacyExcluded: number;
+    totalInDatabase: number;
+  };
+  events: {
+    available: boolean;
+    since: string | null;
+    total: number;
+    medianMinutesToFinish: number | null;
+    steps: OnboardingFunnelStep[];
+  };
+  derived: {
+    steps: { key: string; label: string; count: number }[];
+  };
+  conversion: {
+    signups: number;
+    payers: number;
+    rate: number;
+    courtesy: number;
+    churned: number;
+    payerList: {
+      user_id: string;
+      email: string;
+      billing_cycle: string | null;
+      store: string | null;
+      since: string | null;
+      daysToPay: number | null;
+    }[];
+  };
+  retention: {
+    returned: number;
+    returnedRate: number;
+    activeLast7: number;
+    activeLast7Rate: number;
+    d1: { hit: number; eligible: number; rate: number };
+    d7: { hit: number; eligible: number; rate: number };
+    d30: { hit: number; eligible: number; rate: number };
+  };
+  daily: { day: string; signups: number; confirmed: number; finished: number; payers: number }[];
+  stuck: {
+    user_id: string;
+    email: string;
+    created_at: string;
+    daysSince: number;
+    confirmed: boolean;
+    reachedStep: string;
+  }[];
+}
+
 export type TabKey =
-  | 'overview' | 'users' | 'activity' | 'feedback'
+  | 'overview' | 'onboarding' | 'users' | 'activity' | 'feedback'
   | 'coupons' | 'notifications' | 'communication';
 
 export type EmailSegment = 'all' | 'free' | 'pro' | 'inactive' | 'never_launched';
@@ -186,6 +252,7 @@ export interface NavTab {
 
 export const NAV_TABS: readonly NavTab[] = [
   { key: 'overview', label: 'Visão Geral' },
+  { key: 'onboarding', label: 'Onboarding', icon: '🚪' },
   { key: 'users', label: 'Usuários' },
   { key: 'activity', label: 'Atividade' },
   { key: 'feedback', label: 'Feedback' },

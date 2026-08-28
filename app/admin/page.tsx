@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { AdminHeader } from './_components/AdminHeader';
 import { AdminOverview } from './_components/AdminOverview';
+import { AdminOnboarding } from './_components/AdminOnboarding';
 import { AdminUsuarios } from './_components/AdminUsuarios';
 import { AdminAtividade } from './_components/AdminAtividade';
 import { AdminFeedback } from './_components/AdminFeedback';
@@ -13,7 +14,7 @@ import { Modal, PlanBadge, Row } from './_components/shared';
 import { fmt } from './_components/utils';
 import type {
   ActivityItem, Coupon, DaySummary, EmailSegment, FeedbackCategory, FeedbackItem,
-  PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
+  OnboardingStats, PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
   TabKey, UserDetail, UserRow,
 } from './_components/types';
 
@@ -21,6 +22,12 @@ export default function AdminPage() {
   const [tab, setTab] = useState<TabKey>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+
+  // Funil de onboarding. `cohort` decide se a leitura inclui as contas
+  // pré-lançamento (testes/beta) ou só os usuários reais — ver lib/cohort.ts.
+  const [onboarding, setOnboarding] = useState<OnboardingStats | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [cohort, setCohort] = useState<'real' | 'all'>('real');
 
   // Feedback
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
@@ -138,6 +145,19 @@ export default function AdminPage() {
   }, [userPage, userSearch, userFilter, userOrder]);
 
   useEffect(() => { if (tab === 'users') fetchUsers(); }, [tab, fetchUsers]);
+
+  /* Fetch funil de onboarding */
+  const fetchOnboarding = useCallback(() => {
+    setOnboardingLoading(true);
+    fetch(`/api/admin/onboarding?cohort=${cohort}`)
+      .then(r => r.json())
+      .then(d => setOnboarding(d?.cohort ? d : null))
+      .catch(() => setOnboarding(null))
+      .finally(() => setOnboardingLoading(false));
+  }, [cohort]);
+
+  // Recarrega ao abrir a aba E ao trocar de coorte (fetchOnboarding muda com ela).
+  useEffect(() => { if (tab === 'onboarding') fetchOnboarding(); }, [tab, fetchOnboarding]);
 
   /* Fetch activity */
   const fetchActivity = useCallback(() => {
@@ -410,6 +430,16 @@ export default function AdminPage() {
             setNeverExpanded={setNeverExpanded}
             riskExpanded={riskExpanded}
             setRiskExpanded={setRiskExpanded}
+          />
+        )}
+
+        {tab === 'onboarding' && (
+          <AdminOnboarding
+            data={onboarding}
+            loading={onboardingLoading}
+            cohort={cohort}
+            setCohort={setCohort}
+            onRefresh={fetchOnboarding}
           />
         )}
 
