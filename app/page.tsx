@@ -323,7 +323,28 @@ export default function LandingPage() {
 }
 
 // ── Botões de download das lojas ────────────────────────────────────────────
+const CAMPAIGN_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+  'gclid', 'fbclid', 'ttclid',
+];
+
+// Repassa os parâmetros de campanha da URL da landing para a Play Store
+// (install referrer), com fallback orgânico quando não há nenhum.
+function buildPlayStoreUrl(search: string): string {
+  const params = new URLSearchParams(search);
+  const referrer =
+    CAMPAIGN_PARAMS.filter((key) => params.get(key))
+      .map((key) => `${key}=${params.get(key)}`)
+      .join('&') || 'utm_source=site&utm_medium=organic';
+  return `${PLAY_STORE_URL}&referrer=${encodeURIComponent(referrer)}`;
+}
+
 function StoreButtons({ center }: { center?: boolean }) {
+  const [playUrl, setPlayUrl] = useState(PLAY_STORE_URL);
+  useEffect(() => {
+    setPlayUrl(buildPlayStoreUrl(window.location.search));
+  }, []);
+
   return (
     <div
       style={{
@@ -334,7 +355,7 @@ function StoreButtons({ center }: { center?: boolean }) {
       }}
     >
       <StoreBadge store="apple" url={APP_STORE_URL} />
-      <StoreBadge store="google" url={PLAY_STORE_URL} />
+      <StoreBadge store="google" url={playUrl} />
     </div>
   );
 }
