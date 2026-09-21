@@ -8,11 +8,11 @@ import { createClient } from '@/lib/supabase/client';
 import { initRevenueCat, loginRevenueCat, syncSubscriptionFromStore } from '@/lib/revenuecat';
 import './landing.css';
 
-// Link da App Store: entra quando o app for APROVADO (env na Vercel). HOJE vazio
-// → o botão vira "Em breve" (desabilitado). NUNCA inventar URL. Google Play fica
-// "Em breve" por ora (Android depois).
+// Links das lojas. URL vazia → o botão vira "Em breve" (desabilitado). NUNCA
+// inventar URL. App Store vem da env na Vercel; a da Play deriva do package id
+// (publicado em 21/09/2026, página conferida no ar antes de entrar aqui).
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? '';
-const PLAY_STORE_URL = '';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=br.com.toorganizado';
 
 const FEATURES: { icon: string; title: string; desc: string }[] = [
   { icon: '🎯', title: 'Missão de Poupança', desc: 'Metas com desafios criados por IA — guardar dinheiro vira conquista, não obrigação.' },
