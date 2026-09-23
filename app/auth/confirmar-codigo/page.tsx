@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { initRevenueCat, loginRevenueCat, syncSubscriptionFromStore } from '@/lib/revenuecat';
 import { trackOnboarding } from '@/lib/onboarding/track';
+import { suggestEmailFix } from '@/lib/emailTypo';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 // Tela de confirmação por CÓDIGO (OTP de 6 dígitos). Usada em AMBAS as
@@ -37,6 +38,7 @@ function ConfirmarCodigoContent() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const emailSuggestion = email ? suggestEmailFix(email) : null;
 
   // Telemetria: chegou na tela do código. Montagem, fire-and-forget.
   useEffect(() => {
@@ -218,6 +220,29 @@ function ConfirmarCodigoContent() {
           abaixo pra ativar sua conta.
         </p>
 
+        {/* Beco sem saída que esta tela tinha: quem digitou o e-mail errado no
+            cadastro ficava esperando um código que nunca chega, sem nenhum
+            caminho de volta. O aviso aparece só quando o domínio parece errado;
+            o link de corrigir fica sempre. */}
+        {emailSuggestion && (
+          <p
+            style={{
+              fontSize: '13px',
+              lineHeight: 1.5,
+              textAlign: 'center',
+              color: 'var(--text-2)',
+              background: 'var(--accent-bg)',
+              border: '1px solid var(--accent-soft)',
+              borderRadius: '10px',
+              padding: '10px 12px',
+              margin: '0 0 20px',
+            }}
+          >
+            Esse endereço parece ter um erro de digitação. Você quis dizer{' '}
+            <strong style={{ color: 'var(--text-1)' }}>{emailSuggestion}</strong>?
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={LABEL}>Código de confirmação</label>
@@ -314,6 +339,14 @@ function ConfirmarCodigoContent() {
                 ? `Reenviar código em ${countdown}s`
                 : 'Reenviar código'}
           </button>
+          <div style={{ marginTop: '10px' }}>
+            <Link
+              href="/auth/cadastro"
+              style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-2)', textDecoration: 'underline' }}
+            >
+              Digitei o e-mail errado
+            </Link>
+          </div>
         </div>
 
         <p

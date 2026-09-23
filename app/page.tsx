@@ -13,6 +13,9 @@ import './landing.css';
 // (publicado em 21/09/2026, página conferida no ar antes de entrar aqui).
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? '';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=br.com.toorganizado';
+// Provider ID da conta na Apple (App Store Connect → App Analytics). Vazio =
+// o link vai sem `pt` e a campanha não é separada no relatório da Apple.
+const APP_STORE_PROVIDER_TOKEN = process.env.NEXT_PUBLIC_APP_STORE_PT ?? '';
 
 const FEATURES: { icon: string; title: string; desc: string }[] = [
   { icon: '🎯', title: 'Missão de Poupança', desc: 'Metas com desafios criados por IA — guardar dinheiro vira conquista, não obrigação.' },
@@ -339,10 +342,27 @@ function buildPlayStoreUrl(search: string): string {
   return `${PLAY_STORE_URL}&referrer=${encodeURIComponent(referrer)}`;
 }
 
+// A Apple NÃO lê utm_*. O App Analytics identifica a origem por `ct` (nome da
+// campanha, até 40 caracteres) e `pt` (Provider ID da conta, achado em
+// App Store Connect → App Analytics → Campanhas). Sem o `pt` o link continua
+// funcionando normalmente; só não aparece separado no relatório da Apple.
+function buildAppStoreUrl(search: string): string {
+  if (!APP_STORE_URL) return APP_STORE_URL;
+  const params = new URLSearchParams(search);
+  const campaign = params.get('utm_campaign') || params.get('utm_source') || 'site-organic';
+  const url = new URL(APP_STORE_URL);
+  url.searchParams.set('ct', campaign.slice(0, 40));
+  if (APP_STORE_PROVIDER_TOKEN) url.searchParams.set('pt', APP_STORE_PROVIDER_TOKEN);
+  url.searchParams.set('mt', '8');
+  return url.toString();
+}
+
 function StoreButtons({ center }: { center?: boolean }) {
   const [playUrl, setPlayUrl] = useState(PLAY_STORE_URL);
+  const [appleUrl, setAppleUrl] = useState(APP_STORE_URL);
   useEffect(() => {
     setPlayUrl(buildPlayStoreUrl(window.location.search));
+    setAppleUrl(buildAppStoreUrl(window.location.search));
   }, []);
 
   return (
@@ -354,7 +374,7 @@ function StoreButtons({ center }: { center?: boolean }) {
         justifyContent: center ? 'center' : 'flex-start',
       }}
     >
-      <StoreBadge store="apple" url={APP_STORE_URL} />
+      <StoreBadge store="apple" url={appleUrl} />
       <StoreBadge store="google" url={playUrl} />
     </div>
   );

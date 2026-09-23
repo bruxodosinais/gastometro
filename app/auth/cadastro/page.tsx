@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getSiteUrl } from '@/lib/site-url';
 import { readLocalPresignup } from '@/lib/onboarding/presignupMission';
 import { trackOnboarding } from '@/lib/onboarding/track';
+import { suggestEmailFix } from '@/lib/emailTypo';
 import { fetchApi } from '@/lib/fetchApi';
 import LoadingButton from '@/components/ui/LoadingButton';
 
@@ -106,6 +107,9 @@ function CadastroContent() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Domínio que parece erro de digitação ("gmail.con"). Só sugere — quem quiser
+  // manter o que digitou é só ignorar e enviar.
+  const emailSuggestion = suggestEmailFix(email);
 
   // Prefill aditivo (nativo): se o quiz salvou um nome no presignup, pré-preenche
   // o Nome. Effect pós-mount p/ não dar hydration mismatch no export estático.
@@ -322,6 +326,28 @@ function CadastroContent() {
                 <EnvelopeIcon />
               </span>
             </div>
+            {emailSuggestion && (
+              <p style={{ margin: '7px 0 0', fontSize: 12, color: 'var(--text-2)' }}>
+                Você quis dizer{' '}
+                <button
+                  type="button"
+                  onClick={() => setEmail(emailSuggestion)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    fontWeight: 800,
+                    color: 'var(--accent)',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {emailSuggestion}
+                </button>
+                ? O código de confirmação vai para esse endereço.
+              </p>
+            )}
           </div>
 
           {/* Senha */}
