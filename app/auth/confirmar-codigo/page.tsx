@@ -128,6 +128,28 @@ function ConfirmarCodigoContent() {
     // Código ACEITO (verifyOtp sem erro): a conta está confirmada.
     trackOnboarding('confirm_ok', 'complete');
 
+    // REGISTRO REAPROVEITADO: se o e-mail já tinha um cadastro nunca confirmado,
+    // o Supabase devolve AQUELE registro e descarta o `full_name` do signUp — a
+    // pessoa entra com o nome (e o `onboarding_completed`) de quem cadastrou
+    // antes. Aconteceu em produção: conta de 12/05 chamada "Anderson" confirmada
+    // em 23/09 por outra pessoa, que viu "Olá, Anderson!" no onboarding.
+    // Só reescreve quando o nome digitado agora é diferente do que está lá.
+    try {
+      const digitado = localStorage.getItem('pending_signup_name')?.trim();
+      const atual = (verifyData.user?.user_metadata as Record<string, unknown> | undefined)?.full_name;
+      if (digitado && digitado !== atual) {
+        await supabase.auth.updateUser({
+          // onboarding_completed do registro velho também não vale para quem
+          // está entrando agora: sem isso o próximo cold start pularia o
+          // onboarding e jogaria a pessoa direto no app.
+          data: { full_name: digitado, onboarding_completed: false },
+        });
+      }
+      localStorage.removeItem('pending_signup_name');
+    } catch {
+      /* localStorage indisponível ou updateUser falhou: não trava a confirmação */
+    }
+
     // Aliasa a compra ANÔNIMA do RevenueCat (feita no paywall pré-cadastro) a
     // ESTA conta e sincroniza a assinatura no backend NA HORA (o alias não
     // dispara webhook). Native-gated e idempotente; no-op na web/sem id. Best-

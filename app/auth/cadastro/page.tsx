@@ -226,6 +226,11 @@ function CadastroContent() {
     }
 
     localStorage.setItem('pending_confirmation_email', email);
+    // Nome DIGITADO AGORA, guardado para a tela do código conferir depois do
+    // verifyOtp. Quando o e-mail já tinha um cadastro NÃO confirmado, o Supabase
+    // reaproveita aquele registro e IGNORA o `full_name` deste signUp — a pessoa
+    // entrava vendo o nome do dono do registro velho ("Olá, Anderson!").
+    localStorage.setItem('pending_signup_name', name.trim());
     // Confirmação por CÓDIGO (OTP) em AMBAS as plataformas. O template de e-mail
     // é SÓ-CÓDIGO (sem link): scanners de e-mail — inclusive o ambiente de
     // revisão da Apple — fazem PRE-FETCH do link {{ .ConfirmationURL }} e
