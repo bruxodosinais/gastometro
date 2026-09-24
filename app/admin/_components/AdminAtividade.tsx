@@ -148,7 +148,17 @@ export function AdminAtividade({
               display: 'grid', gap: 10, marginBottom: 20,
               gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             }}>
-              <DayCard label="Contas criadas" value={t.signups} accent="#4F46E5" />
+              <DayCard
+                label="Contas criadas"
+                value={t.signups}
+                accent="#4F46E5"
+                sub={[
+                  `${t.signupsIos} iOS`,
+                  `${t.signupsAndroid} Android`,
+                  `${t.signupsWeb} site`,
+                  t.signupsUnknown > 0 ? `${t.signupsUnknown} sem registro` : null,
+                ].filter(Boolean).join(' · ')}
+              />
               <DayCard label="E-mails confirmados" value={t.confirmed} />
               <DayCard label="Usuários ativos" value={t.activeUsers} sub="abriram o app" accent="#0F766E" />
               <DayCard label="Lançamentos" value={t.launches} sub={`por ${t.launchUsers} pessoa${t.launchUsers === 1 ? '' : 's'}`} />

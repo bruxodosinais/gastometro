@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
+import { EMPTY_PLATFORM, loadUserPlatforms } from '@/lib/adminPlatform';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient();
@@ -14,12 +15,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { data: { user: targetUser } } = await admin.auth.admin.getUserById(id);
   if (!targetUser) return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
 
-  const [{ data: expenses }, { data: recurring }, { data: cards }, { data: block }] = await Promise.all([
+  const [{ data: expenses }, { data: recurring }, { data: cards }, { data: block }, platforms] = await Promise.all([
     admin.from('expenses').select('id').eq('user_id', id),
     admin.from('recurring_expenses').select('id').eq('user_id', id),
     admin.from('credit_cards').select('id').eq('user_id', id),
     admin.from('user_blocks').select('id').eq('user_id', id).maybeSingle(),
+    loadUserPlatforms(admin),
   ]);
+  const plat = platforms.get(id) ?? EMPTY_PLATFORM;
 
   return NextResponse.json({
     id: targetUser.id,
@@ -31,6 +34,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     has_recurring: (recurring?.length ?? 0) > 0,
     has_credit_card: (cards?.length ?? 0) > 0,
     is_blocked: !!block,
+    app_ios: plat.ios,
+    app_android: plat.android,
+    signup_platform: plat.signup,
   });
 }
 

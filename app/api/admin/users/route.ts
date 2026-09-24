@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
+import { EMPTY_PLATFORM, loadUserPlatforms } from '@/lib/adminPlatform';
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerClient();
@@ -69,8 +70,12 @@ export async function GET(req: NextRequest) {
   const { data: webPush } = await admin.from('push_subscriptions').select('user_id');
   const pushWebSet = new Set(webPush?.map(r => r.user_id) ?? []);
 
+  // Plataforma: push nativo + loja + eventos do funil (app 1.4+). Ver lib/adminPlatform.
+  const platforms = await loadUserPlatforms(admin);
+
   let users = allUsers.map(u => {
     const sub = subMap.get(u.id);
+    const plat = platforms.get(u.id) ?? EMPTY_PLATFORM;
     return {
       id: u.id,
       email: u.email ?? '',
@@ -88,6 +93,9 @@ export async function GET(req: NextRequest) {
       push_ios: pushIosSet.has(u.id),
       push_android: pushAndroidSet.has(u.id),
       push_web: pushWebSet.has(u.id),
+      app_ios: plat.ios,
+      app_android: plat.android,
+      signup_platform: plat.signup,
     };
   });
 
@@ -103,14 +111,12 @@ export async function GET(req: NextRequest) {
   // Push ligado = tem QUALQUER canal (nativo iOS/Android ou web).
   if (filter === 'push_on') users = users.filter(u => u.push_ios || u.push_android || u.push_web);
   if (filter === 'push_off') users = users.filter(u => !u.push_ios && !u.push_android && !u.push_web);
-  // "Usou o app" é inferido de push nativo OU assinatura feita na loja. Quem
-  // instalou e recusou notificação sem assinar NÃO aparece aqui — é o limite
-  // de não gravarmos a plataforma no perfil.
-  if (filter === 'ios') users = users.filter(u => u.push_ios || u.store === 'app_store');
-  if (filter === 'android') users = users.filter(u => u.push_android || u.store === 'play_store');
-  if (filter === 'web_only') {
-    users = users.filter(u => !u.push_ios && !u.push_android && u.store !== 'app_store' && u.store !== 'play_store');
-  }
+  // "Usou o app": push nativo, assinatura na loja OU evento do funil vindo do
+  // app (1.4+). Conta antiga que instalou, recusou push e não assinou continua
+  // caindo em "Só web" — a plataforma dela nunca foi gravada.
+  if (filter === 'ios') users = users.filter(u => u.app_ios);
+  if (filter === 'android') users = users.filter(u => u.app_android);
+  if (filter === 'web_only') users = users.filter(u => !u.app_ios && !u.app_android);
 
   // Ordenação
   users.sort((a, b) => {

@@ -86,6 +86,36 @@ export function PushBadges({
   );
 }
 
+// De onde a pessoa usa o TôOrganizado. iOS/Android = usou o app nativo (push,
+// loja ou evento do funil da 1.4+). "Web" = começou pelo site e nunca apareceu
+// no app. Traço = conta sem registro de plataforma (anterior à 1.4, sem push e
+// sem assinatura).
+export function PlatformBadges({
+  ios,
+  android,
+  signup,
+}: {
+  ios: boolean;
+  android: boolean;
+  signup: 'ios' | 'android' | 'web' | null;
+}) {
+  if (!ios && !android) {
+    return signup === 'web'
+      ? <Chip label="Web" color="#1e40af" bg="#DBEAFE" />
+      : <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+      {ios && <Chip label="iOS" color="#1f2937" bg="#E5E7EB" />}
+      {android && <Chip label="Android" color="#065f46" bg="#D1FAE5" />}
+    </span>
+  );
+}
+
+export function platformLabel(p: 'ios' | 'android' | 'web' | null): string {
+  return p === 'ios' ? 'App iOS' : p === 'android' ? 'App Android' : p === 'web' ? 'Site' : 'Sem registro';
+}
+
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 style={{ fontSize: 18, fontWeight: 800, color: '#111827', margin: '32px 0 16px' }}>

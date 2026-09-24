@@ -1,4 +1,4 @@
-import { Chip, PlanBadge, PushBadges } from './shared';
+import { Chip, PlanBadge, PlatformBadges, PushBadges } from './shared';
 import { btnStyle, fmt, pageBtn } from './utils';
 import type { UserRow } from './types';
 
@@ -76,8 +76,8 @@ export function AdminUsuarios({
             <option value="push_off">Sem push</option>
           </optgroup>
           <optgroup label="Origem">
-            <option value="ios">Usou o app iOS</option>
-            <option value="android">Usou o app Android</option>
+            <option value="ios">App iOS</option>
+            <option value="android">App Android</option>
             <option value="web_only">Só web</option>
           </optgroup>
         </select>
@@ -107,6 +107,7 @@ export function AdminUsuarios({
                   { label: 'Último acesso', hideMobile: true },
                   { label: 'Lançamentos', hideMobile: true },
                   { label: 'Plano', hideMobile: false },
+                  { label: 'Plataforma', hideMobile: true },
                   { label: 'Push', hideMobile: true },
                   { label: 'Status', hideMobile: true },
                   { label: 'Ações', hideMobile: false },
@@ -124,9 +125,9 @@ export function AdminUsuarios({
           </thead>
           <tbody>
             {loadingUsers ? (
-              <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
+              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum usuário encontrado.</td></tr>
+              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum usuário encontrado.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
                 <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#111827', fontWeight: 600, opacity: 1 }}>
@@ -137,6 +138,9 @@ export function AdminUsuarios({
                 <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700, color: '#374151' }}>{u.launches_count}</td>
                 <td style={{ padding: '10px 14px' }}>
                   <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} store={u.store} />
+                </td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px' }}>
+                  <PlatformBadges ios={u.app_ios} android={u.app_android} signup={u.signup_platform} />
                 </td>
                 <td className="admin-user-hide-mobile" style={{ padding: '10px 14px' }}>
                   <PushBadges ios={u.push_ios} android={u.push_android} web={u.push_web} />

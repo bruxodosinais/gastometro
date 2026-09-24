@@ -79,6 +79,12 @@ export interface DayTotals {
   cancels: number;
   pushIos: number;
   pushAndroid: number;
+  /** Contas criadas no dia, por onde começaram o cadastro (funil). */
+  signupsIos: number;
+  signupsAndroid: number;
+  signupsWeb: number;
+  /** Contas do dia sem evento do funil ligado (não dá para saber a plataforma). */
+  signupsUnknown: number;
   feedbacks: number;
 }
 
@@ -136,6 +142,12 @@ export interface UserRow {
   push_android: boolean;
   /** Push web (VAPID) ativo em algum navegador. */
   push_web: boolean;
+  /** Usou o app iOS: push nativo, assinatura na App Store ou evento do funil (1.4+). */
+  app_ios: boolean;
+  /** Usou o app Android: push nativo, assinatura na Play Store ou evento do funil (1.4+). */
+  app_android: boolean;
+  /** Onde começou o cadastro (1º evento do funil). Null = conta sem registro (anterior à 1.4 no app). */
+  signup_platform: 'ios' | 'android' | 'web' | null;
 }
 
 export type UserDetail = UserRow;

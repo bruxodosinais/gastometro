@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
+import { loadUserPlatforms } from '@/lib/adminPlatform';
 
 // Resumo de UM dia do calendário brasileiro: quantas contas nasceram, quantas
 // pessoas usaram o app e o que elas fizeram. Serve para casar um pico de
@@ -61,6 +62,14 @@ export async function GET(req: NextRequest) {
   const signups = allUsers.filter(u => inWindow(u.created_at, startMs, endMs));
   const confirmed = allUsers.filter(u => inWindow(u.email_confirmed_at, startMs, endMs));
 
+  // Por onde cada conta do dia começou (1º evento do funil ligado a ela). Só
+  // o app 1.4+ manda a plataforma; conta sem evento cai em "sem registro".
+  const platforms = await loadUserPlatforms(admin);
+  const signupPlatform = (id: string) => platforms.get(id)?.signup ?? null;
+  const signupsBy = { ios: 0, android: 0, web: 0, unknown: 0 };
+  for (const u of signups) signupsBy[signupPlatform(u.id) ?? 'unknown']++;
+  const PLATFORM_NAME = { ios: 'app iOS', android: 'app Android', web: 'site' } as const;
+
   // Lançamentos REGISTRADOS no dia. Usa `created_at` (quando a pessoa digitou),
   // não `date` (quando o gasto aconteceu) — só o primeiro é uma ação do dia.
   const { data: expenses } = await admin
@@ -118,7 +127,10 @@ export async function GET(req: NextRequest) {
       id: `signup:${u.id}`,
       type: 'signup',
       email: u.email ?? null,
-      description: `${u.email ?? 'usuário'} criou a conta`,
+      description: (() => {
+        const p = signupPlatform(u.id);
+        return `${u.email ?? 'usuário'} criou a conta${p ? ` (${PLATFORM_NAME[p]})` : ''}`;
+      })(),
       created_at: u.created_at,
     });
   }
@@ -171,6 +183,10 @@ export async function GET(req: NextRequest) {
       cancels: cancels.length,
       pushIos,
       pushAndroid,
+      signupsIos: signupsBy.ios,
+      signupsAndroid: signupsBy.android,
+      signupsWeb: signupsBy.web,
+      signupsUnknown: signupsBy.unknown,
       feedbacks: (feedbacks ?? []).length,
     },
     events,

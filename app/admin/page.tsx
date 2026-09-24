@@ -10,7 +10,7 @@ import { AdminFeedback } from './_components/AdminFeedback';
 import { AdminCupons } from './_components/AdminCupons';
 import { AdminNotificacoes } from './_components/AdminNotificacoes';
 import { AdminComunicacao } from './_components/AdminComunicacao';
-import { Modal, PlanBadge, Row } from './_components/shared';
+import { Modal, PlanBadge, Row, platformLabel } from './_components/shared';
 import { fmt } from './_components/utils';
 import type {
   ActivityItem, Coupon, DaySummary, EmailSegment, FeedbackCategory, FeedbackItem,
@@ -567,6 +567,11 @@ export default function AdminPage() {
             <Row label="Tem recorrente" value={detailUser.has_recurring ? 'Sim' : 'Não'} />
             <Row label="Tem cartão" value={detailUser.has_credit_card ? 'Sim' : 'Não'} />
             <Row label="Bloqueado" value={detailUser.is_blocked ? 'Sim' : 'Não'} />
+            <Row label="Começou pelo" value={platformLabel(detailUser.signup_platform ?? null)} />
+            <Row
+              label="Usa o app"
+              value={[detailUser.app_ios && 'iOS', detailUser.app_android && 'Android'].filter(Boolean).join(' e ') || 'Não identificado'}
+            />
           </div>
 
           {/* Plano e Assinatura */}
