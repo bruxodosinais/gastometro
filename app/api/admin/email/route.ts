@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
+import { fetchAll } from '@/lib/adminFetchAll';
 
 type Segment = 'all' | 'free' | 'pro' | 'inactive' | 'never_launched';
 
@@ -37,16 +38,18 @@ export async function POST(req: NextRequest) {
     userIds = allUsers.map(u => u.id);
   } else if (segment === 'inactive') {
     const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const { data: recent } = await admin
-      .from('expenses')
-      .select('user_id')
-      .gte('date', sevenDaysAgo.toISOString().split('T')[0]);
+    const recent = await fetchAll<{ user_id: string }>(
+      (from, to) => admin.from('expenses').select('user_id')
+        .gte('date', sevenDaysAgo.toISOString().split('T')[0]).order('id').range(from, to),
+    );
     const activeSet = new Set(recent?.map(r => r.user_id) ?? []);
     userIds = allUsers
       .filter(u => new Date(u.created_at) < sevenDaysAgo && !activeSet.has(u.id))
       .map(u => u.id);
   } else if (segment === 'never_launched') {
-    const { data: exps } = await admin.from('expenses').select('user_id');
+    const exps = await fetchAll<{ user_id: string }>(
+      (from, to) => admin.from('expenses').select('user_id').order('id').range(from, to),
+    );
     const launched = new Set(exps?.map(e => e.user_id) ?? []);
     userIds = allUsers.filter(u => !launched.has(u.id)).map(u => u.id);
   } else {

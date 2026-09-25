@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
 import { COHORT_START_DAY, cohortStart, parseCohort } from '@/lib/cohort';
+import { fetchAll } from '@/lib/adminFetchAll';
 
 // Painel do funil de onboarding. Devolve QUATRO blocos independentes:
 //
@@ -76,15 +77,22 @@ export async function GET(req: NextRequest) {
   const finishedAt = new Map<string, number>();  // anon_id → ts do onb_done
 
   {
-    let q = admin
-      .from('onboarding_events')
-      .select('anon_id, user_id, step, action, created_at')
-      .order('created_at', { ascending: true })
-      .limit(200000);
-    if (cohort !== 'all') q = q.gte('created_at', start.toISOString());
-    const { data: events, error } = await q;
+    // Paginado: o PostgREST corta em 1000 linhas e o `.limit()` não fura isso.
+    // Ordem crescente + corte = os eventos MAIS RECENTES sumiam. `id` desempata
+    // eventos com o mesmo created_at entre páginas.
+    const events = await fetchAll<{
+      anon_id: string; user_id: string | null; step: string; action: string; created_at: string;
+    }>((from, to) => {
+      let q = admin
+        .from('onboarding_events')
+        .select('anon_id, user_id, step, action, created_at')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
+      if (cohort !== 'all') q = q.gte('created_at', start.toISOString());
+      return q.range(from, to);
+    });
 
-    if (!error && events) {
+    {
       eventsAvailable = events.length > 0;
       eventTotal = events.length;
       eventsSince = events[0]?.created_at ?? null;
@@ -153,10 +161,15 @@ export async function GET(req: NextRequest) {
     admin.from('credit_cards').select('user_id'),
     admin.from('monthly_plans').select('user_id, savings_goal'),
     admin.from('assets').select('user_id'),
-    admin.from('expenses').select('user_id, category, date, created_at'),
+    fetchAll<{ user_id: string; category: string; date: string; created_at: string }>(
+      (from, to) => admin.from('expenses').select('user_id, category, date, created_at').order('id').range(from, to),
+    ).then(data => ({ data })),
     admin.from('savings_missions').select('user_id, status'),
     admin.from('subscriptions').select('user_id, plan, status, billing_cycle, created_at, store'),
-    admin.from('user_activity').select('user_id, active_date'),
+    fetchAll<{ user_id: string; active_date: string }>(
+      (from, to) => admin.from('user_activity').select('user_id, active_date')
+        .order('user_id').order('active_date').range(from, to),
+    ).then(data => ({ data })),
   ]);
 
   const mine = <T extends { user_id: string }>(rows: T[] | null) =>

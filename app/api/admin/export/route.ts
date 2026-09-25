@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { isAllowedWebOrigin } from '@/lib/cors';
+import { fetchAll } from '@/lib/adminFetchAll';
 
 // Origens de desenvolvimento — nunca válidas em produção.
 const DEV_ORIGINS = new Set(['http://localhost:3000', 'http://localhost:3001']);
@@ -41,7 +42,9 @@ export async function GET(req: NextRequest) {
 
   const { data: blocks } = await admin.from('user_blocks').select('user_id');
   const blockedSet = new Set(blocks?.map(b => b.user_id) ?? []);
-  const { data: expenses } = await admin.from('expenses').select('user_id');
+  const expenses = await fetchAll<{ user_id: string }>(
+    (from, to) => admin.from('expenses').select('user_id').order('id').range(from, to),
+  );
   const launchCount: Record<string, number> = {};
   for (const e of (expenses ?? [])) launchCount[e.user_id] = (launchCount[e.user_id] ?? 0) + 1;
   const { data: recurringRows } = await admin.from('recurring_expenses').select('user_id');

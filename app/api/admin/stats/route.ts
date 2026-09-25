@@ -4,6 +4,7 @@ import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { calculateStreak } from '@/lib/streak';
 import { BADGE_DEFINITIONS } from '@/lib/badges';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { fetchAll } from '@/lib/adminFetchAll';
 // Admin/stats roda em escopo global (todos os usuários). Não plumamos
 // custom categories aqui — categorias custom de qualquer usuário caem no
 // fallback 📦. Aceitável: o admin não precisa ver o ícone específico que
@@ -93,9 +94,9 @@ export async function GET() {
   ).length;
 
   // ─── LANÇAMENTOS ──────────────────────────────────────────────
-  const { data: expenses } = await admin
-    .from('expenses')
-    .select('user_id, date, category, type');
+  const expenses = await fetchAll<{ user_id: string; date: string; category: string; type: string }>(
+    (from, to) => admin.from('expenses').select('user_id, date, category, type').order('id').range(from, to),
+  );
   const totalLaunches = expenses?.length ?? 0;
   const avgPerUser = total > 0 ? Math.round((totalLaunches / total) * 10) / 10 : 0;
 

@@ -155,3 +155,29 @@ export function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// Regras responsivas do /admin, compartilhadas pela página principal e pela
+// página de um usuário (/admin/usuario).
+export function AdminResponsiveStyles() {
+  return (
+    <style>{`
+      @media (max-width: 768px) {
+        .admin-sidebar { display: none !important; }
+        .admin-main {
+          margin-left: 0 !important;
+          padding: 72px 16px 20px !important;
+          max-width: 100% !important;
+        }
+        .admin-topbar { display: flex !important; }
+        .admin-drawer { display: flex !important; }
+        .admin-mobile-tabs { display: none !important; }
+        .admin-user-hide-mobile { display: none !important; }
+      }
+      @media (max-width: 640px) {
+        .admin-metric-grid { grid-template-columns: 1fr !important; }
+        .admin-form-grid { grid-template-columns: 1fr !important; }
+        .admin-profile-grid { grid-template-columns: 1fr !important; }
+      }
+    `}</style>
+  );
+}

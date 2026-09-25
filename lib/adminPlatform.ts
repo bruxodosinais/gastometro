@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchAll } from './adminFetchAll';
 
 // De qual plataforma cada usuário veio, para o painel /admin.
 //
@@ -27,30 +28,17 @@ export interface UserPlatform {
   android: boolean;
 }
 
-const PAGE = 1000; // teto padrão de linhas por resposta do PostgREST
-
 const isPlatform = (p: unknown): p is Platform => p === 'ios' || p === 'android' || p === 'web';
 
 type EventRow = { anon_id: string; user_id: string | null; platform: string | null; created_at: string };
 
-async function fetchAllEvents(admin: SupabaseClient): Promise<EventRow[]> {
-  const rows: EventRow[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await admin
+export async function loadUserPlatforms(admin: SupabaseClient): Promise<Map<string, UserPlatform>> {
+  const [events, { data: tokens }, { data: subs }] = await Promise.all([
+    fetchAll<EventRow>((from, to) => admin
       .from('onboarding_events')
       .select('anon_id, user_id, platform, created_at')
       .order('id', { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (error || !data) break; // telemetria nunca derruba o painel
-    rows.push(...(data as EventRow[]));
-    if (data.length < PAGE) break;
-  }
-  return rows;
-}
-
-export async function loadUserPlatforms(admin: SupabaseClient): Promise<Map<string, UserPlatform>> {
-  const [events, { data: tokens }, { data: subs }] = await Promise.all([
-    fetchAllEvents(admin),
+      .range(from, to)),
     admin.from('device_tokens').select('user_id, platform'),
     admin.from('subscriptions').select('user_id, store'),
   ]);

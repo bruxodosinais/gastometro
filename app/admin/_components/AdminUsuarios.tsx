@@ -1,5 +1,6 @@
+import Link from 'next/link';
 import { Chip, PlanBadge, PlatformBadges, PushBadges } from './shared';
-import { btnStyle, fmt, pageBtn } from './utils';
+import { btnStyle, fmt, fmtRelative, pageBtn } from './utils';
 import type { UserRow } from './types';
 
 interface Props {
@@ -16,7 +17,6 @@ interface Props {
   loadingUsers: boolean;
   onFetchUsers: () => void;
   onOpenInvite: () => void;
-  onOpenDetail: (id: string) => void;
   onToggleBlock: (u: UserRow) => void;
   onConfirmDelete: (id: string) => void;
 }
@@ -28,7 +28,7 @@ export function AdminUsuarios({
   userOrder, setUserOrder,
   loadingUsers,
   onFetchUsers, onOpenInvite,
-  onOpenDetail, onToggleBlock, onConfirmDelete,
+  onToggleBlock, onConfirmDelete,
 }: Props) {
   return (
     <>
@@ -50,7 +50,7 @@ export function AdminUsuarios({
       {/* Barra de busca + filtros */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
-          type="text" placeholder="Buscar por e-mail…" value={userSearch}
+          type="text" placeholder="Buscar por e-mail ou nome…" value={userSearch}
           onChange={e => { setUserSearch(e.target.value); setUserPage(1); }}
           style={{
             padding: '10px 14px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
@@ -67,6 +67,10 @@ export function AdminUsuarios({
           <option value="active">Ativos</option>
           <option value="inactive">Inativos</option>
           <option value="blocked">Bloqueados</option>
+          <optgroup label="Coorte">
+            <option value="cohort_real">Só tráfego (usuários reais)</option>
+            <option value="cohort_legacy">Pré-lançamento / testes</option>
+          </optgroup>
           <optgroup label="Plano">
             <option value="pro">Pro</option>
             <option value="free">Free</option>
@@ -86,8 +90,10 @@ export function AdminUsuarios({
           background: 'var(--surface)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
         }}>
           <option value="created_at">Cadastro</option>
-          <option value="last_sign_in_at">Último acesso</option>
+          <option value="last_seen_at">Visto por último</option>
+          <option value="active_days">Dias ativos</option>
           <option value="launches">Lançamentos</option>
+          <option value="last_sign_in_at">Último login</option>
         </select>
         <button onClick={onFetchUsers} style={{
           padding: '10px 14px', background: 'var(--accent-bg)', color: 'var(--accent)', border: 'none',
@@ -104,7 +110,8 @@ export function AdminUsuarios({
                 [
                   { label: 'E-mail', hideMobile: false },
                   { label: 'Cadastro', hideMobile: true },
-                  { label: 'Último acesso', hideMobile: true },
+                  { label: 'Visto por último', hideMobile: true },
+                  { label: 'Dias ativos', hideMobile: true },
                   { label: 'Lançamentos', hideMobile: true },
                   { label: 'Plano', hideMobile: false },
                   { label: 'Plataforma', hideMobile: true },
@@ -125,16 +132,23 @@ export function AdminUsuarios({
           </thead>
           <tbody>
             {loadingUsers ? (
-              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
+              <tr><td colSpan={10} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Carregando…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum usuário encontrado.</td></tr>
+              <tr><td colSpan={10} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>Nenhum usuário encontrado.</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                <td style={{ padding: '10px 14px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#111827', fontWeight: 600, opacity: 1 }}>
-                  {u.email}
+                <td style={{ padding: '10px 14px', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Link href={`/admin/usuario?id=${u.id}`} style={{ color: '#111827', fontWeight: 600, textDecoration: 'none' }}>
+                    {u.email}
+                  </Link>
+                  <div style={{ fontSize: 12, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {u.name || '—'}
+                    {!u.real_cohort && <span title="Conta de antes do tráfego pago (teste/beta)"> · pré-lançamento</span>}
+                  </div>
                 </td>
                 <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
-                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmt(u.last_sign_in_at)}</td>
+                <td className="admin-user-hide-mobile" title={u.last_seen_at ?? undefined} style={{ padding: '10px 14px', color: '#374151', whiteSpace: 'nowrap' }}>{fmtRelative(u.last_seen_at)}</td>
+                <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700, color: '#374151' }}>{u.active_days}</td>
                 <td className="admin-user-hide-mobile" style={{ padding: '10px 14px', fontWeight: 700, color: '#374151' }}>{u.launches_count}</td>
                 <td style={{ padding: '10px 14px' }}>
                   <PlanBadge plan={u.plan} billingCycle={u.billing_cycle} store={u.store} />
@@ -154,7 +168,7 @@ export function AdminUsuarios({
                   }
                 </td>
                 <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                  <button onClick={() => onOpenDetail(u.id)} style={btnStyle}>Detalhes</button>
+                  <Link href={`/admin/usuario?id=${u.id}`} style={{ ...btnStyle, textDecoration: 'none' }}>Ver perfil</Link>
                   <button onClick={() => onToggleBlock(u)} style={{ ...btnStyle, color: u.is_blocked ? 'var(--green)' : 'var(--yellow-text)' }}>
                     {u.is_blocked ? 'Desbloquear' : 'Bloquear'}
                   </button>

@@ -10,16 +10,29 @@ import { AdminFeedback } from './_components/AdminFeedback';
 import { AdminCupons } from './_components/AdminCupons';
 import { AdminNotificacoes } from './_components/AdminNotificacoes';
 import { AdminComunicacao } from './_components/AdminComunicacao';
-import { Modal, PlanBadge, Row, platformLabel } from './_components/shared';
-import { fmt } from './_components/utils';
+import { AdminResponsiveStyles, Modal } from './_components/shared';
 import type {
   ActivityItem, Coupon, DaySummary, EmailSegment, FeedbackCategory, FeedbackItem,
-  OnboardingStats, PushHistoryItem, PushTarget, Stats, StatusMessage, Subscription,
-  TabKey, UserDetail, UserRow,
+  OnboardingStats, PushHistoryItem, PushTarget, Stats, StatusMessage,
+  TabKey, UserRow,
 } from './_components/types';
+import { NAV_TABS } from './_components/types';
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<TabKey>('overview');
+  const [tab, setTabState] = useState<TabKey>('overview');
+
+  // A aba vive na URL (?tab=users) para que o "voltar" da página de um usuário
+  // (/admin/usuario?id=…) caia de novo na lista, e não na Visão Geral.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t && NAV_TABS.some(n => n.key === t)) setTabState(t as TabKey);
+  }, []);
+  const setTab = useCallback((t: TabKey) => {
+    setTabState(t);
+    const url = new URL(window.location.href);
+    if (t === 'overview') url.searchParams.delete('tab'); else url.searchParams.set('tab', t);
+    window.history.replaceState(null, '', url);
+  }, []);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -45,23 +58,12 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Modals
-  const [detailUser, setDetailUser] = useState<UserDetail | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMsg, setInviteMsg] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
-  // Plano e Assinatura
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [subLoading, setSubLoading] = useState(false);
-  const [subMsg, setSubMsg] = useState<StatusMessage | null>(null);
-  const [grantOpen, setGrantOpen] = useState(false);
-  const [grantDays, setGrantDays] = useState(30);
-  const [grantLoading, setGrantLoading] = useState(false);
-  const [confirmRevoke, setConfirmRevoke] = useState(false);
-  const [revokeLoading, setRevokeLoading] = useState(false);
 
   // Churn expandir
   const [neverExpanded, setNeverExpanded] = useState(false);
@@ -315,87 +317,14 @@ export default function AdminPage() {
     await fetch(`/api/admin/users/${u.id}/block`, { method });
     showToast(u.is_blocked ? 'Usuário desbloqueado.' : 'Usuário bloqueado.');
     fetchUsers();
-    if (detailUser?.id === u.id) setDetailUser({ ...detailUser, is_blocked: !u.is_blocked });
   }
 
   /* Delete user */
   async function deleteUser(id: string) {
     await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
     setConfirmDelete(null);
-    setDetailUser(null);
     showToast('Usuário excluído.');
     fetchUsers();
-  }
-
-  /* Open detail */
-  async function openDetail(id: string) {
-    setSubscription(null);
-    setSubMsg(null);
-    const r = await fetch(`/api/admin/users/${id}`);
-    const d = await r.json();
-    setDetailUser(d);
-    loadSubscription(id);
-  }
-
-  async function loadSubscription(id: string) {
-    setSubLoading(true);
-    try {
-      const r = await fetch(`/api/admin/users/${id}/subscription`);
-      const d = await r.json();
-      setSubscription(d.subscription ?? null);
-    } catch {
-      setSubscription(null);
-    } finally {
-      setSubLoading(false);
-    }
-  }
-
-  async function grantPro() {
-    if (!detailUser) return;
-    setGrantLoading(true);
-    setSubMsg(null);
-    try {
-      const r = await fetch(`/api/admin/users/${detailUser.id}/subscription`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ days: grantDays }),
-      });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        setSubMsg({ kind: 'success', text: `Pro concedido por ${grantDays} dia(s).` });
-        setGrantOpen(false);
-        await loadSubscription(detailUser.id);
-        fetchUsers();
-      } else {
-        setSubMsg({ kind: 'error', text: d.error ?? 'Erro ao conceder Pro.' });
-      }
-    } catch {
-      setSubMsg({ kind: 'error', text: 'Erro ao conceder Pro.' });
-    } finally {
-      setGrantLoading(false);
-    }
-  }
-
-  async function revokePro() {
-    if (!detailUser) return;
-    setRevokeLoading(true);
-    setSubMsg(null);
-    try {
-      const r = await fetch(`/api/admin/users/${detailUser.id}/subscription`, { method: 'DELETE' });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        setSubMsg({ kind: 'success', text: 'Pro revogado.' });
-        setConfirmRevoke(false);
-        await loadSubscription(detailUser.id);
-        fetchUsers();
-      } else {
-        setSubMsg({ kind: 'error', text: d.error ?? 'Erro ao revogar Pro.' });
-      }
-    } catch {
-      setSubMsg({ kind: 'error', text: 'Erro ao revogar Pro.' });
-    } finally {
-      setRevokeLoading(false);
-    }
   }
 
   /* Send invite */
@@ -458,7 +387,6 @@ export default function AdminPage() {
             loadingUsers={loadingUsers}
             onFetchUsers={fetchUsers}
             onOpenInvite={() => setInviteOpen(true)}
-            onOpenDetail={openDetail}
             onToggleBlock={toggleBlock}
             onConfirmDelete={setConfirmDelete}
           />
@@ -554,100 +482,6 @@ export default function AdminPage() {
         )}
       </main>
 
-      {/* ── Modal: Detalhes do usuário ── */}
-      {detailUser && (
-        <Modal onClose={() => setDetailUser(null)}>
-          <h2 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: 18, color: '#111827' }}>Detalhes do usuário</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Row label="E-mail" value={detailUser.email} />
-            <Row label="Cadastro" value={fmt(detailUser.created_at)} />
-            <Row label="Último acesso" value={fmt(detailUser.last_sign_in_at)} />
-            <Row label="E-mail confirmado" value={detailUser.email_confirmed_at ? fmt(detailUser.email_confirmed_at) : 'Não'} />
-            <Row label="Lançamentos" value={String(detailUser.launches_count)} />
-            <Row label="Tem recorrente" value={detailUser.has_recurring ? 'Sim' : 'Não'} />
-            <Row label="Tem cartão" value={detailUser.has_credit_card ? 'Sim' : 'Não'} />
-            <Row label="Bloqueado" value={detailUser.is_blocked ? 'Sim' : 'Não'} />
-            <Row label="Começou pelo" value={platformLabel(detailUser.signup_platform ?? null)} />
-            <Row
-              label="Usa o app"
-              value={[detailUser.app_ios && 'iOS', detailUser.app_android && 'Android'].filter(Boolean).join(' e ') || 'Não identificado'}
-            />
-          </div>
-
-          {/* Plano e Assinatura */}
-          <h3 style={{ margin: '24px 0 12px', fontWeight: 800, fontSize: 15, color: '#111827' }}>Plano e Assinatura</h3>
-          {subLoading ? (
-            <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>Carregando assinatura…</p>
-          ) : subscription ? (
-            <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border-2)', paddingBottom: 8 }}>
-                  <span style={{ color: '#374151' }}>Plano atual</span>
-                  <PlanBadge plan={subscription.plan} billingCycle={subscription.billing_cycle} store={subscription.store} />
-                </div>
-                <Row label="Status" value={subscription.status} />
-                <Row label="Ciclo de cobrança" value={subscription.billing_cycle ?? '—'} />
-                <Row label="Vence em" value={fmt(subscription.current_period_end)} />
-                <Row
-                  label="Origem"
-                  value={
-                    subscription.store === 'app_store' ? 'App Store (iOS)'
-                      : subscription.store === 'play_store' ? 'Play Store (Android)'
-                        : subscription.plan === 'pro' ? '—' : '—'
-                  }
-                />
-              </div>
-
-              {subMsg && (
-                <p style={{
-                  fontSize: 13, margin: '12px 0 0',
-                  color: subMsg.kind === 'success' ? 'var(--green)' : 'var(--red)',
-                }}>{subMsg.text}</p>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {subscription.plan === 'free' && (
-                  <button onClick={() => { setGrantDays(30); setSubMsg(null); setGrantOpen(true); }} style={{
-                    padding: '10px 18px', background: '#FFF4CC', color: '#7a5d00', border: '1px solid #f0d97a',
-                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-                  }}>
-                    Conceder Pro
-                  </button>
-                )}
-                {subscription.plan === 'pro' && subscription.billing_cycle === 'manual' && (
-                  <button onClick={() => { setSubMsg(null); setConfirmRevoke(true); }} style={{
-                    padding: '10px 18px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none',
-                    borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-                  }}>
-                    Revogar Pro
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>Sem dados de assinatura.</p>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
-            <button onClick={() => toggleBlock(detailUser)} style={{
-              padding: '10px 18px', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)',
-              cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, background: 'var(--surface)',
-              color: detailUser.is_blocked ? 'var(--green)' : 'var(--yellow-text)',
-            }}>
-              {detailUser.is_blocked ? 'Desbloquear' : 'Bloquear'}
-            </button>
-            <button onClick={() => setConfirmDelete(detailUser.id)} style={{
-              padding: '10px 18px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-            }}>Excluir conta</button>
-            <button onClick={() => setDetailUser(null)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, marginLeft: 'auto',
-            }}>Fechar</button>
-          </div>
-        </Modal>
-      )}
-
       {/* ── Modal: Convidar usuário ── */}
       {inviteOpen && (
         <Modal onClose={() => { setInviteOpen(false); setInviteMsg(''); }}>
@@ -707,59 +541,6 @@ export default function AdminPage() {
         </Modal>
       )}
 
-      {/* ── Modal: Conceder Pro ── */}
-      {grantOpen && detailUser && (
-        <Modal onClose={() => setGrantOpen(false)}>
-          <h2 style={{ margin: '0 0 12px', fontWeight: 800, fontSize: 18, color: '#111827' }}>Conceder Pro</h2>
-          <p style={{ color: '#374151', fontSize: 14, margin: '0 0 16px' }}>
-            Conceder plano Pro manualmente para <strong>{detailUser.email}</strong>.
-          </p>
-          <label style={{ fontSize: 13, fontWeight: 700, display: 'block', color: '#374151' }}>
-            Duração em dias
-            <input
-              type="number" min={1} value={grantDays}
-              onChange={e => setGrantDays(Math.max(1, parseInt(e.target.value) || 1))}
-              style={{ display: 'block', marginTop: 4, width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: 14 }}
-            />
-          </label>
-          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-            <button onClick={grantPro} disabled={grantLoading} style={{
-              padding: '10px 18px', background: 'var(--accent)', color: '#fff', border: 'none',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-              opacity: grantLoading ? 0.6 : 1,
-            }}>
-              {grantLoading ? 'Concedendo…' : 'Confirmar'}
-            </button>
-            <button onClick={() => setGrantOpen(false)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-            }}>Cancelar</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Modal: Confirmar revogação Pro ── */}
-      {confirmRevoke && detailUser && (
-        <Modal onClose={() => setConfirmRevoke(false)}>
-          <h2 style={{ margin: '0 0 12px', fontWeight: 900, fontSize: 18, color: 'var(--red)' }}>Revogar Pro</h2>
-          <p style={{ color: '#374151', fontSize: 14, margin: '0 0 20px' }}>
-            Tem certeza que deseja revogar o plano Pro de <strong>{detailUser.email}</strong>?
-            O usuário voltará para o plano Free imediatamente.
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={revokePro} disabled={revokeLoading} style={{
-              padding: '10px 18px', background: 'var(--red)', color: '#fff', border: 'none',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-              opacity: revokeLoading ? 0.6 : 1,
-            }}>{revokeLoading ? 'Revogando…' : 'Sim, revogar'}</button>
-            <button onClick={() => setConfirmRevoke(false)} style={{
-              padding: '10px 18px', background: 'var(--surface)', color: '#374151', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14,
-            }}>Cancelar</button>
-          </div>
-        </Modal>
-      )}
-
       {/* Toast */}
       {toast && (
         <div style={{
@@ -771,25 +552,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* CSS responsive */}
-      <style>{`
-        @media (max-width: 768px) {
-          .admin-sidebar { display: none !important; }
-          .admin-main {
-            margin-left: 0 !important;
-            padding: 72px 16px 20px !important;
-            max-width: 100% !important;
-          }
-          .admin-topbar { display: flex !important; }
-          .admin-drawer { display: flex !important; }
-          .admin-mobile-tabs { display: none !important; }
-          .admin-user-hide-mobile { display: none !important; }
-        }
-        @media (max-width: 640px) {
-          .admin-metric-grid { grid-template-columns: 1fr !important; }
-          .admin-form-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
+      <AdminResponsiveStyles />
     </div>
   );
 }

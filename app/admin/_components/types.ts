@@ -129,6 +129,13 @@ export interface PushHistoryItem {
 
 export interface UserRow {
   id: string; email: string; created_at: string;
+  name: string | null;
+  /** Mais recente entre acesso (user_activity), lançamento e login. */
+  last_seen_at: string | null;
+  /** Dias distintos com acesso ou lançamento. */
+  active_days: number;
+  /** Conta do tráfego (true) ou pré-lançamento/teste. Ver lib/cohort. */
+  real_cohort: boolean;
   last_sign_in_at: string | null; email_confirmed_at: string | null;
   launches_count: number; has_recurring: boolean; has_credit_card: boolean;
   is_blocked: boolean;

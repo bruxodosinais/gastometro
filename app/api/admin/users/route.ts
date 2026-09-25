@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { EMPTY_PLATFORM, loadUserPlatforms } from '@/lib/adminPlatform';
+import { isRealUser } from '@/lib/cohort';
+import { fetchAll } from '@/lib/adminFetchAll';
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerClient();
@@ -24,11 +26,35 @@ export async function GET(req: NextRequest) {
   const blockedSet = new Set(blocks?.map(b => b.user_id) ?? []);
 
   // Lançamentos por usuário
-  const { data: expenses } = await admin.from('expenses').select('user_id');
+  const expenses = await fetchAll<{ user_id: string; created_at: string }>(
+    (from, to) => admin.from('expenses').select('user_id, created_at').order('id').range(from, to),
+  );
   const launchCount: Record<string, number> = {};
-  for (const e of (expenses ?? [])) {
+  // "Visto por último" e dias ativos. `last_sign_in_at` é o último LOGIN — com a
+  // sessão salva no app ele quase não muda, então não diz se a pessoa ainda usa.
+  // Vale o mais recente entre acesso (user_activity), lançamento e login.
+  const lastSeenTs = new Map<string, number>();
+  const activeDays = new Map<string, Set<string>>();
+  const seen = (userId: string, ts: number, day: string) => {
+    if (ts > (lastSeenTs.get(userId) ?? 0)) lastSeenTs.set(userId, ts);
+    let set = activeDays.get(userId);
+    if (!set) activeDays.set(userId, (set = new Set()));
+    set.add(day);
+  };
+  for (const e of expenses) {
     launchCount[e.user_id] = (launchCount[e.user_id] ?? 0) + 1;
+    const ts = new Date(e.created_at).getTime();
+    seen(e.user_id, ts, new Date(ts - 3 * 60 * 60 * 1000).toISOString().slice(0, 10));
   }
+  const activity = await fetchAll<{ user_id: string; active_date: string }>(
+    (from, to) => admin.from('user_activity').select('user_id, active_date')
+      .order('user_id').order('active_date').range(from, to),
+  );
+  // active_date já é o dia de Brasília; meio-dia local evita virar o dia.
+  for (const a of activity) seen(a.user_id, Date.parse(`${a.active_date}T12:00:00-03:00`), a.active_date);
+
+  const { data: profiles } = await admin.from('profiles').select('id, name');
+  const nameOf = new Map((profiles ?? []).map(p => [p.id as string, (p.name as string | null) ?? null]));
 
   // Recorrentes e cartões
   const { data: recurringRows } = await admin.from('recurring_expenses').select('user_id');
@@ -37,7 +63,9 @@ export async function GET(req: NextRequest) {
   const cardSet = new Set(cardRows?.map(r => r.user_id) ?? []);
 
   const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const { data: recentExpenses } = await admin.from('expenses').select('user_id, date').gte('date', sevenDaysAgo.toISOString().split('T')[0]);
+  const recentExpenses = await fetchAll<{ user_id: string }>(
+    (from, to) => admin.from('expenses').select('user_id').gte('date', sevenDaysAgo.toISOString().split('T')[0]).order('id').range(from, to),
+  );
   const activeSet = new Set(recentExpenses?.map(e => e.user_id) ?? []);
 
   // Assinaturas. `store` ('app_store' | 'play_store') é gravado pelo webhook do
@@ -76,10 +104,16 @@ export async function GET(req: NextRequest) {
   let users = allUsers.map(u => {
     const sub = subMap.get(u.id);
     const plat = platforms.get(u.id) ?? EMPTY_PLATFORM;
+    const loginTs = u.last_sign_in_at ? new Date(u.last_sign_in_at).getTime() : 0;
+    const seenTs = Math.max(lastSeenTs.get(u.id) ?? 0, loginTs);
     return {
       id: u.id,
       email: u.email ?? '',
+      name: nameOf.get(u.id) ?? (u.user_metadata?.full_name as string | undefined) ?? null,
       created_at: u.created_at,
+      last_seen_at: seenTs > 0 ? new Date(seenTs).toISOString() : null,
+      active_days: activeDays.get(u.id)?.size ?? 0,
+      real_cohort: isRealUser(u.created_at),
       last_sign_in_at: u.last_sign_in_at ?? null,
       email_confirmed_at: u.email_confirmed_at ?? null,
       launches_count: launchCount[u.id] ?? 0,
@@ -100,7 +134,12 @@ export async function GET(req: NextRequest) {
   });
 
   // Filtros
-  if (search) users = users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()));
+  if (search) {
+    const q = search.toLowerCase();
+    users = users.filter(u => u.email.toLowerCase().includes(q) || (u.name ?? '').toLowerCase().includes(q));
+  }
+  if (filter === 'cohort_real') users = users.filter(u => u.real_cohort);
+  if (filter === 'cohort_legacy') users = users.filter(u => !u.real_cohort);
   if (filter === 'confirmed') users = users.filter(u => u.email_confirmed_at);
   if (filter === 'unconfirmed') users = users.filter(u => !u.email_confirmed_at);
   if (filter === 'active') users = users.filter(u => u.is_active);
@@ -121,6 +160,10 @@ export async function GET(req: NextRequest) {
   // Ordenação
   users.sort((a, b) => {
     if (orderBy === 'launches') return b.launches_count - a.launches_count;
+    if (orderBy === 'active_days') return b.active_days - a.active_days;
+    if (orderBy === 'last_seen_at') {
+      return new Date(b.last_seen_at ?? 0).getTime() - new Date(a.last_seen_at ?? 0).getTime();
+    }
     if (orderBy === 'last_sign_in_at') {
       return new Date(b.last_sign_in_at ?? 0).getTime() - new Date(a.last_sign_in_at ?? 0).getTime();
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient, isAdmin } from '@/lib/supabase/admin';
 import { loadUserPlatforms } from '@/lib/adminPlatform';
+import { fetchAll } from '@/lib/adminFetchAll';
 
 // Resumo de UM dia do calendário brasileiro: quantas contas nasceram, quantas
 // pessoas usaram o app e o que elas fizeram. Serve para casar um pico de
@@ -72,11 +73,15 @@ export async function GET(req: NextRequest) {
 
   // Lançamentos REGISTRADOS no dia. Usa `created_at` (quando a pessoa digitou),
   // não `date` (quando o gasto aconteceu) — só o primeiro é uma ação do dia.
-  const { data: expenses } = await admin
-    .from('expenses')
-    .select('user_id, created_at, type, amount')
-    .gte('created_at', startUtc)
-    .lt('created_at', endUtc);
+  const expenses = await fetchAll<{ user_id: string; created_at: string; type: string; amount: number }>(
+    (from, to) => admin
+      .from('expenses')
+      .select('user_id, created_at, type, amount')
+      .gte('created_at', startUtc)
+      .lt('created_at', endUtc)
+      .order('id')
+      .range(from, to),
+  );
   const launchUsers = new Set((expenses ?? []).map(e => e.user_id));
 
   // Acessos: quem abriu o app nesse dia (base do streak). Comparação direta
