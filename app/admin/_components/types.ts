@@ -1,4 +1,6 @@
 export interface Stats {
+  /** A Visão Geral só conta usuários reais (lib/cohort). */
+  cohort?: { startDay: string; users: number; legacyExcluded: number };
   users: {
     total: number; confirmed: number; unconfirmed: number;
     today: number; thisWeek: number; thisMonth: number;

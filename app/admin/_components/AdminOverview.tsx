@@ -52,9 +52,15 @@ export function AdminOverview({
 
   return (
     <>
-      <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 16px', color: C.text }}>
+      <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 6px', color: C.text }}>
         Dashboard
       </h1>
+      {stats?.cohort && (
+        <p style={{ fontSize: 13, color: C.text2, margin: '0 0 16px' }}>
+          Só usuários reais: {stats.cohort.users} contas criadas desde {fmt(`${stats.cohort.startDay}T12:00:00-03:00`)}.
+          {' '}{stats.cohort.legacyExcluded} contas de teste/pré-lançamento ficam de fora (continuam na aba Usuários).
+        </p>
+      )}
 
       <SubTabsNav subTab={subTab} setSubTab={setSubTab} />
 

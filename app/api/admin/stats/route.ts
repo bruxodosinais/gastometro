@@ -5,6 +5,7 @@ import { calculateStreak } from '@/lib/streak';
 import { BADGE_DEFINITIONS } from '@/lib/badges';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
 import { fetchAll } from '@/lib/adminFetchAll';
+import { COHORT_START_DAY, isRealUser } from '@/lib/cohort';
 // Admin/stats roda em escopo global (todos os usuários). Não plumamos
 // custom categories aqui — categorias custom de qualquer usuário caem no
 // fallback 📦. Aceitável: o admin não precisa ver o ícone específico que
@@ -65,10 +66,18 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ perPage: 10000 });
+  const { data: { users: everyUser } } = await admin.auth.admin.listUsers({ perPage: 10000 });
   const userEmailMap = new Map<string, string>(
-    allUsers.map(u => [u.id, u.email ?? '—']),
+    everyUser.map(u => [u.id, u.email ?? '—']),
   );
+
+  // A Visão Geral mostra SÓ usuários reais (cadastro a partir do início do
+  // tráfego pago). As contas de antes — testes, beta, Pro cortesia/cupom e a
+  // assinatura de teste da Play — distorciam contas, conversão e MRR. Nada é
+  // apagado; o legado segue na aba Usuários (filtro de coorte). Ver lib/cohort.
+  const allUsers = everyUser.filter(u => isRealUser(u.created_at));
+  const realIds = new Set(allUsers.map(u => u.id));
+  const isReal = (r: { user_id: string }) => realIds.has(r.user_id);
 
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
@@ -96,7 +105,7 @@ export async function GET() {
   // ─── LANÇAMENTOS ──────────────────────────────────────────────
   const expenses = await fetchAll<{ user_id: string; date: string; category: string; type: string }>(
     (from, to) => admin.from('expenses').select('user_id, date, category, type').order('id').range(from, to),
-  );
+  ).then(rows => rows.filter(isReal));
   const totalLaunches = expenses?.length ?? 0;
   const avgPerUser = total > 0 ? Math.round((totalLaunches / total) * 10) / 10 : 0;
 
@@ -162,15 +171,17 @@ export async function GET() {
   }
 
   // ─── RECORRENTES / CARTÃO / CSV ───────────────────────────────
-  const { data: recurringRows } = await admin.from('recurring_expenses').select('user_id');
+  const { data: recurringAll } = await admin.from('recurring_expenses').select('user_id');
+  const recurringRows = (recurringAll ?? []).filter(isReal);
   const withRecurring = new Set(recurringRows?.map(r => r.user_id) ?? []).size;
 
-  const { data: cardRows } = await admin.from('credit_cards').select('user_id');
+  const { data: cardAll } = await admin.from('credit_cards').select('user_id');
+  const cardRows = (cardAll ?? []).filter(isReal);
   const withCreditCard = new Set(cardRows?.map(r => r.user_id) ?? []).size;
   const totalCards = cardRows?.length ?? 0;
 
   const { data: csvRows } = await admin.from('expenses').select('user_id').eq('source', 'csv');
-  const withCSVImport = new Set(csvRows?.map(r => r.user_id) ?? []).size;
+  const withCSVImport = new Set((csvRows ?? []).filter(isReal).map(r => r.user_id)).size;
 
   // Usuários sem lançamentos / em risco (proxy legado)
   const usersWithLaunches = new Set(userExpenses.keys());
@@ -188,7 +199,7 @@ export async function GET() {
     .from('subscriptions')
     .select('user_id, plan, status, billing_cycle, updated_at, created_at, current_period_end');
 
-  const subsArr = subs ?? [];
+  const subsArr = (subs ?? []).filter(isReal);
   const proActive = subsArr.filter(s => s.plan === 'pro' && s.status === 'active');
   const proActiveWithCycle = proActive.map(s => ({
     ...s,
@@ -252,10 +263,11 @@ export async function GET() {
   let missionAvgProgress = 0;
   let userIdsWithActiveMission = new Set<string>();
   try {
-    const { data: activeMissions } = await admin
+    const { data: missionRows } = await admin
       .from('savings_missions')
       .select('id, user_id, target_amount')
       .eq('status', 'active');
+    const activeMissions = (missionRows ?? []).filter(isReal);
     if (activeMissions && activeMissions.length > 0) {
       missionActiveCount = activeMissions.length;
       userIdsWithActiveMission = new Set(activeMissions.map(m => m.user_id));
@@ -287,10 +299,10 @@ export async function GET() {
   try {
     const { data: badges } = await admin
       .from('mission_badges')
-      .select('badge_key');
+      .select('badge_key, user_id');
     if (badges) {
       const badgeCount = new Map<string, number>();
-      for (const b of badges) {
+      for (const b of badges.filter(isReal)) {
         const k = b.badge_key as string;
         badgeCount.set(k, (badgeCount.get(k) ?? 0) + 1);
       }
@@ -339,6 +351,11 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    cohort: {
+      startDay: COHORT_START_DAY,
+      users: allUsers.length,
+      legacyExcluded: everyUser.length - allUsers.length,
+    },
     users: {
       total, confirmed, unconfirmed, today, thisWeek, thisMonth,
       completedOnboarding, skippedOnboarding,
